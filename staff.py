@@ -29,60 +29,68 @@ class StaffTask:
   STAFF_SPACE_DY = 10
   STAFF_THICK_DY = 5
 
-  # 2-tuple (distance, thickness)
-  def staff_spacing(self, arr):
-    # Histograms of white band size (distance) and black band size (thickness)
-    dists = np.zeros(arr.shape[0] + 1, dtype=int)
-    thicks = np.zeros(arr.shape[0] + 1, dtype=int)
-    for c in arr.transpose():
-      isBlack = False
-      run = 0
-      for pixel in c:
-        if bool(pixel) != isBlack:
-          if isBlack == True:
-            thicks[run] += 1
-          else:
-            dists[run] += 1
-          run = 0
-          isBlack = bool(pixel)
-        else:
-          run += 1
-    return (np.argmax(dists), np.argmax(thicks))
+  # Store column runlength encoding
+  def get_runlength_encoding(self):
+    # Lists of per-column runs
+    runs = [] # column -> ndarray of rows of (col, start_ind, length, is_dark)
+    for col_num, col in enumerate(self.im.T):
+      # Position of every last pixel in its run
+      # Intentionally do not include first or last run
+      pos, = np.diff(col).nonzero()
+      lengths = np.diff(pos)
+      col_runs = np.zeros((lengths.shape[0], 4), dtype=int)
+      col_runs[:,0] = col_num
+      col_runs[:,1] = pos[:-1] + 1
+      col_runs[:,2] = lengths
+      col_runs[:,3] = (col[pos[:-1] + 1] == 1)
+      runs.append(col_runs)
+    self.col_runs = np.concatenate(runs)
+
+  def get_spacing(self):
+    dark_cols = np.array(self.col_runs[:,3], dtype=bool)
+
+    # Histogram of light lengths (space between staff lines)
+    dists = np.bincount(self.col_runs[~dark_cols, 2])
+    # Histogram of dark lengths (thickness of staff lines)
+    thicks = np.bincount(self.col_runs[dark_cols, 2])
+
+    self.staff_space = np.argmax(dists)
+    self.staff_thick = np.argmax(thicks)
+    return (self.staff_space, self.staff_thick)
 
   # 1D array -> 5-tuples of coordinates of possible staff cross-sections
-  def get_cross_sections(self, arr):
-    staves = []
-    # Track previous acceptable staff members, thickness, and average distance
-    # Throw away previous coordinates until standard deviation is small enough
-    coords = []
-    thick = []
-    dists = []
-    startOn = None # None if last pixel was off, or position of last start
-    i = 0
-    for pixel in arr:
-      if startOn is None:
-        if pixel > 0:
-          startOn = i
-      elif pixel == 0:
-        point = (i - 1 + startOn) / 2
-        if len(coords) == 5:
-          dists = [dists[1], dists[2], dists[3], point - coords[4]]
-          coords = [coords[1], coords[2], coords[3], coords[4], point]
-          thick = [thick[1], thick[2], thick[3], thick[4], i - startOn]
-        else:
-          if len(coords) > 0:
-            dists.append(point - coords[-1])
-          coords.append(point)
-          thick.append(i - startOn)
+  def cross_sections(self, col_num):
+    # Extract runs from this column
+    runs = self.col_runs[self.col_runs[:, 0] == col_num]
+    if runs.shape[0] < 9: return []
+    # Ensure first run is dark
+    if not runs[0,3]:
+      runs = runs[1:]
+    
+    # Runs alternate color, so there are (len(runs) + 1)/2 - 4 candidates
+    num_candidates = (runs.shape[0] + 1)/2 - 4
+    candidate_starts = np.arange(0, 2*num_candidates, 2)
+    # Consecutive 9-tuples of candidate staff cross-sections with run lengths
+    # (dark, light, dark, ..., dark)
+    sections = np.zeros((num_candidates, 9), dtype=int)
+    for i in xrange(9):
+      sections[:,i] = runs[candidate_starts + i, 2]
+    thicks = sections[:,[0,2,4,6,8]]
+    dists = sections[:,[1,3,5,7]]
 
-        if len(coords) == 5 \
-          and abs(np.mean(dists) - self.staff_space) < self.STAFF_SPACE_DY \
-          and abs(np.mean(thick) - self.staff_thick) < self.STAFF_THICK_DY \
-          and np.std(dists) < 2.0 and np.std(thick) < 1.0:
-          staves.append(tuple(coords))
-        startOn = None
-      i += 1
-    return staves
+    # Find indices of staff cross-sections
+    candidates = (np.abs(np.mean(thicks, axis=1) - self.staff_thick) \
+                    < self.STAFF_THICK_DY) \
+                 & (np.abs(np.mean(dists, axis=1) - self.staff_space) \
+                       < self.STAFF_SPACE_DY) \
+                 & (np.std(thicks, axis=1) < 0.5) & (np.std(dists, axis=1) < 1.0)
+    candidate_ind = np.arange(0, runs.shape[0])[candidates]
+    # Find staff line center y from runs position and length
+    centers = np.zeros((np.count_nonzero(candidates), 5))
+    for i in xrange(5):
+      centers[:,i] = runs[(candidate_ind + i)*2, 1] + runs[(candidate_ind + i)*2, 2]/2
+
+    return map(tuple, centers)
 
   def get_staff_clusters(self):
     sections = []
@@ -117,7 +125,8 @@ class StaffTask:
       staff.draw(self.colored)
 
   def process(self):
-    self.staff_space, self.staff_thick = self.staff_spacing(self.im)
+    self.get_runlength_encoding()
+    self.get_spacing()
     self.sections = dict()
     # Sum columns
     proj = self.im.sum(axis=0)
@@ -139,19 +148,15 @@ class StaffTask:
       if i < 10:
         i += 1
         continue
-      if i == 300: break
+      if i == 300: break # XXX
       for x in xs:
-        self.sections[x] = self.get_cross_sections(self.im[:,x])
+        self.sections[x] = self.cross_sections(x)
       i += 1
     #i = 0
     #for h in hist:
     #  print (i, h)
     #  i += 1
+    print self.sections
     self.get_staff_clusters()
-    #print self.clusters
-    #print len(self.clusters)
-    #print map(len, self.clusters)
-    #for c in self.clusters:
-    #  print np.array(c).T
     self.create_staves()
     print self.staves
