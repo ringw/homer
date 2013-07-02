@@ -13,7 +13,7 @@ class Staff:
       line_ind = 0
       line_len = len(line)
       while line_ind < line_len:
-        if line[line_ind] >= x:
+        if line[line_ind][0] >= x:
           break
         line_ind += 1
       line.insert(line_ind, (x, y))
@@ -83,14 +83,14 @@ class StaffTask:
                     < self.STAFF_THICK_DY) \
                  & (np.abs(np.mean(dists, axis=1) - self.staff_space) \
                        < self.STAFF_SPACE_DY) \
-                 & (np.std(thicks, axis=1) < 0.5) & (np.std(dists, axis=1) < 1.0)
+                 & (np.std(thicks, axis=1) < 1.0) & (np.std(dists, axis=1) < 3.0)
     candidate_ind = np.arange(0, runs.shape[0])[candidates]
     # Find staff line center y from runs position and length
     centers = np.zeros((np.count_nonzero(candidates), 5))
     for i in xrange(5):
       centers[:,i] = runs[(candidate_ind + i)*2, 1] + runs[(candidate_ind + i)*2, 2]/2
 
-    return map(tuple, centers)
+    return centers
 
   def get_staff_clusters(self):
     sections = []
@@ -108,6 +108,29 @@ class StaffTask:
       clusters[cnum - 1].append([xs[i]] + list(sections[i]))
     self.clusters = clusters
 
+  # Find best cross-section for searching for staffs in each horizontal interval
+  NUM_INTERVALS = 200
+  def search_staff_intervals(self):
+    # Generate evenly spaced, equally sized intervals
+    step = int(np.ceil(float(self.im.shape[1]) / self.NUM_INTERVALS))
+    boundaries = np.linspace(0, self.im.shape[1], num=20)
+    intervals = np.vstack((boundaries[:-1], boundaries[1:]))
+    # Sum columns for vertical projection to choose cross section
+    proj = self.im.sum(axis=0)
+    proj.resize(self.NUM_INTERVALS * step)
+    proj.shape = (self.NUM_INTERVALS, step)
+    PROJECTION_MIN = self.im.shape[0] / 100
+    # Replace projections less than PROJECTION_MIN to INT_MAX to mark them bad
+    INT_MAX = np.iinfo(proj.dtype).max
+    proj[proj < PROJECTION_MIN] = INT_MAX
+    # Choose cross-section from minimum in each interval
+    section_nums = np.argmax(proj, axis=1)
+    # Search chosen cross-sections
+    for section, ind in enumerate(section_nums):
+      if proj[section, ind] == INT_MAX:
+        continue
+      i = section*step + ind
+      self.sections[i] = self.cross_sections(i)
   CLUSTER_MIN_SIZE = 10
   def create_staves(self):
     # Clusters above minimum size become staves
@@ -128,35 +151,7 @@ class StaffTask:
     self.get_runlength_encoding()
     self.get_spacing()
     self.sections = dict()
-    # Sum columns
-    proj = self.im.sum(axis=0)
-    hist = [[] for i in xrange(self.im.shape[1])]
-    i = 0
-    for col in proj:
-      if i > 0 and proj[i-1] < col:
-        i += 1
-        continue
-      if i + 1 < len(proj) and proj[i+1] < col:
-        i += 1 
-        continue
-      hist[col].append(i)
-      i += 1
-    # Go through x-coordinates by amount of colored pixels
-    # until we have enough detail to define staves
-    i = 0
-    for xs in hist:
-      if i < 10:
-        i += 1
-        continue
-      if i == 300: break # XXX
-      for x in xs:
-        self.sections[x] = self.cross_sections(x)
-      i += 1
-    #i = 0
-    #for h in hist:
-    #  print (i, h)
-    #  i += 1
-    print self.sections
+    self.search_staff_intervals()
     self.get_staff_clusters()
     self.create_staves()
     print self.staves
