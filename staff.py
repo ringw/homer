@@ -1,5 +1,4 @@
 import numpy as np
-import scipy.cluster.hierarchy
 import ImageDraw
 
 class Staff:
@@ -92,24 +91,8 @@ class StaffTask:
 
     return centers
 
-  def get_staff_clusters(self):
-    sections = []
-    xs = []
-    for x in self.sections:
-      for section in self.sections[x]:
-        sections.append(section)
-        xs.append(x)
-    cnums = scipy.cluster.hierarchy.fclusterdata(np.array(sections),
-                    self.staff_space/2, criterion='distance', method='single')
-    clusters = []
-    for i in xrange(1, len(cnums)):
-      cnum = cnums[i]
-      while len(clusters) < cnum: clusters.append([])
-      clusters[cnum - 1].append([xs[i]] + list(sections[i]))
-    self.clusters = clusters
-
-  # Find best cross-section for searching for staffs in each horizontal interval
-  NUM_INTERVALS = 200
+  # Find best cross-section for searching for staves in each horizontal interval
+  NUM_INTERVALS = 100
   def search_staff_intervals(self):
     # Generate evenly spaced, equally sized intervals
     step = int(np.ceil(float(self.im.shape[1]) / self.NUM_INTERVALS))
@@ -130,28 +113,89 @@ class StaffTask:
       if proj[section, ind] == INT_MAX:
         continue
       i = section*step + ind
-      self.sections[i] = self.cross_sections(i)
-  CLUSTER_MIN_SIZE = 10
-  def create_staves(self):
-    # Clusters above minimum size become staves
-    staves = []
-    for cluster in self.clusters:
-      if len(cluster) < self.CLUSTER_MIN_SIZE: continue
-      staff = Staff()
-      for points in cluster:
-        staff.add_point(points[0], points[1:])
-      staves.append(staff)
-    self.staves = staves
+      new_sections = self.cross_sections(i)
+      num_old_sections = self.sections.shape[0]
+      self.sections.resize((num_old_sections + new_sections.shape[0], 6))
+      self.sections[num_old_sections:, 0] = i
+      self.sections[num_old_sections:, 1:] = new_sections
+
+  # Hough transform using center points of staff cross-sections
+  HOUGH_DEGREES_MAX = 10.0
+  HOUGH_THETA_RESOLUTION = 0.1
+  NUM_DEGREES = np.ceil(2*HOUGH_DEGREES_MAX/HOUGH_THETA_RESOLUTION + 1)
+  def build_staves(self):
+    theta = np.linspace(-self.HOUGH_DEGREES_MAX, self.HOUGH_DEGREES_MAX,
+                        self.NUM_DEGREES)
+    coords = np.zeros((self.sections.shape[0], 2), dtype=np.double)
+    coords[:, 0] = self.sections[:, 0] # abscissa of cross-sections
+    coords[:, 1] = np.mean(self.sections[:, 1:], axis=1) # mean of staff lines
+    # Matrix multiplied with coords to get rho values to be incremented
+    coeffs = np.vstack((-np.sin(theta*np.pi/180.0), np.ones(len(theta))))
+    rhos = coords.dot(coeffs)
+    # Create histogram from flattened rho and theta values
+    rho_vals = rhos.ravel()
+    rho_ind, theta_ind = np.unravel_index(np.arange(0, len(rho_vals)), rhos.shape)
+    # Histogram bins contain each y-value and theta value
+    H = np.histogram2d(rhos.ravel(), theta[theta_ind],
+                        bins=[self.im.shape[0], self.NUM_DEGREES],
+                        range=[[-0.5, self.im.shape[0] + 0.5],
+                               [theta[0] - self.HOUGH_THETA_RESOLUTION/2,
+                                theta[-1] + self.HOUGH_THETA_RESOLUTION/2]])[0]
+    # Remove best candidates until one does not represent a viable staff
+    # Don't add a staff if it shares any sections with an already added staff
+    retrieved_sections = np.zeros(self.sections.shape[0], dtype=bool)
+    clusters = []
+    self.staves = []
+    # We expect much less than 30 staves on a page;
+    # allow for some staves to have less cross sections
+    expected_sections = self.sections.shape[0] / 30
+    while np.count_nonzero(retrieved_sections == 0):
+      y, t = np.unravel_index(np.argmax(H), H.shape)
+      if H[y, t] == 0: break
+      # Multiply with sections to get top, center, bottom y-intercept
+      coeffs = np.array([[-np.sin(theta[t]*np.pi/180) for i in (1,2,3)],
+                         [1, 0, 0],
+                         [0, 0, 0],
+                         [0, 1, 0],
+                         [0, 0, 0],
+                         [0, 0, 1]], dtype=np.double)
+      section_intercepts = self.sections.dot(coeffs)
+      intersects = (section_intercepts[:, 0] <= y) & (y <= section_intercepts[:, 2])
+      if np.count_nonzero(intersects) < expected_sections:
+        break
+      elif not (retrieved_sections & intersects).any():
+        retrieved_sections |= intersects
+        staff = Staff()
+        # Choose staff sections where center line is closest to our line
+        xs = np.unique(self.sections[:, 0])
+        for x in xs:
+          distance = np.abs(section_intercepts[:, 1] - y)
+          candidates = intersects & (self.sections[:, 0] == x) \
+                       & (distance < self.staff_space/2)
+          if np.count_nonzero(candidates):
+            sections = self.sections[candidates]
+            distances = distance[candidates]
+            staff.add_point(x, sections[np.argmin(distances), 1:])
+        self.staves.append(staff)
+        # Invalidate anything that would (probably) intersect with this staff
+        H[y-self.staff_space*5:y+self.staff_space*5, t-10:t+10] = 0
+      else:
+        # Invalidate very close points
+        H[y-self.staff_space:y+self.staff_space, t] = 0
 
   def color_image(self):
     for staff in self.staves:
       staff.draw(self.colored)
+    # Draw staff cross-sections
+    d = ImageDraw.Draw(self.colored)
+    for x, y1, y2, y3, y4, y5 in self.sections:
+      for y in (y1, y2, y3, y4, y5):
+        d.ellipse((x-3, y-3, x+3, y+3), outline=0, fill=255)
 
   def process(self):
     self.get_runlength_encoding()
     self.get_spacing()
-    self.sections = dict()
+    self.sections = np.zeros((0, 6), dtype=np.double) # x, y1, ...
     self.search_staff_intervals()
-    self.get_staff_clusters()
-    self.create_staves()
+    self.build_staves()
     print self.staves
