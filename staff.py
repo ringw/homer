@@ -31,30 +31,13 @@ class StaffTask:
   STAFF_SPACE_DY = 10
   STAFF_THICK_DY = 5
 
-  # Store column runlength encoding
-  def get_runlength_encoding(self):
-    # Lists of per-column runs
-    runs = [] # column -> ndarray of rows of (col, start_ind, length, is_dark)
-    for col_num, col in enumerate(self.im.T):
-      # Position of every last pixel in its run
-      # Intentionally do not include first or last run
-      pos, = np.diff(col).nonzero()
-      lengths = np.diff(pos)
-      col_runs = np.zeros((lengths.shape[0], 4), dtype=int)
-      col_runs[:,0] = col_num
-      col_runs[:,1] = pos[:-1] + 1
-      col_runs[:,2] = lengths
-      col_runs[:,3] = (col[pos[:-1] + 1] == 1)
-      runs.append(col_runs)
-    self.col_runs = np.concatenate(runs)
-
   def get_spacing(self):
-    dark_cols = np.array(self.col_runs[:,3], dtype=bool)
+    dark_cols = np.array(self.page.col_runs[:,3], dtype=bool)
 
     # Histogram of light lengths (space between staff lines)
-    dists = np.bincount(self.col_runs[~dark_cols, 2])
+    dists = np.bincount(self.page.col_runs[~dark_cols, 2])
     # Histogram of dark lengths (thickness of staff lines)
-    thicks = np.bincount(self.col_runs[dark_cols, 2])
+    thicks = np.bincount(self.page.col_runs[dark_cols, 2])
 
     self.staff_space = np.argmax(dists)
     self.staff_thick = np.argmax(thicks)
@@ -63,7 +46,7 @@ class StaffTask:
   # 1D array -> 5-tuples of coordinates of possible staff cross-sections
   def cross_sections(self, col_num):
     # Extract runs from this column
-    runs = self.col_runs[self.col_runs[:, 0] == col_num]
+    runs = self.page.col_runs[self.page.col_runs[:, 0] == col_num]
     if runs.shape[0] < 9: return []
     # Ensure first run is dark
     if not runs[0,3]:
@@ -246,7 +229,6 @@ class StaffTask:
         d.ellipse((x-3, y-3, x+3, y+3), outline=0, fill=255)
 
   def process(self):
-    self.get_runlength_encoding()
     self.get_spacing()
     self.sections = np.zeros((0, 6), dtype=np.double) # x, y1, ...
     self.search_staff_intervals()
