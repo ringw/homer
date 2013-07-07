@@ -32,12 +32,12 @@ class StaffTask:
   STAFF_THICK_DY = 5
 
   def get_spacing(self):
-    dark_cols = np.array(self.page.col_runs[:,3], dtype=bool)
+    dark_cols = np.array(self.page.col_runs[:,4], dtype=bool)
 
     # Histogram of light lengths (space between staff lines)
-    dists = np.bincount(self.page.col_runs[~dark_cols, 2])
+    dists = np.bincount(self.page.col_runs[~dark_cols, 3])
     # Histogram of dark lengths (thickness of staff lines)
-    thicks = np.bincount(self.page.col_runs[dark_cols, 2])
+    thicks = np.bincount(self.page.col_runs[dark_cols, 3])
 
     self.staff_space = np.argmax(dists)
     self.staff_thick = np.argmax(thicks)
@@ -49,7 +49,7 @@ class StaffTask:
     runs = self.page.col_runs[self.page.col_runs[:, 0] == col_num]
     if runs.shape[0] < 9: return []
     # Ensure first run is dark
-    if not runs[0,3]:
+    if not runs[0,4]:
       runs = runs[1:]
     
     # Runs alternate color, so there are (len(runs) + 1)/2 - 4 candidates
@@ -59,7 +59,7 @@ class StaffTask:
     # (dark, light, dark, ..., dark)
     sections = np.zeros((num_candidates, 9), dtype=int)
     for i in xrange(9):
-      sections[:,i] = runs[candidate_starts + i, 2]
+      sections[:,i] = runs[candidate_starts + i, 3]
     thicks = sections[:,[0,2,4,6,8]]
     dists = sections[:,[1,3,5,7]]
 
@@ -74,8 +74,7 @@ class StaffTask:
     # Find staff line center y from runs position and length
     centers = np.zeros((np.count_nonzero(candidates), 5))
     for i in xrange(5):
-      centers[:,i] = runs[(candidate_ind + i)*2, 1] \
-                          + runs[(candidate_ind + i)*2, 2]/2
+      centers[:,i] = np.sum(runs[(candidate_ind + i)*2, 1:3], axis=1)/2
 
     return centers
 
@@ -171,6 +170,11 @@ class StaffTask:
       else:
         # Invalidate very close points
         H[y-self.staff_space:y+self.staff_space, t] = 0
+
+    # Sort staves by start of top line
+    staff_tops = np.array([staff.lines[0][0][1] for staff in self.staves])
+    print staff_tops
+    self.staves = list(np.array(self.staves)[np.argsort(staff_tops)])
 
   def mask_staff_lines(self):
     # Build matrix of positions of staff lines for all x
