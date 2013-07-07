@@ -1,6 +1,17 @@
 import numpy as np
 from scipy.ndimage import label
 
+class Glyph:
+  (EXTRANEOUS, # glyphs we can ignore
+   NOISE, # small unidentifiable noise
+   BLOB, # formed from multiple valid glyphs
+   CHUNK, # unidentifiable piece of a glyph
+   TEXT,
+   BARLINE,
+   NOTEHEAD_FULL,
+   NOTEHEAD_EMPTY,
+    ) = xrange(8)
+
 class GlyphsTask:
   def __init__(self, page):
     self.page = page
@@ -66,7 +77,7 @@ class GlyphsTask:
     # Eighth third order independent moment invariant (from Wikipedia)
     I[:,7] = eta[1,1] * ((eta[3,0]+eta[1,2])**2 - (eta[0,3]+eta[2,1])**2) \
              - (eta[2,0]-eta[0,2])*(eta[3,0]+eta[1,2])*(eta[0,3]+eta[2,1])
-    print I
+    self.hu_moments = I
 
   def process(self):
     self.label_initial_glyphs()

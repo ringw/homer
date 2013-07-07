@@ -173,7 +173,6 @@ class StaffTask:
 
     # Sort staves by start of top line
     staff_tops = np.array([staff.lines[0][0][1] for staff in self.staves])
-    print staff_tops
     self.staves = list(np.array(self.staves)[np.argsort(staff_tops)])
 
   def mask_staff_lines(self):
