@@ -15,13 +15,6 @@ class MainWindow(QWidget):
     super(MainWindow, self).__init__()
     self.initUI()
 
-  def glyphImage(self, g):
-    total = np.zeros(g.shape + (4,), np.uint8)
-    total[..., 3] = 255
-    total[g.nonzero() + (slice(0,3),)] = 255
-    return QImage(total, total.shape[1], total.shape[0],
-                  QImage.Format_RGB32)
-
   def initUI(self):
     self.imLabel = QLabel('hi')
     self.listView = QListView()
@@ -43,8 +36,7 @@ class MainWindow(QWidget):
     self.setGeometry(300,300,300,150)
     self.setWindowTitle('Classifier')
     self.glyph_num = 0
-    im = self.glyphImage(glyphs[0])
-    pix = QPixmap.fromImage(im)
+    pix = QPixmap.fromImage(glyphs[0])
     scaled = pix.scaled(self.imLabel.size(), Qt.KeepAspectRatio)
     self.imLabel.setPixmap(scaled)
     self.show()
@@ -59,8 +51,7 @@ class MainWindow(QWidget):
         print glyph_type
         glyph_assignments.append(glyph_type)
         if len(glyph_assignments) < len(glyphs):
-          im = self.glyphImage(glyphs[len(glyph_assignments)])
-          pix = QPixmap.fromImage(im)
+          pix = QPixmap.fromImage(glyphs[len(glyph_assignments)])
           scaled = pix.scaled(self.imLabel.size(), Qt.KeepAspectRatio)
           self.imLabel.setPixmap(scaled)
     else:
@@ -116,7 +107,23 @@ def main():
     bounds[(bounds[:,3] < j) & in_col_bool, 3] = j
   for i in xrange(glyphsTask.num_glyphs):
     y_min,y_max,x_min,x_max = bounds[i+1]
-    glyphs.append(page.im[slice(y_min, y_max+1), slice(x_min, x_max+1)])
+    left = max(0, x_min - 100)
+    right = min(page.im.shape[1], x_max + 100)
+    top = max(0, y_min - 100)
+    bottom = min(page.im.shape[0], y_max + 100)
+    total = np.zeros((bottom - top, right - left, 4), np.uint8)
+    total[..., 3] = 255
+    im_surrounding = page.im[top:bottom, left:right]
+    total[im_surrounding.nonzero() + (slice(0,3),)] = 255
+    # Color actual glyph red
+    glyph_box = glyphsTask.labelled_glyphs[y_min:y_max+1, x_min:x_max+1]
+    glyph_y, glyph_x = np.array(np.where(glyph_box == (i+1)))
+    glyph_y += y_min - top
+    glyph_x += x_min - left
+    total[glyph_y, glyph_x, 0:2] = 0
+    glyphs.append(QImage(total, total.shape[1], total.shape[0],
+                  QImage.Format_RGB32))
+    #glyphs.append(page.im[slice(y_min, y_max+1), slice(x_min, x_max+1)])
   mw = MainWindow()
 
   sys.exit(app.exec_())
