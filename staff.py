@@ -212,9 +212,10 @@ class StaffTask:
         ys_mat[:] += np.linspace(-self.staff_thick, self.staff_thick,
                                  2*self.staff_thick+1)
         # Repeat xs to get x indices of flattened ys_mat
-        staff.line_masks[i] = np.vstack((np.repeat(mask_xs,
-                                                   2*self.staff_thick+1),
-                                         ys_mat.ravel()))
+        xs = np.repeat(mask_xs, 2*self.staff_thick+1)
+        ys = ys_mat.ravel()
+        self.page.im[ys, xs] = 0
+        staff.line_masks[i] = np.vstack((xs, ys))
 
   def color_image(self):
     # Gray out masked staff lines
