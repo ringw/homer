@@ -175,54 +175,55 @@ class StaffTask:
     staff_tops = np.array([staff.lines[0][0][1] for staff in self.staves])
     self.staves = list(np.array(self.staves)[np.argsort(staff_tops)])
 
-  def mask_staff_lines(self):
-    # Build matrix of positions of staff lines for all x
-    staff_lines = np.zeros((len(self.staves)*5, self.im.shape[1]), dtype=int)
+  def interpolate_staff_line_positions(self):
+    self.line_positions = np.zeros((len(self.staves), 5, self.im.shape[1]),
+                                   dtype=int)
     for i, staff in enumerate(self.staves):
       sections = np.hstack(staff.lines)
       section_xs = sections[:, 0]
       section_ys = sections[:, 1::2]
-      # XXX: assume horizontal line on left and right sides
+
       x_pairs = np.zeros((len(section_xs) + 1, 2))
       x_pairs[1:, 0] = x_pairs[:-1, 1] = section_xs
       x_pairs[-1, 1] = self.im.shape[1]
       y_pairs = np.zeros((len(section_ys) + 1, 10))
       y_pairs[1:, 0::2] = y_pairs[:-1, 1::2] = section_ys
-      y_pairs[0, 0::2] = y_pairs[1, 0::2]
-      y_pairs[-1, 1::2] = y_pairs[-2, 1::2]
 
-      # expected y-intercepts for staff lines at each x value
+      # Slope for interpolating left and right sides
+      slope = (section_ys[-1] - section_ys[0]).astype(np.double) \
+            / (section_xs[-1] - section_xs[0])
+      y_pairs[0, 0::2] = np.rint(section_ys[0] - slope*section_xs[0])
+      y_pairs[-1, 1::2] = np.rint(section_ys[-1] \
+                        + slope*(self.im.shape[1] - section_xs[-1]))
+
+      # Expected y-intercepts for staff lines at each x value
       expected_y = np.zeros((5, self.im.shape[1]), dtype=int)
       for xs, ys in zip(x_pairs, y_pairs):
         y_mat = ys.reshape(5, 2)
         mat = np.array([np.linspace(1.0, 1.0/(xs[1] - xs[0]), xs[1]-xs[0]),
         np.linspace(0, 1 - 1.0/(xs[1]-xs[0]), xs[1]-xs[0])])
-        expected_y[:, xs[0]:xs[1]] = y_mat.dot(mat).astype(int)
+        self.line_positions[i, :, xs[0]:xs[1]] = y_mat.dot(mat).astype(int)
+    self.page.staff_line_positions = self.line_positions
 
-      # mask where area above and below expected staff line is empty
-      for i, line_ys in enumerate(expected_y):
-        im_above = self.im[(line_ys - self.staff_thick),
-                            np.arange(0, self.im.shape[1])]
-        im_below = self.im[(line_ys + self.staff_thick),
-                            np.arange(0, self.im.shape[1])]
-        mask_xs, = np.where((im_below == 0) & (im_above == 0))
-        # Add increments of 1 pixel above and below area to be masked
-        ys_mat = np.expand_dims(line_ys[mask_xs], 1) \
-                   .repeat(2*self.staff_thick+1, axis=1)
-        ys_mat[:] += np.linspace(-self.staff_thick, self.staff_thick,
-                                 2*self.staff_thick+1)
-        # Repeat xs to get x indices of flattened ys_mat
-        xs = np.repeat(mask_xs, 2*self.staff_thick+1)
-        ys = ys_mat.ravel()
-        self.page.im[ys, xs] = 0
-        staff.line_masks[i] = np.vstack((xs, ys))
+  def mask_staff_lines(self):
+    # Expect area above and below staff line to be empty when masking
+    xs = np.tile(np.arange(self.im.shape[1]), len(self.staves)*5) \
+           .reshape(self.line_positions.shape)
+    im_above = self.im[self.line_positions - self.staff_thick, xs]
+    im_below = self.im[self.line_positions + self.staff_thick, xs]
+    mask_staff, mask_line, line_xs = np.where((im_below == 0) & (im_above == 0))
+    line_ys = self.line_positions[mask_staff, mask_line, line_xs]
+    mask_ys = line_ys.ravel()[:, np.newaxis].repeat(2*self.staff_thick+1, axis=1)
+    mask_ys[:] += np.linspace(-self.staff_thick, self.staff_thick,
+                              2*self.staff_thick + 1)
+    mask_xs = line_xs.ravel().repeat(2*self.staff_thick + 1)
+    self.page.im[mask_ys.ravel(), mask_xs] = 0
+    self.page.staff_mask = np.vstack((mask_ys.ravel(), mask_xs))
 
   def color_image(self):
     # Gray out masked staff lines
     colored_array = np.array(self.colored)
-    for staff in self.staves:
-      for mask in staff.line_masks:
-        colored_array[mask[1], mask[0], :] |= 0x80;
+    colored_array[self.page.staff_mask[0], self.page.staff_mask[1]] |= 0x80
     self.page.colored = self.colored = Image.fromarray(colored_array)
     for staff in self.staves:
       staff.draw(self.colored)
@@ -237,5 +238,6 @@ class StaffTask:
     self.sections = np.zeros((0, 6), dtype=np.double) # x, y1, ...
     self.search_staff_intervals()
     self.build_staves()
+    self.interpolate_staff_line_positions()
     self.mask_staff_lines()
     print self.staves
