@@ -39,8 +39,8 @@ class StaffTask:
     # Histogram of dark lengths (thickness of staff lines)
     thicks = np.bincount(self.page.col_runs[dark_cols, 3])
 
-    self.staff_space = np.argmax(dists)
-    self.staff_thick = np.argmax(thicks)
+    self.page.staff_space = self.staff_space = np.argmax(dists)
+    self.page.staff_thick = self.staff_thick = np.argmax(thicks)
     return (self.staff_space, self.staff_thick)
 
   # 1D array -> 5-tuples of coordinates of possible staff cross-sections
