@@ -1,4 +1,5 @@
 import numpy as np
+import ImageDraw
 
 # (n, 2) ndarray of points in some staff's bounds
 def get_points_in_staff(page):
@@ -16,7 +17,7 @@ def get_points_in_staff(page):
   return np.column_stack(np.where(masked))
 
 def vertical_hough(page, points):
-  theta = np.linspace(-5.0*np.pi/180, 5.0*np.pi/180, 21)
+  theta = np.linspace(-2.0*np.pi/180, 2.0*np.pi/180, 21)
   H = np.zeros((len(theta), page.im.shape[1]), dtype=int)
   for i, T in enumerate(theta):
     coeffs = np.array([[-np.sin(T)], [1]], dtype=np.double)
@@ -25,36 +26,65 @@ def vertical_hough(page, points):
     coords = coords[(coords >= 0) & (coords < page.im.shape[1])]
     bins = np.bincount(coords)
     H[i, 0:len(bins)] = bins
-  for i in xrange(100):
+  # Array of ndarrays to be concatenated
+  verticals = []
+  SCORE_MIN = page.staff_thick * page.staff_space * 5
+  while np.count_nonzero(H):
     t, b = np.unravel_index(np.argmax(H), H.shape)
-    print t, b
-    if i == 0: extract_verticals(page, theta[t], b)
-    H[max(0,t-1):t+2,max(0,b-2):b+3] = 0
+    runs, score = extract_verticals(page, theta[t], b)
+    if score < SCORE_MIN:
+      break
+    # y0, y1, x0, x1
+    V = np.zeros((runs.shape[0], 4), dtype=np.double)
+    V[:, 0:2] = runs
+    V[:, 2:4] = b
+    V[:, 2:4] += V[:, 0:2] * np.sin(theta[t])
+    verticals.append(V)
+    ts = slice(max(0,t-3),min(21,t+4))
+    bs = slice(max(0,b-page.staff_space),min(page.im.shape[1], b+page.staff_space+1))
+    H[ts,bs] = 0
+  return np.concatenate(verticals)
 
 def extract_verticals(page, t, b):
   ys = np.arange(page.im.shape[0])
   xs = b + np.rint(np.sin(t)*ys).astype(int)
-  search_xs = np.tile(np.arange(-page.staff_thick, page.staff_thick + 1),
+  SEARCH_WIDTH = max(1, page.staff_thick/2)
+  search_xs = np.tile(np.arange(-SEARCH_WIDTH, SEARCH_WIDTH + 1),
                       len(xs)) \
-                .reshape((len(xs), 2*page.staff_thick + 1))
+                .reshape((len(xs), 2*SEARCH_WIDTH + 1))
   search_xs += xs[:, np.newaxis]
-  print ys.shape, search_xs.shape
+  # XXX: Don't consider lines which go off edge of image
+  if np.count_nonzero((search_xs < 0) | (search_xs >= page.im.shape[1])):
+    return np.zeros((0, 2), dtype=int), np.iinfo(int).max
+  #print ys.shape, search_xs.shape
   search_im = page.im[ys[:, np.newaxis], search_xs]
+  score = np.sum(search_im)
   candidate_rows = np.sum(search_im, axis=1) > 0
-  # Detect number of swapped pixels which must be below staff_thick
-  swaps = np.sum(np.bitwise_xor(search_im[:-1], search_im[1:]), axis=1)
-  connected = (candidate_rows[:-1] & (swaps <= page.staff_thick)).astype(int)
+  # Detect number of toggled pixels which must be below TOGGLE_THRESHOLD
+  TOGGLE_THRESHOLD = max(1, page.staff_thick/2)
+  toggles = np.sum(np.bitwise_xor(search_im[:-1], search_im[1:]), axis=1)
+  connected = (candidate_rows[:-1] & (toggles <= TOGGLE_THRESHOLD)).astype(int)
   connected = np.concatenate((connected, [connected[-1]]))
+  # Skip over gaps less than staff_thick
+  can_skip = np.convolve(connected,
+                         np.concatenate(([1], [0 for i in xrange(page.staff_thick)], [1])),
+                         mode='same')
+  connected += (can_skip == 2)
+  connected[connected > 1] = 1
   run_diff = np.diff(connected)
   run_starts, = np.where(run_diff == 1)
   run_ends, = np.where(run_diff == -1)
+  run_ends += 1
   run_inds = np.where((run_ends - run_starts) >= 4*page.staff_space)
-  print zip(run_starts[run_inds], run_ends[run_inds])
+  return np.column_stack((run_starts[run_inds], run_ends[run_inds])), score
+
 class VerticalsTask:
   def __init__(self, page):
     self.page = page
   def process(self):
     points = get_points_in_staff(self.page)
-    print vertical_hough(self.page, points)
+    self.verticals = vertical_hough(self.page, points)
   def color_image(self):
-    pass
+    d = ImageDraw.Draw(self.page.colored)
+    for vert in self.verticals:
+      d.line(tuple(np.rint(vert[[2, 0, 3, 1]]).astype(int)), fill=(0,0,255))
