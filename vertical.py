@@ -78,13 +78,40 @@ def extract_verticals(page, t, b):
   run_inds = np.where((run_ends - run_starts) >= 4*page.staff_space)
   return np.column_stack((run_starts[run_inds], run_ends[run_inds])), score
 
+def extract_barlines(page, verticals):
+  # Pairwise distance from top of each vertical to top of each staff
+  DISTS_SHAPE = (len(verticals), len(page.staff_line_positions))
+  staff_nums = np.tile(np.arange(len(page.staff_line_positions)),
+                       len(verticals)).reshape(DISTS_SHAPE)
+  vertical_xs = np.rint(verticals[:, 2]) \
+                  .repeat(len(page.staff_line_positions)) \
+                  .reshape(DISTS_SHAPE).astype(int)
+  staff_top_dists = page.staff_line_positions[staff_nums, 0, vertical_xs]
+  staff_top_dists -= verticals[:, 0].repeat(len(page.staff_line_positions)) \
+                                    .reshape(DISTS_SHAPE)
+  staff_top_dists = np.abs(staff_top_dists)
+  staff_bot_dists = page.staff_line_positions[staff_nums, -1, vertical_xs]
+  staff_bot_dists -= verticals[:, 1].repeat(len(page.staff_line_positions)) \
+                                    .reshape(DISTS_SHAPE)
+  staff_bot_dists = np.abs(staff_bot_dists)
+  np.set_printoptions(threshold=np.nan)
+  top_staves = np.argmin(staff_top_dists, axis=1)
+  bot_staves = np.argmin(staff_bot_dists, axis=1)
+  top_dists = staff_top_dists[np.arange(len(staff_top_dists)), top_staves]
+  bot_dists = staff_bot_dists[np.arange(len(staff_bot_dists)), bot_staves]
+  MAX_DIST = 2*page.staff_thick
+  barlines, = np.where((top_dists <= MAX_DIST) & (bot_dists <= MAX_DIST))
+  x = np.column_stack((top_staves,bot_staves,top_dists,bot_dists))
+  return verticals[barlines]
+
 class VerticalsTask:
   def __init__(self, page):
     self.page = page
   def process(self):
     points = get_points_in_staff(self.page)
     self.verticals = vertical_hough(self.page, points)
+    self.page.barlines = extract_barlines(self.page, self.verticals)
   def color_image(self):
     d = ImageDraw.Draw(self.page.colored)
-    for vert in self.verticals:
-      d.line(tuple(np.rint(vert[[2, 0, 3, 1]]).astype(int)), fill=(0,0,255))
+    for barline in self.page.barlines:
+      d.line(tuple(np.rint(barline[[2, 0, 3, 1]]).astype(int)), fill=(0,0,255))
