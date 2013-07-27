@@ -94,7 +94,7 @@ def extract_barlines(page, verticals):
   staff_bot_dists -= verticals[:, 1].repeat(len(page.staff_line_positions)) \
                                     .reshape(DISTS_SHAPE)
   staff_bot_dists = np.abs(staff_bot_dists)
-  np.set_printoptions(threshold=np.nan)
+  #np.set_printoptions(threshold=np.nan)
   top_staves = np.argmin(staff_top_dists, axis=1)
   bot_staves = np.argmin(staff_bot_dists, axis=1)
   top_dists = staff_top_dists[np.arange(len(staff_top_dists)), top_staves]
@@ -108,6 +108,7 @@ class VerticalsTask:
   def __init__(self, page):
     self.page = page
   def process(self):
+    if len(self.page.staff_line_positions) == 0: return False
     points = get_points_in_staff(self.page)
     self.verticals = vertical_hough(self.page, points)
     self.page.barlines = extract_barlines(self.page, self.verticals)

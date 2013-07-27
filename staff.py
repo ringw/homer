@@ -47,7 +47,7 @@ class StaffTask:
   def cross_sections(self, col_num):
     # Extract runs from this column
     runs = self.page.col_runs[self.page.col_runs[:, 0] == col_num]
-    if runs.shape[0] < 9: return []
+    if runs.shape[0] < 9: return np.zeros((0, 5))
     # Ensure first run is dark
     if not runs[0,4]:
       runs = runs[1:]

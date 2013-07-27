@@ -26,6 +26,9 @@ class MainWindow(QWidget):
     hbox.addWidget(self.listView)
 
     vbox = QVBoxLayout()
+    self.numLabel = QLabel('glyph #0')
+    vbox.addWidget(self.numLabel)
+    
     vbox.addLayout(hbox)
     self.saveButton = QPushButton('Save', self)
     self.saveButton.clicked.connect(self.saveButtonClicked)
@@ -54,6 +57,7 @@ class MainWindow(QWidget):
           pix = QPixmap.fromImage(glyphs[len(glyph_assignments)])
           scaled = pix.scaled(self.imLabel.size(), Qt.KeepAspectRatio)
           self.imLabel.setPixmap(scaled)
+          self.numLabel.setText('glyph #' + str(len(glyph_assignments)))
     else:
       event.ignore()
 

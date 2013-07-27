@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.ndimage import label
+from scipy import ndimage
 
 class Glyph:
   (EXTRANEOUS, # glyphs we can ignore
@@ -17,7 +17,10 @@ class GlyphsTask:
     self.page = page
 
   def label_initial_glyphs(self):
-    self.labelled_glyphs, self.num_glyphs = label(self.page.im, np.ones((3,3)))
+    self.labelled_glyphs, self.num_glyphs = ndimage.label(self.page.im, np.ones((3,3)))
+    self.page.labels = self.labelled_glyphs
+    self.page.num_glyphs = self.num_glyphs
+    self.page.glyph_boxes = ndimage.find_objects(self.page.labels)
 
   # Source: http://en.wikipedia.org/wiki/Image_moment
   def get_hu_moments(self):
@@ -81,7 +84,7 @@ class GlyphsTask:
 
   def process(self):
     self.label_initial_glyphs()
-    self.get_hu_moments()
+    #self.get_hu_moments()
 
   def color_image(self):
     pass
