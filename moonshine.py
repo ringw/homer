@@ -1,7 +1,7 @@
 import numpy as np
 import image
 import staff
-import vertical
+import line
 import glyph
 import gradient
 import argparse
@@ -15,8 +15,8 @@ def moonshine(path, colored=None):
   page, = image.read_pages(path)
   tasks = [staff.StaffTask(page),
            gradient.GradientTask(page),
-           vertical.VerticalsTask(page),
            glyph.GlyphsTask(page),
+           line.LinesTask(page),
            notehead.NoteheadsTask(page)]
   for task in tasks:
     task.process()
