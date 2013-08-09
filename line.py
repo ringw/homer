@@ -4,30 +4,6 @@ import skimage.morphology
 import ImageDraw
 import matplotlib.pyplot as plt
 
-# From http://stackoverflow.com/questions/15135676/problems-during-skeletonization-image-for-extracting-contours
-def skeletonize(im):
-  h1 = np.array([[0,0,0], [0,1,0], [1,1,1]])
-  m1 = np.array([[1,1,1], [0,0,0], [0,0,0]])
-  h2 = np.array([[0,0,0], [1,1,0], [0,1,0]])
-  m2 = np.array([[0,1,1], [0,0,1], [0,0,0]])
-  hit_list = []
-  miss_list = []
-  for k in range(4):
-    hit_list.append(np.rot90(h1, k))
-    hit_list.append(np.rot90(h2, k))
-    miss_list.append(np.rot90(m1, k))
-    miss_list.append(np.rot90(m2, k))
-  hit_miss = zip(hit_list, miss_list)
-  im = im.copy()
-  while True:
-    last = im
-    for hit, miss in hit_miss:
-      hm = m.binary_hit_or_miss(im, hit, miss)
-      im = np.logical_and(im, np.logical_not(hm))
-    if np.all(im == last):
-      break
-  return im
-
 class LinesTask:
   def __init__(self, page):
     self.page = page
@@ -50,5 +26,5 @@ class LinesTask:
     plt.show()
   def color_image(self):
     d = ImageDraw.Draw(self.page.colored)
-    for barline in self.page.barlines:
-      d.line(tuple(np.rint(barline[[2, 0, 3, 1]]).astype(int)), fill=(0,0,255))
+    #for barline in self.page.barlines:
+    #  d.line(tuple(np.rint(barline[[2, 0, 3, 1]]).astype(int)), fill=(0,0,255))

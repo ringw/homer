@@ -48,7 +48,7 @@ class NoteheadsTask:
     glyph_border &= (convolve2d(glyph_border, [[1,1,1],[1,0,1],[1,1,1]],
                                 mode='same') < 8)
     y,x = ellipse_candidate_centers(glyph_border, self.page.gradient[0, glyph_y, glyph_x], radius_max=self.page.staff_space)
-    print (y+glyph_y.start, x+glyph_x.start)
+    #print (y+glyph_y.start, x+glyph_x.start)
 
   def color_image(self):
     pass
