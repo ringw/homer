@@ -21,6 +21,11 @@ class GlyphsTask:
     self.page.labels = self.labelled_glyphs
     self.page.num_glyphs = self.num_glyphs
     self.page.glyph_boxes = ndimage.find_objects(self.page.labels)
+    # Create single ndarray from slices
+    glyph_tuples = map(lambda b: ((b[0].start, b[0].stop),
+                                  (b[1].start, b[1].stop)),
+                       self.page.glyph_boxes)
+    self.page.glyph_bounds = np.array(glyph_tuples, dtype=int)
 
   # Source: http://en.wikipedia.org/wiki/Image_moment
   def get_hu_moments(self):
