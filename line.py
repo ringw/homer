@@ -20,10 +20,10 @@ class LinesTask:
     plot = np.zeros_like(g, dtype=int)
     gy,gx = np.where(g)
     plot[gy,gx] = self.page.gradient[0,gy+glyph_y.start, gx+glyph_x.start]
-    plt.clf()
-    plt.imshow(plot)
-    plt.colorbar()
-    plt.show()
+    #plt.clf()
+    #plt.imshow(plot)
+    #plt.colorbar()
+    #plt.show()
   def color_image(self):
     d = ImageDraw.Draw(self.page.colored)
     #for barline in self.page.barlines:
