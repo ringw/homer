@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.signal import convolve2d
+from scipy.ndimage.filters import gaussian_filter
 
 
 def ellipse_candidate_centers(im, gradient, radius_max=40):
@@ -43,7 +44,7 @@ class NoteheadsTask:
 
   # Find single "model" glyph (e.g. isolated quarter note) to extract
   # parameters of notehead ellipse (which should be invariant under translation)
-  def choose_model_glyphs(self):
+  def choose_model_glyph_candidates(self):
     # Search for glyphs which are large enough to contain a notehead
     glyph_size = self.page.glyph_bounds[..., 1] - self.page.glyph_bounds[..., 0]
     glyphs = np.all(glyph_size > self.page.staff_space, axis=1)
@@ -72,7 +73,7 @@ class NoteheadsTask:
     self.model_glyph_mask = glyphs
     self.model_glyphs = individual_glyphs
 
-  def search_model_glyph_vertical_projections(self):
+  def choose_model_glyph(self):
     dy = np.empty_like(self.model_glyph_proj)
     dy[[0, -1]] = 0
     dy[1:-1] = self.model_glyph_proj[2:] - self.model_glyph_proj[:-2]
@@ -109,12 +110,48 @@ class NoteheadsTask:
 #    P.show()
     return (self.candidate_glyph, self.candidate_x)
 
+  def fit_model_ellipse(self):
+    # Extract border of model notehead
+    glyph_box = self.page.glyph_boxes[self.candidate_glyph]
+    glyph_section = self.page.labels[glyph_box]
+    gnum = self.candidate_glyph + 1
+    glyph_border = (glyph_section == gnum).astype(int)
+    proj = np.sum(glyph_border, axis=0) ** 2
+    glyph_border &= (convolve2d(glyph_border,
+                                [[1,1,1], [1,0,1], [1,1,1]],
+                                mode='same') < 8)
+
+    # Choose smooth sections of vertical projection for least squares fit,
+    # based on second derivative of the Gaussian
+    deriv = gaussian_filter(proj, 1, order=2)
+    xs = np.zeros_like(proj, dtype=bool)
+    X_DIST = self.page.staff_space/2
+    X0 = int(np.rint(self.candidate_x))
+    xs[max(X0 - X_DIST, 0):X0 + X_DIST] = True
+    xs &= np.abs(deriv) < self.page.staff_space
+
+    # Get all border x and y coordinates for least squares fit
+    x_coords, y_coords = np.where(glyph_border & xs[None, :])
+    D1 = np.column_stack((x_coords**2, x_coords*y_coords, y_coords**2))
+    D2 = np.column_stack((x_coords, y_coords, np.ones(len(x_coords))))
+    S1 = D1.astype(np.double).T.dot(D1)
+    S2 = D1.astype(np.double).T.dot(D2)
+    S3 = D2.astype(np.double).T.dot(D2)
+    T = -np.linalg.inv(S3).dot(S2.T)
+    M = S1 + S2.dot(T) # reduced scatter matrix
+    M = np.vstack([M[2] / 2.0, -M[1], M[0] / 2.0]) # premultiply by inv(C1)
+    evals, evecs = np.linalg.eig(M)
+    cond = 4 * (evecs[0] * evecs[2]) - evecs[1]**2 # a^T . C . a
+    a1 = evecs[:, np.where(cond > 0)[0][0]]
+    params = np.concatenate((a1, T.dot(a1)))
+
   def model_ellipse_glyph(self):
-    self.choose_model_glyphs()
-    self.search_model_glyph_vertical_projections()
+    self.choose_model_glyph_candidates()
+    self.choose_model_glyph()
 
   def process(self):
     self.model_ellipse_glyph()
+    self.fit_model_ellipse()
 
   def color_image(self):
     pass
