@@ -2,41 +2,37 @@ import numpy as np
 from scipy.signal import convolve2d
 from scipy.ndimage.filters import gaussian_filter
 
+def ellipse_general_to_standard(A, B, C, D, E, F):
+  """
+  Convert an ellipse in general form:
+    Ax^2 + Bxy + Cy^2 + Dx + Ey + F = 0
+  To standard form:
+    ((x - x0) cos t - (y - y0) sin t)^2/a^2
+    + ((x - x0) sin t + (y - y0) cos t)^2/b^2 = 1
+  The ellipse has center (x0, y0), major and minor semi-axes a and b,
+  and the angle to the semi-major axis is t.
 
-def ellipse_candidate_centers(im, gradient, radius_max=40):
-  edge_points = np.column_stack(np.where(im))
-  ts = gradient[tuple(edge_points.T)]
-  dists = np.arange(0, radius_max + 1)
-  points = edge_points[..., np.newaxis].repeat(len(dists), axis=2)
-  for p in xrange(len(points)):
-    points[p, 0] += dists * np.sin(ts[p])
-    points[p, 1] += dists * np.cos(ts[p])
-  good = np.where((points[:, 0] >= 0) & (points[:, 0] < im.shape[0])
-                  & (points[:, 1] >= 0) & (points[:, 1] < im.shape[1]))
-  points[:, 0] *= im.shape[1]
-  bins = np.sum(points, axis=1)[good]
-  counts = np.bincount(bins)
-  counts.resize(np.prod(im.shape))
-  counts = counts.reshape(im.shape)
-  import matplotlib.pyplot as plt
-  colored = np.zeros(im.shape + (3,))
-  colored[..., 0] = counts
-  colored[..., 2] = im
-  colored[..., 0] /= np.amax(colored[..., 0])
-  colored[..., 2] /= np.amax(colored[..., 2])
-  #plt.clf()
-  #plt.imshow(colored)
-  #plt.show()
-  y0,x0 = (None,None)
-  while np.count_nonzero(counts):
-    y,x = np.unravel_index(np.argmax(counts), im.shape)
-    if y0 is None:
-      y0 = y
-      x0 = x
-    #print y,x
-    # Invalidate nearby points
-    counts[max(0, y-radius_max):y+radius_max, max(0, x-radius_max):x+radius_max] = 0
-  return (y0,x0)
+  Parameters: A, B, C, D, E, F
+  Returns: x0, y0, a, b, t
+  """
+  A, B, C, D, E, F = map(float, [A, B, C, D, E, F])
+  # Matrix representation of conic section
+  AQ = np.array([[A, B/2, D/2], [B/2, C, E/2], [D/2, E/2, F]])
+  A33 = AQ[0:2, 0:2]
+  # Formula for center
+  x0, y0 = np.linalg.inv(A33).dot([-D/2, -E/2])
+  # Each eigenvector of A33 lies along one of the axes
+  evals, evecs = np.linalg.eigh(A33)
+  # Semi-axes from reduced canonical equation
+  a, b = np.sqrt(-np.linalg.det(AQ)/(np.linalg.det(A33)*evals))
+  # Return major axis as "a" and angle to major axis between -pi/2 and pi/2
+  t = np.arctan2(evecs[1,0], evecs[0,0]) # angle of axis "a"
+  if b > a:
+    a, b = b, a
+    t += np.pi/2
+  if   t < -np.pi/2: t += np.pi
+  elif t >  np.pi/2: t -= np.pi
+  return (x0, y0, a, b, t)
 
 class NoteheadsTask:
   def __init__(self, page):
@@ -115,11 +111,11 @@ class NoteheadsTask:
     glyph_box = self.page.glyph_boxes[self.candidate_glyph]
     glyph_section = self.page.labels[glyph_box]
     gnum = self.candidate_glyph + 1
-    glyph_border = (glyph_section == gnum).astype(int)
-    proj = np.sum(glyph_border, axis=0) ** 2
-    glyph_border &= (convolve2d(glyph_border,
-                                [[1,1,1], [1,0,1], [1,1,1]],
-                                mode='same') < 8)
+    glyph = (glyph_section == gnum).astype(int)
+    proj = np.sum(glyph, axis=0) ** 2
+    glyph_border = glyph & (convolve2d(glyph,
+                                       [[1,1,1], [1,0,1], [1,1,1]],
+                                       mode='same') < 8)
 
     # Choose smooth sections of vertical projection for least squares fit,
     # based on second derivative of the Gaussian
@@ -144,6 +140,23 @@ class NoteheadsTask:
     cond = 4 * (evecs[0] * evecs[2]) - evecs[1]**2 # a^T . C . a
     a1 = evecs[:, np.where(cond > 0)[0][0]]
     params = np.concatenate((a1, T.dot(a1)))
+    x0, y0, a, b, t = ellipse_general_to_standard(*params)
+    print x0,y0,a,b,t
+#    import pylab as P
+#    im = np.zeros(glyph_border.shape + (3,), dtype=np.uint8)
+#    im[..., 2] = glyph_border * 255
+#    # Draw ellipse
+#    draw_ts = np.linspace(0, 2*np.pi, 100)
+#    draw_ys = x0 + a*np.cos(draw_ts)*np.cos(t) - b*np.sin(draw_ts)*np.sin(t)
+#    draw_xs = y0 + a*np.cos(draw_ts)*np.sin(t) + b*np.sin(draw_ts)*np.cos(t)
+#    print np.column_stack((draw_ys, draw_xs))
+#    print im.shape
+#    in_bounds = (0 <= draw_xs) & (draw_xs < im.shape[1]) & (0 <= draw_ys) & (draw_ys < im.shape[0])
+#    draw_xs = draw_xs[in_bounds]
+#    draw_ys = draw_ys[in_bounds]
+#    im[np.rint(draw_ys).astype(int), np.rint(draw_xs).astype(int), 0] = 255
+#    P.imshow(im)
+#    P.show()
 
   def model_ellipse_glyph(self):
     self.choose_model_glyph_candidates()
