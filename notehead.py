@@ -1,4 +1,5 @@
 import numpy as np
+from debug import DEBUG
 from scipy.signal import convolve2d
 from scipy.ndimage.filters import gaussian_filter
 
@@ -142,21 +143,22 @@ class NoteheadsTask:
     params = np.concatenate((a1, T.dot(a1)))
     x0, y0, a, b, t = ellipse_general_to_standard(*params)
     print x0,y0,a,b,t
-#    import pylab as P
-#    im = np.zeros(glyph_border.shape + (3,), dtype=np.uint8)
-#    im[..., 2] = glyph_border * 255
-#    # Draw ellipse
-#    draw_ts = np.linspace(0, 2*np.pi, 100)
-#    draw_ys = x0 + a*np.cos(draw_ts)*np.cos(t) - b*np.sin(draw_ts)*np.sin(t)
-#    draw_xs = y0 + a*np.cos(draw_ts)*np.sin(t) + b*np.sin(draw_ts)*np.cos(t)
-#    print np.column_stack((draw_ys, draw_xs))
-#    print im.shape
-#    in_bounds = (0 <= draw_xs) & (draw_xs < im.shape[1]) & (0 <= draw_ys) & (draw_ys < im.shape[0])
-#    draw_xs = draw_xs[in_bounds]
-#    draw_ys = draw_ys[in_bounds]
-#    im[np.rint(draw_ys).astype(int), np.rint(draw_xs).astype(int), 0] = 255
-#    P.imshow(im)
-#    P.show()
+    if DEBUG():
+      import pylab as P
+      im = np.zeros(glyph_border.shape + (3,), dtype=bool)
+      im[..., 2] = glyph
+      # Draw ellipse
+      draw_ts = np.linspace(0, 2*np.pi, 100)
+      draw_ys = x0 + a*np.cos(draw_ts)*np.cos(t) - b*np.sin(draw_ts)*np.sin(t)
+      draw_xs = y0 + a*np.cos(draw_ts)*np.sin(t) + b*np.sin(draw_ts)*np.cos(t)
+      print np.column_stack((draw_ys, draw_xs))
+      print im.shape
+      in_bounds = (0 <= draw_xs) & (draw_xs < im.shape[1]) & (0 <= draw_ys) & (draw_ys < im.shape[0])
+      draw_xs = draw_xs[in_bounds]
+      draw_ys = draw_ys[in_bounds]
+      im[np.rint(draw_ys).astype(int), np.rint(draw_xs).astype(int), 0] = True
+      P.imshow(im)
+      P.show()
 
   def model_ellipse_glyph(self):
     self.choose_model_glyph_candidates()
