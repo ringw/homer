@@ -45,7 +45,6 @@ class NoteheadsTask:
     # Search for glyphs which are large enough to contain a notehead
     glyph_size = self.page.glyph_bounds[..., 1] - self.page.glyph_bounds[..., 0]
     glyphs = np.all(glyph_size > self.page.staff_space, axis=1)
-    glyphs &= glyph_size[:, 1] < self.page.staff_space*3
     glyphs &= glyph_size[:, 0] > self.page.staff_space*4
     glyphs &= glyph_size[:, 0] < self.page.staff_space*6
     glyph_nums, = np.where(glyphs)
@@ -80,7 +79,6 @@ class NoteheadsTask:
     fit, res, rank, sing, rcond = np.polyfit(xs, dy[ys], 1, full=True)
     # Candidates must have small negative slope and intersect near center
     # of interval
-    #print '\n'.join(map(str, fit.T))
     candidates = (fit[0] < -self.page.staff_space/2) & (fit[0] > -2*self.page.staff_space)
     denom = (-fit[0]).astype(np.double)
     denom[denom == 0] = 1e-10
@@ -97,14 +95,6 @@ class NoteheadsTask:
     self.candidate_glyph = self.model_glyph_proj_num[candidates][proj_x]
     glyph_proj_start = np.where(self.model_glyph_proj_num[candidates] == self.candidate_glyph)[0][0]
     self.candidate_x = local_maximum[candidates][proj_x] + proj_x - glyph_proj_start
-#    import pylab as P
-#    glyph = (self.page.labels[self.page.glyph_boxes[self.candidate_glyph]]
-#             == (self.candidate_glyph + 1)).astype(int)
-#    im = np.zeros(glyph.shape + (3,), dtype=np.uint8)
-#    im[..., 2] = glyph * 255
-#    im[:, int(np.rint(self.candidate_x)), 0] = 255
-#    P.imshow(im)
-#    P.show()
     return (self.candidate_glyph, self.candidate_x)
 
   def fit_model_ellipse(self):
@@ -128,7 +118,9 @@ class NoteheadsTask:
     xs &= np.abs(deriv) < self.page.staff_space
 
     # Get all border x and y coordinates for least squares fit
-    x_coords, y_coords = np.where(glyph_border & xs[None, :])
+    y_coords, x_coords = np.where(glyph_border & xs[None, :])
+    # Algorithm adapted from:
+    # http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.1.7559
     D1 = np.column_stack((x_coords**2, x_coords*y_coords, y_coords**2))
     D2 = np.column_stack((x_coords, y_coords, np.ones(len(x_coords))))
     S1 = D1.astype(np.double).T.dot(D1)
@@ -149,14 +141,15 @@ class NoteheadsTask:
       im[..., 2] = glyph
       # Draw ellipse
       draw_ts = np.linspace(0, 2*np.pi, 100)
-      draw_ys = x0 + a*np.cos(draw_ts)*np.cos(t) - b*np.sin(draw_ts)*np.sin(t)
-      draw_xs = y0 + a*np.cos(draw_ts)*np.sin(t) + b*np.sin(draw_ts)*np.cos(t)
-      print np.column_stack((draw_ys, draw_xs))
-      print im.shape
-      in_bounds = (0 <= draw_xs) & (draw_xs < im.shape[1]) & (0 <= draw_ys) & (draw_ys < im.shape[0])
+      draw_xs = x0 + a*np.cos(draw_ts)*np.cos(t) - b*np.sin(draw_ts)*np.sin(t)
+      draw_ys = y0 + a*np.cos(draw_ts)*np.sin(t) + b*np.sin(draw_ts)*np.cos(t)
+      draw_xs = np.rint(draw_xs).astype(int)
+      draw_ys = np.rint(draw_ys).astype(int)
+      in_bounds = ((0 <= draw_xs) & (draw_xs < im.shape[1])
+                   & (0 <= draw_ys) & (draw_ys < im.shape[0]))
       draw_xs = draw_xs[in_bounds]
       draw_ys = draw_ys[in_bounds]
-      im[np.rint(draw_ys).astype(int), np.rint(draw_xs).astype(int), 0] = True
+      im[draw_ys, draw_xs, 0] = True
       P.imshow(im)
       P.show()
 
