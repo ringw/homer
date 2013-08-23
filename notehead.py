@@ -1,7 +1,6 @@
 import numpy as np
 from debug import DEBUG
-from scipy.signal import convolve2d
-from scipy.ndimage.filters import gaussian_filter
+from scipy import ndimage
 
 def ellipse_general_to_standard(A, B, C, D, E, F):
   """
@@ -132,13 +131,13 @@ class NoteheadsTask:
       gnum = candidate_glyph + 1
       glyph = (glyph_section == gnum).astype(int)
       proj = np.sum(glyph, axis=0) ** 2
-      glyph_border = glyph & (convolve2d(glyph,
-                                         [[1,1,1], [1,0,1], [1,1,1]],
-                                         mode='same') < 8)
+      glyph_border = glyph & (ndimage.convolve(glyph,
+                                               [[1,1,1], [1,0,1], [1,1,1]],
+                                               mode='constant') < 8)
 
       # Choose smooth sections of vertical projection for least squares fit,
       # based on second derivative of the Gaussian
-      deriv = gaussian_filter(proj, 1, order=2)
+      deriv = ndimage.gaussian_filter(proj, 1, order=2)
       xs = np.zeros_like(proj, dtype=bool)
       X_DIST = self.page.staff_space/2
       X0 = int(np.rint(candidate_x))
@@ -193,10 +192,71 @@ class NoteheadsTask:
     self.page.notehead_model = self.notehead_model
     print self.notehead_model
 
+  def create_ellipse_model_mask(self):
+    # Create a bitmap of the ellipse centered at (a, a)
+    # Then find the normal at each point on the bitmap
+    x0, y0, a, b, t = self.notehead_model
+    aval = np.ceil(a).astype(int) + 1
+    self.ellipse_mask = np.zeros((2*aval+1, 2*aval+1), dtype=bool)
+    ts = np.linspace(0, 2*np.pi, 1000)
+    ellipse_xs = aval + (a+1)*np.cos(ts)*np.cos(t) - (b+1)*np.sin(ts)*np.sin(t)
+    ellipse_ys = aval + (a+1)*np.cos(ts)*np.sin(t) + (b+1)*np.sin(ts)*np.cos(t)
+    ellipse_xs = np.rint(ellipse_xs).astype(int)
+    ellipse_ys = np.rint(ellipse_ys).astype(int)
+    self.ellipse_mask[ellipse_ys, ellipse_xs] = True
+
+    ts_normal = ts - t # Rotate ellipse in -t direction
+    # Find angle of normal vector with non-rotated ellipse and add t
+    normal_angle = np.arctan2(b * np.cos(ts_normal),
+                              a * np.sin(ts_normal)) + t
+    self.ellipse_normals = np.zeros_like(self.ellipse_mask, dtype=np.double)
+    self.ellipse_normals[ellipse_ys, ellipse_xs] = normal_angle
+
+    # Unique coordinates of ellipse mask
+    self.ellipse_mask_y, self.ellipse_mask_x = np.where(self.ellipse_mask)
+    self.ellipse_mask_y = self.ellipse_mask_y - aval
+    self.ellipse_mask_x = self.ellipse_mask_x - aval
+
+  def search_glyph(self, g):
+    x0, y0, a, b, t = self.notehead_model
+    a = np.ceil(a).astype(int)
+    glyph_box = self.page.glyph_boxes[g]
+    glyph = (self.page.labels[glyph_box] == g+1).astype(int)
+    # Consider any point inside the glyph (e.g. space in half note)
+    ndimage.binary_fill_holes(glyph, output=glyph)
+    glyph_gradient = self.page.gradient[(0,) + glyph_box]
+    glyph_gradient_magnitude = self.page.gradient[(1,) + glyph_box]
+    candidate_ys, candidate_xs = np.where(glyph)
+    candidate_scores = np.empty_like(candidate_ys, dtype=np.double)
+    i=0
+    for y, x in zip(candidate_ys, candidate_xs):
+      mask_ys = y + self.ellipse_mask_y
+      mask_xs = x + self.ellipse_mask_x
+      mask_points = np.ones_like(mask_ys, dtype=bool)
+      mask_points &= 0 <= mask_ys
+      mask_points &= mask_ys < glyph.shape[0]
+      mask_points &= 0 <= mask_xs
+      mask_points &= mask_xs < glyph.shape[1]
+      # Difference between gradient and expected normal
+      angle = glyph_gradient[mask_ys[mask_points], mask_xs[mask_points]]
+      angle -= self.ellipse_normals[self.ellipse_mask_y[mask_points] + a, self.ellipse_mask_x[mask_points] + a]
+      # "Parallel-ness" score is sum of cos(g - n)
+      candidate_scores[i] = np.sum(np.cos(angle[glyph_gradient_magnitude[mask_ys[mask_points], mask_xs[mask_points]] > 0.1]))
+      i += 1
+    winner = np.argmax(candidate_scores)
+    win = np.amax(candidate_scores)
+    import pylab as P
+    im = np.zeros(glyph.shape + (3,), dtype=np.uint8)
+    im[..., 2] = glyph * 255
+    im[candidate_ys, candidate_xs, 0] = np.rint(candidate_scores * 255 / win)
+    P.imshow(im); P.show()
+    return candidate_ys[winner], candidate_xs[winner]
   def process(self):
     self.choose_model_glyph_candidates()
     self.choose_model_glyphs()
     self.fit_model_ellipses()
+    self.create_ellipse_model_mask()
+    return self.search_glyph(110)
 
   def color_image(self):
     pass
