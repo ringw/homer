@@ -222,7 +222,11 @@ class NoteheadsTask:
     a = np.ceil(a).astype(int)
     glyph_box = self.page.glyph_boxes[g]
     glyph = (self.page.labels[glyph_box] == g+1).astype(int)
+    glyph_border = glyph & (ndimage.convolve(glyph,
+                                             [[1,1,1], [1,0,1], [1,1,1]],
+                                             mode='constant') < 8)
     # Consider any point inside the glyph (e.g. space in half note)
+    ndimage.binary_closing(glyph, iterations=3, output=glyph)
     ndimage.binary_fill_holes(glyph, output=glyph)
     glyph_gradient = self.page.gradient[(0,) + glyph_box]
     glyph_gradient_magnitude = self.page.gradient[(1,) + glyph_box]
@@ -237,11 +241,7 @@ class NoteheadsTask:
       mask_points &= mask_ys < glyph.shape[0]
       mask_points &= 0 <= mask_xs
       mask_points &= mask_xs < glyph.shape[1]
-      # Difference between gradient and expected normal
-      angle = glyph_gradient[mask_ys[mask_points], mask_xs[mask_points]]
-      angle -= self.ellipse_normals[self.ellipse_mask_y[mask_points] + a, self.ellipse_mask_x[mask_points] + a]
-      # "Parallel-ness" score is sum of cos(g - n)
-      candidate_scores[i] = np.sum(np.cos(angle[glyph_gradient_magnitude[mask_ys[mask_points], mask_xs[mask_points]] > 0.1]))
+      candidate_scores[i] = np.count_nonzero(glyph_border[mask_ys[mask_points], mask_xs[mask_points]])
       i += 1
     winner = np.argmax(candidate_scores)
     win = np.amax(candidate_scores)
@@ -256,7 +256,7 @@ class NoteheadsTask:
     self.choose_model_glyphs()
     self.fit_model_ellipses()
     self.create_ellipse_model_mask()
-    return self.search_glyph(110)
+    #print self.search_glyph(316)
 
   def color_image(self):
     pass
