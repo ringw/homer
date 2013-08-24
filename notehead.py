@@ -165,6 +165,9 @@ class NoteheadsTask:
       T = -np.linalg.inv(S3).dot(S2.T)
       M = S1 + S2.dot(T) # reduced scatter matrix
       M = np.vstack([M[2] / 2.0, -M[1], M[0] / 2.0]) # premultiply by inv(C1)
+      # M should be well-conditioned
+      if np.linalg.cond(M) > 1e4:
+        continue
       evals, evecs = np.linalg.eig(M)
       cond = 4 * (evecs[0] * evecs[2]) - evecs[1]**2 # a^T . C . a
       a1 = evecs[:, np.where(cond > 0)[0][0]]

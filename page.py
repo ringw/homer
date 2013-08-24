@@ -36,3 +36,7 @@ class Page:
       row_runs[:,4] = (row[pos[:-1] + 1] == 1)
       all_row_runs.append(row_runs)
     self.row_runs = np.concatenate(all_row_runs)
+
+  def get_glyph(self, g):
+    glyph_box = self.glyph_boxes[g]
+    return (self.labels[glyph_box] == g+1).astype(int)
