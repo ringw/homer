@@ -222,14 +222,14 @@ class NoteheadsTask:
     a = np.ceil(a).astype(int)
     glyph_box = self.page.glyph_boxes[g]
     glyph = (self.page.labels[glyph_box] == g+1).astype(int)
-    glyph_border = glyph & (ndimage.convolve(glyph,
-                                             [[1,1,1], [1,0,1], [1,1,1]],
-                                             mode='constant') < 8)
-    # Consider any point inside the glyph (e.g. space in half note)
+    # Consider empty notehead may be split into disconnected glyphs
+    glyph_im = self.page.im[glyph_box]
+    glyph_border = glyph_im & (ndimage.convolve(glyph_im,
+                                                [[1,1,1], [1,0,1], [1,1,1]],
+                                                mode='constant') < 8)
+    # Consider any point in the region of this current glyph
     ndimage.binary_closing(glyph, iterations=3, output=glyph)
     ndimage.binary_fill_holes(glyph, output=glyph)
-    glyph_gradient = self.page.gradient[(0,) + glyph_box]
-    glyph_gradient_magnitude = self.page.gradient[(1,) + glyph_box]
     candidate_ys, candidate_xs = np.where(glyph)
     candidate_scores = np.empty_like(candidate_ys, dtype=np.double)
     i=0
@@ -248,9 +248,37 @@ class NoteheadsTask:
     import pylab as P
     im = np.zeros(glyph.shape + (3,), dtype=np.uint8)
     im[..., 2] = glyph * 255
+    ok = candidate_scores > (np.count_nonzero(mask_points) * 2 / 3)
+    candidate_ys = candidate_ys[ok]
+    candidate_xs = candidate_xs[ok]
+    candidate_points = candidate_ys*glyph.shape[0] + candidate_xs
+    candidate_scores = candidate_scores[ok]
+    notehead_centers = []
+    #mask_invalidate = ndimage.binary_fill_holes(self.ellipse_mask)
+    while np.amax(candidate_scores) > 0:
+      ind = np.argmax(candidate_scores)
+      y, x = candidate_ys[ind], candidate_xs[ind]
+      notehead_centers.append((y, x))
+      INVALIDATE_WINDOW = self.page.staff_space / 2
+      to_invalidate = np.empty((2*INVALIDATE_WINDOW+1, 2*INVALIDATE_WINDOW+1, 2), dtype=int)
+      INVALIDATE_RANGE = np.arange(-INVALIDATE_WINDOW, INVALIDATE_WINDOW+1)
+      to_invalidate[..., 0] = INVALIDATE_RANGE[:, None]
+      to_invalidate[..., 1] = INVALIDATE_RANGE[None, :]
+      to_invalidate[..., 0] += y
+      to_invalidate[..., 1] += x
+      invalidate_in_range = ((0 <= to_invalidate[..., 0])
+                             & (to_invalidate[..., 0] < glyph.shape[0])
+                             & (0 <= to_invalidate[..., 1])
+                             & (to_invalidate[..., 1] < glyph.shape[1]))
+      invalidate_y, invalidate_x = to_invalidate[invalidate_in_range].T
+      invalidate_points = invalidate_y*glyph.shape[0] + invalidate_x
+      invalidate_candidates = np.in1d(candidate_points, invalidate_points)
+      candidate_scores[invalidate_candidates] = 0
+      print y,x
     im[candidate_ys, candidate_xs, 0] = np.rint(candidate_scores * 255 / win)
+    im[..., 1] = glyph_im * 255
     P.imshow(im); P.show()
-    return candidate_ys[winner], candidate_xs[winner]
+    return notehead_centers
   def process(self):
     self.choose_model_glyph_candidates()
     self.choose_model_glyphs()
