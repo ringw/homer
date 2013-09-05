@@ -152,7 +152,7 @@ class NoteheadsTask:
     # Create a bitmap of the ellipse centered at (a, a)
     # Then find the normal at each point on the bitmap
     x0, y0, a, b, t = self.notehead_model
-    aval = np.ceil(a).astype(int) + 1
+    self.ellipse_mask_w = aval = np.ceil(a).astype(int)
     self.ellipse_mask = np.zeros((2*aval+1, 2*aval+1), dtype=bool)
     ts = np.linspace(0, 2*np.pi, 1000)
     ellipse_xs = aval + (a+1)*np.cos(ts)*np.cos(t) - (b+1)*np.sin(ts)*np.sin(t)
@@ -169,10 +169,35 @@ class NoteheadsTask:
     self.ellipse_normals[ellipse_ys, ellipse_xs] = normal_angle
 
     # Unique coordinates of ellipse mask
-    self.ellipse_mask_y, self.ellipse_mask_x = np.where(self.ellipse_mask)
-    self.ellipse_mask_y = self.ellipse_mask_y - aval
-    self.ellipse_mask_x = self.ellipse_mask_x - aval
+    ellipse_mask_y, ellipse_mask_x = np.where(self.ellipse_mask)
+    self.ellipse_mask_y = ellipse_mask_y - aval
+    self.ellipse_mask_x = ellipse_mask_x - aval
 
+  def notehead_search(self, box=slice(None)):
+    im = self.page.im[box]
+    border = im & (ndimage.convolve(im,
+                                                [[1,1,1], [1,0,1], [1,1,1]],
+                                                mode='constant') < 8)
+    candidate_centers = ndimage.binary_closing(im, iterations=3)
+    ndimage.binary_fill_holes(candidate_centers, output=candidate_centers)
+    candidate_ys, candidate_xs = np.where(candidate_centers)
+    candidate_scores = np.empty_like(candidate_ys, dtype=np.double)
+    mask_points = (np.column_stack((candidate_ys, candidate_xs))[:, None]
+                +  np.column_stack((self.ellipse_mask_y, self.ellipse_mask_x))[None])
+    points_ok = np.ones((mask_points.shape[0], mask_points.shape[1]), dtype=bool)
+    points_ok &= 0 <= mask_points[..., 0]
+    points_ok &= 0 <= mask_points[..., 1]
+    points_ok &= mask_points[..., 0] < im.shape[0]
+    points_ok &= mask_points[..., 1] < im.shape[1]
+    mask_points[~points_ok] = np.nan
+    candidate_scores = np.nansum(border[mask_points[..., 0], mask_points[..., 1]])
+    if DEBUG():
+      import pylab as P
+      im = np.zeros(im.shape + (3,), dtype=np.uint8)
+      im[..., 2] = glyph * 255
+      im[candidate_ys, candidate_xs, 0] = np.rint(candidate_scores * 255.0 / np.argmax(candidate_scores)).astype(int)
+      P.imshow(im)
+      P.show()
   def search_glyph(self, g):
     x0, y0, a, b, t = self.notehead_model
     a = np.ceil(a).astype(int)
@@ -241,6 +266,7 @@ class NoteheadsTask:
     self.fit_model_ellipses()
     self.create_ellipse_model_mask()
     #print self.search_glyph(316)
+    self.notehead_search()
 
   def color_image(self):
     pass
