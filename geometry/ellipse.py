@@ -1,6 +1,8 @@
 import numpy as np
 
 def least_squares_fit(x_coords, y_coords):
+  # Algorithm adapted from:
+  # http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.1.7559
   x_coords = np.asarray(x_coords)
   y_coords = np.asarray(y_coords)
   D1 = np.column_stack((x_coords**2, x_coords*y_coords, y_coords**2))

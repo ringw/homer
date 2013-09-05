@@ -124,8 +124,6 @@ class NoteheadsTask:
 
       # Get all border x and y coordinates for least squares fit
       y_coords, x_coords = np.where(glyph_border & xs[None, :])
-      # Algorithm adapted from:
-      # http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.1.7559
       A, B, C, D, E, F = least_squares_fit(x_coords, y_coords)
       x0, y0, a, b, t = general_to_standard(A, B, C, D, E, F)
       self.model_ellipses.append((x0, y0, a, b, t))
