@@ -22,7 +22,7 @@ class Staff:
     d = ImageDraw.Draw(im)
     for line in self.lines:
       d.line(line, fill=(255, 255, 0))
-class StaffTask:
+class StavesTask:
   def __init__(self, page):
     self.page = page
     self.im = page.im

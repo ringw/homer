@@ -91,7 +91,7 @@ def main():
   app = QApplication(sys.argv)
 
   page, = image.read_pages(sys.argv[1])
-  staff.StaffTask(page).process()
+  staff.StavesTask(page).process()
   global glyphsTask
   glyphsTask = glyph.GlyphsTask(page)
   glyphsTask.process()

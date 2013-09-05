@@ -15,7 +15,7 @@ parser.add_argument("path", type=str, help="path to scanned music")
 
 def moonshine(path, colored=None):
   page, = image.read_pages(path)
-  tasks = [staff.StaffTask(page),
+  tasks = [staff.StavesTask(page),
            gradient.GradientTask(page),
            glyph.GlyphsTask(page),
            line.LinesTask(page),
