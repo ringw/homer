@@ -182,21 +182,24 @@ class NoteheadsTask:
     ndimage.binary_fill_holes(candidate_centers, output=candidate_centers)
     candidate_ys, candidate_xs = np.where(candidate_centers)
     candidate_scores = np.empty_like(candidate_ys, dtype=np.double)
+    ellipse_mask = np.column_stack((self.ellipse_mask_y, self.ellipse_mask_x))
+    ellipse_choice = np.random.choice(ellipse_mask.shape[0], 50)
+    ellipse_mask = ellipse_mask[ellipse_choice]
     mask_points = (np.column_stack((candidate_ys, candidate_xs))[:, None]
-                +  np.column_stack((self.ellipse_mask_y, self.ellipse_mask_x))[None])
+                +  ellipse_mask[None])
     points_ok = np.ones((mask_points.shape[0], mask_points.shape[1]), dtype=bool)
     points_ok &= 0 <= mask_points[..., 0]
     points_ok &= 0 <= mask_points[..., 1]
     points_ok &= mask_points[..., 0] < im.shape[0]
     points_ok &= mask_points[..., 1] < im.shape[1]
-    mask_points[~points_ok] = np.nan
-    candidate_scores = np.nansum(border[mask_points[..., 0], mask_points[..., 1]])
-    if DEBUG():
+    mask_points[~points_ok] = 0 # XXX: top-left pixel not necessarily zero
+    candidate_scores = np.sum(border[mask_points[..., 0], mask_points[..., 1]], axis=1)
+    if True:#DEBUG():
       import pylab as P
-      im = np.zeros(im.shape + (3,), dtype=np.uint8)
-      im[..., 2] = glyph * 255
-      im[candidate_ys, candidate_xs, 0] = np.rint(candidate_scores * 255.0 / np.argmax(candidate_scores)).astype(int)
-      P.imshow(im)
+      debug_im = np.zeros(im.shape + (3,))
+      debug_im[..., 2] = im
+      debug_im[candidate_ys, candidate_xs, 0] = candidate_scores.astype(np.double) / np.amax(candidate_scores)
+      P.imshow(debug_im)
       P.show()
   def search_glyph(self, g):
     x0, y0, a, b, t = self.notehead_model

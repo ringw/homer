@@ -29,7 +29,7 @@ def general_to_standard(A, B, C, D, E, F):
     ((x - x0) cos t - (y - y0) sin t)^2/a^2
     + ((x - x0) sin t + (y - y0) cos t)^2/b^2 = 1
   The ellipse has center (x0, y0), major and minor semi-axes a and b,
-  and the angle to the semi-major axis is t.
+  and the angle to the major axis is t.
 
   Parameters: A, B, C, D, E, F
   Returns: x0, y0, a, b, t
