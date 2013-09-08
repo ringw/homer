@@ -1,4 +1,9 @@
 import numpy as np
+import staff
+import line
+import glyph
+import gradient
+import notehead
 
 class Page:
   def __init__(self, im, colored=None):
@@ -6,6 +11,11 @@ class Page:
     self.colored = colored # RGB copy of image for coloring
     self.staves = []
     self.get_runlength_encoding()
+    self.tasks = [staff.StavesTask(self),
+                  gradient.GradientTask(self),
+                  glyph.GlyphsTask(self),
+                  line.LinesTask(self),
+                  notehead.NoteheadsTask(self)]
 
   # Store column and row runlength encoding
   def get_runlength_encoding(self):
@@ -36,6 +46,13 @@ class Page:
       row_runs[:,4] = (row[pos[:-1] + 1] == 1)
       all_row_runs.append(row_runs)
     self.row_runs = np.concatenate(all_row_runs)
+
+  def process(self):
+    for task in self.tasks:
+      task.process()
+  def color(self):
+    for task in self.tasks:
+      task.color_image()
 
   def get_glyph(self, g):
     glyph_box = self.glyph_boxes[g]
