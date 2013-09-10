@@ -175,30 +175,31 @@ class NoteheadsTask:
 
   def notehead_search(self, box=slice(None)):
     im = self.page.im[box]
-    border = im & (ndimage.convolve(im,
-                                                [[1,1,1], [1,0,1], [1,1,1]],
-                                                mode='constant') < 8)
-    candidate_centers = ndimage.binary_closing(im, iterations=3)
-    ndimage.binary_fill_holes(candidate_centers, output=candidate_centers)
-    candidate_ys, candidate_xs = np.where(candidate_centers)
-    candidate_scores = np.empty_like(candidate_ys, dtype=np.double)
-    ellipse_mask = np.column_stack((self.ellipse_mask_y, self.ellipse_mask_x))
-    ellipse_choice = np.random.choice(ellipse_mask.shape[0], 50)
-    ellipse_mask = ellipse_mask[ellipse_choice]
-    mask_points = (np.column_stack((candidate_ys, candidate_xs))[:, None]
-                +  ellipse_mask[None])
-    points_ok = np.ones((mask_points.shape[0], mask_points.shape[1]), dtype=bool)
-    points_ok &= 0 <= mask_points[..., 0]
-    points_ok &= 0 <= mask_points[..., 1]
-    points_ok &= mask_points[..., 0] < im.shape[0]
-    points_ok &= mask_points[..., 1] < im.shape[1]
-    mask_points[~points_ok] = 0 # XXX: top-left pixel not necessarily zero
-    candidate_scores = np.sum(border[mask_points[..., 0], mask_points[..., 1]], axis=1)
+    gradient = self.page.gradient[(slice(None),) + box]
+    # Each border-ish pixel (with reasonable gradient magnitude)
+    # is considered as each point in ellipse_mask where center is in bounds
+    notehead_scores = np.zeros_like(im, dtype=np.double)
+    for mask_y, mask_x in zip(self.ellipse_mask_y, self.ellipse_mask_x):
+      if mask_y > 0:
+        center_y = slice(0, im.shape[0]-mask_y)
+        point_y = slice(mask_y, None)
+      else:
+        center_y = slice(-mask_y, None)
+        point_y = slice(0, im.shape[0]+mask_y)
+      if mask_x > 0:
+        center_x = slice(0, im.shape[1]-mask_x)
+        point_x = slice(mask_x, None)
+      else:
+        center_x = slice(-mask_x, None)
+        point_x = slice(0, im.shape[1]+mask_x)
+      notehead_scores[center_y, center_x] += im[point_y, point_x]
+    print np.unravel_index(np.argmax(notehead_scores), notehead_scores.shape)
+
     if True:#DEBUG():
       import pylab as P
       debug_im = np.zeros(im.shape + (3,))
       debug_im[..., 2] = im
-      debug_im[candidate_ys, candidate_xs, 0] = candidate_scores.astype(np.double) / np.amax(candidate_scores)
+      debug_im[..., 0] = notehead_scores / np.amax(notehead_scores)
       P.imshow(debug_im)
       P.show()
   def search_glyph(self, g):
