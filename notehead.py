@@ -1,4 +1,5 @@
 import numpy as np
+import numexpr as ne
 from debug import DEBUG
 from scipy import ndimage
 from geometry.ellipse import least_squares_fit, general_to_standard
@@ -200,15 +201,16 @@ class NoteheadsTask:
       else:
         center_x = slice(-mask_x, None)
         point_x = slice(0, im.shape[1]+mask_x)
-      normal_diff = gradient[0, point_y, point_x] - mask_normal
-      normalness = np.cos(normal_diff)
+      grad_angle = gradient[0, point_y, point_x]
+      normalness = ne.evaluate('cos(grad_angle - mask_normal)')
       normalness[normalness < 0] = 0
       grad_magnitude = gradient[1, point_y, point_x]
-      normalness[grad_magnitude < 0.1] = 0
+      normalness[(grad_magnitude < 0.1) | (normalness == 0)] = -0.5
       notehead_scores[center_y, center_x] += normalness
+    notehead_scores[notehead_scores < 0] = 0
     print np.unravel_index(np.argmax(notehead_scores), notehead_scores.shape)
 
-    if True:#DEBUG():
+    if DEBUG():
       import pylab as P
       debug_im = np.zeros(im.shape + (3,))
       debug_im[..., 2] = im
