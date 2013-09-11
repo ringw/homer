@@ -152,6 +152,9 @@ class NoteheadsTask:
     # Create a bitmap of the ellipse centered at (a, a)
     # Then find the normal at each point on the bitmap
     x0, y0, a, b, t = self.notehead_model
+    extra = self.page.staff_thick.astype(np.double)/2.0
+    a += extra
+    b += extra
     self.ellipse_mask_w = aval = np.ceil(a).astype(int)
     self.ellipse_mask = np.zeros((2*aval+1, 2*aval+1), dtype=bool)
     ts = np.linspace(0, 2*np.pi, 1000)
@@ -161,13 +164,6 @@ class NoteheadsTask:
     ellipse_ys = np.rint(ellipse_ys).astype(int)
     self.ellipse_mask[ellipse_ys, ellipse_xs] = True
 
-    ts_normal = ts - t # Rotate ellipse in -t direction
-    # Find angle of normal vector with non-rotated ellipse and add t
-    normal_angle = np.arctan2(b * np.cos(ts_normal),
-                              a * np.sin(ts_normal)) + t
-    self.ellipse_normals = np.zeros_like(self.ellipse_mask, dtype=np.double)
-    self.ellipse_normals[ellipse_ys, ellipse_xs] = normal_angle
-
     # Unique coordinates of ellipse mask
     ellipse_mask_y, ellipse_mask_x = np.where(self.ellipse_mask)
     self.ellipse_mask_y = ellipse_mask_y - aval
@@ -175,18 +171,23 @@ class NoteheadsTask:
 
     # Calculate normal line by rotating back -t
     unique_x = self.ellipse_mask_x*np.cos(-t) - self.ellipse_mask_y*np.sin(-t)
-    unique_y = self.ellipse_mask_x*np.sin(-t) - self.ellipse_mask_y*np.cos(-t)
+    unique_y = self.ellipse_mask_x*np.sin(-t) + self.ellipse_mask_y*np.cos(-t)
     # Normal line from implicit derivative of ellipse standard form
-    self.ellipse_mask_normal = (np.arctan2(a * unique_y, b * unique_x)
-                                + 3*np.pi/2 + t)
+    self.ellipse_mask_normal = (np.arctan2(a**2 * unique_y, b**2 * unique_x)
+                                + np.pi + t)
 
-  def notehead_search(self, box=slice(None)):
+  def notehead_search(self, box=(slice(None),)):
     im = self.page.im[box]
     gradient = self.page.gradient[(slice(None),) + box]
     # Each border-ish pixel (with reasonable gradient magnitude)
     # is considered as each point in ellipse_mask where center is in bounds
     notehead_scores = np.zeros_like(im, dtype=np.double)
-    for mask_y, mask_x in zip(self.ellipse_mask_y, self.ellipse_mask_x):
+    mask = np.column_stack((self.ellipse_mask_y,
+                            self.ellipse_mask_x,
+                            self.ellipse_mask_normal))
+    if mask.shape[0] > 50:
+      mask = mask[np.random.choice(mask.shape[0], 50)]
+    for mask_y, mask_x, mask_normal in mask:
       if mask_y > 0:
         center_y = slice(0, im.shape[0]-mask_y)
         point_y = slice(mask_y, None)
@@ -199,7 +200,12 @@ class NoteheadsTask:
       else:
         center_x = slice(-mask_x, None)
         point_x = slice(0, im.shape[1]+mask_x)
-      notehead_scores[center_y, center_x] += im[point_y, point_x]
+      normal_diff = gradient[0, point_y, point_x] - mask_normal
+      normalness = np.cos(normal_diff)
+      normalness[normalness < 0] = 0
+      grad_magnitude = gradient[1, point_y, point_x]
+      normalness[grad_magnitude < 0.1] = 0
+      notehead_scores[center_y, center_x] += normalness
     print np.unravel_index(np.argmax(notehead_scores), notehead_scores.shape)
 
     if True:#DEBUG():
