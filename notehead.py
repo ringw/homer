@@ -173,6 +173,13 @@ class NoteheadsTask:
     self.ellipse_mask_y = ellipse_mask_y - aval
     self.ellipse_mask_x = ellipse_mask_x - aval
 
+    # Calculate normal line by rotating back -t
+    unique_x = self.ellipse_mask_x*np.cos(-t) - self.ellipse_mask_y*np.sin(-t)
+    unique_y = self.ellipse_mask_x*np.sin(-t) - self.ellipse_mask_y*np.cos(-t)
+    # Normal line from implicit derivative of ellipse standard form
+    self.ellipse_mask_normal = (np.arctan2(a * unique_y, b * unique_x)
+                                + 3*np.pi/2 + t)
+
   def notehead_search(self, box=slice(None)):
     im = self.page.im[box]
     gradient = self.page.gradient[(slice(None),) + box]
