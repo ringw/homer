@@ -177,7 +177,7 @@ class NoteheadsTask:
     self.ellipse_mask_normal = (np.arctan2(a**2 * unique_y, b**2 * unique_x)
                                 + np.pi + t)
 
-  def notehead_search(self, box=(slice(None),)):
+  def find_candidate_noteheads(self, box=(slice(None),)):
     im = self.page.im[box]
     gradient = self.page.gradient[(slice(None),) + box]
     # Each border-ish pixel (with reasonable gradient magnitude)
@@ -186,8 +186,6 @@ class NoteheadsTask:
     mask = np.column_stack((self.ellipse_mask_y,
                             self.ellipse_mask_x,
                             self.ellipse_mask_normal))
-    if mask.shape[0] > 50:
-      mask = mask[np.random.choice(mask.shape[0], 50)]
     for mask_y, mask_x, mask_normal in mask:
       if mask_y > 0:
         center_y = slice(0, im.shape[0]-mask_y)
@@ -208,8 +206,10 @@ class NoteheadsTask:
       normalness[(grad_magnitude < 0.1) | (normalness == 0)] = -0.5
       notehead_scores[center_y, center_x] += normalness
     notehead_scores[notehead_scores < 0] = 0
-    print np.unravel_index(np.argmax(notehead_scores), notehead_scores.shape)
-
+    # Notehead centers should be unconnected objects in notehead_scores
+    candidate_labels, num_candidates = ndimage.label(notehead_scores)
+    candidate_centers = ndimage.center_of_mass(notehead_scores, candidate_labels,
+                                               np.arange(1,num_candidates))
     if DEBUG():
       import pylab as P
       debug_im = np.zeros(im.shape + (3,))
@@ -217,75 +217,47 @@ class NoteheadsTask:
       debug_im[..., 0] = notehead_scores / np.amax(notehead_scores)
       P.imshow(debug_im)
       P.show()
-  def search_glyph(self, g):
+    return candidate_centers
+
+  def filter_candidate_noteheads(self, candidate_centers, box=(slice(None),)):
+    im = self.page.im[box]
+    gradient = self.page.gradient[(slice(None),) + box]
+    # Search for border pixels around center whose gradient matches ellipse
+    border = im & (ndimage.convolve(im, np.ones((3,3), dtype=int)) < 9)
+    # Flatten border pixels within semi-major axis of each center
     x0, y0, a, b, t = self.notehead_model
-    a = np.ceil(a).astype(int)
-    glyph_box = self.page.glyph_boxes[g]
-    glyph = (self.page.labels[glyph_box] == g+1).astype(int)
-    # Consider empty notehead may be split into disconnected glyphs
-    glyph_im = self.page.im[glyph_box]
-    glyph_border = glyph_im & (ndimage.convolve(glyph_im,
-                                                [[1,1,1], [1,0,1], [1,1,1]],
-                                                mode='constant') < 8)
-    # Consider any point in the region of this current glyph
-    ndimage.binary_closing(glyph, iterations=3, output=glyph)
-    ndimage.binary_fill_holes(glyph, output=glyph)
-    candidate_ys, candidate_xs = np.where(glyph)
-    candidate_scores = np.empty_like(candidate_ys, dtype=np.double)
-    i=0
-    for y, x in zip(candidate_ys, candidate_xs):
-      mask_ys = y + self.ellipse_mask_y
-      mask_xs = x + self.ellipse_mask_x
-      mask_points = np.ones_like(mask_ys, dtype=bool)
-      mask_points &= 0 <= mask_ys
-      mask_points &= mask_ys < glyph.shape[0]
-      mask_points &= 0 <= mask_xs
-      mask_points &= mask_xs < glyph.shape[1]
-      candidate_scores[i] = np.count_nonzero(glyph_border[mask_ys[mask_points], mask_xs[mask_points]])
-      i += 1
-    winner = np.argmax(candidate_scores)
-    win = np.amax(candidate_scores)
-    import pylab as P
-    im = np.zeros(glyph.shape + (3,), dtype=np.uint8)
-    im[..., 2] = glyph * 255
-    ok = candidate_scores > (np.count_nonzero(mask_points) * 2 / 3)
-    candidate_ys = candidate_ys[ok]
-    candidate_xs = candidate_xs[ok]
-    candidate_points = candidate_ys*glyph.shape[0] + candidate_xs
-    candidate_scores = candidate_scores[ok]
-    notehead_centers = []
-    #mask_invalidate = ndimage.binary_fill_holes(self.ellipse_mask)
-    while np.amax(candidate_scores) > 0:
-      ind = np.argmax(candidate_scores)
-      y, x = candidate_ys[ind], candidate_xs[ind]
-      notehead_centers.append((y, x))
-      INVALIDATE_WINDOW = self.page.staff_space / 2
-      to_invalidate = np.empty((2*INVALIDATE_WINDOW+1, 2*INVALIDATE_WINDOW+1, 2), dtype=int)
-      INVALIDATE_RANGE = np.arange(-INVALIDATE_WINDOW, INVALIDATE_WINDOW+1)
-      to_invalidate[..., 0] = INVALIDATE_RANGE[:, None]
-      to_invalidate[..., 1] = INVALIDATE_RANGE[None, :]
-      to_invalidate[..., 0] += y
-      to_invalidate[..., 1] += x
-      invalidate_in_range = ((0 <= to_invalidate[..., 0])
-                             & (to_invalidate[..., 0] < glyph.shape[0])
-                             & (0 <= to_invalidate[..., 1])
-                             & (to_invalidate[..., 1] < glyph.shape[1]))
-      invalidate_y, invalidate_x = to_invalidate[invalidate_in_range].T
-      invalidate_points = invalidate_y*glyph.shape[0] + invalidate_x
-      invalidate_candidates = np.in1d(candidate_points, invalidate_points)
-      candidate_scores[invalidate_candidates] = 0
-      print y,x
-    im[candidate_ys, candidate_xs, 0] = np.rint(candidate_scores * 255 / win)
-    im[..., 1] = glyph_im * 255
-    P.imshow(im); P.show()
-    return notehead_centers
+    a = np.rint(a).astype(int)
+    mask = np.dstack((np.repeat(np.arange(-a, a+1)[None], 2*a+1, 0),
+                      np.repeat(np.arange(-a, a+1)[:,None], 2*a+1, 1)))
+    # Determine expected gradient by rotating mask coordinates -t
+    mask_rot = ne.evaluate("cos(mask)")
+    mask_rot[..., 0] -= np.sin(mask[..., 1])
+    mask_rot[..., 1] += np.sin(mask[..., 0])
+    expect_grad = np.arctan2(mask_rot[...,0], mask_rot[...,1]) + np.pi + t
+    # Determine actual border pixels and gradient
+    center_points = np.rint(np.array(candidate_centers)).astype(int)
+    border_points = center_points[:, None, None, :] + mask[None]
+    border_mask = border[border_points[..., 0], border_points[..., 1]]
+    border_grad = gradient[0, border_points[..., 0], border_points[..., 1]]
+    border_points = np.where(border_mask)
+    point_grad = border_grad[border_points]
+    point_grad -= expect_grad[border_points[1:]]
+    np.cos(point_grad, output=point_grad)
+    likely_notehead = point_grad >= 0.5
+    border_points = np.array(border_points)
+    for i in range(len(candidate_centers)):
+      print i, candidate_centers[i]
+      print border_points.T[(border_points[0] == i) & likely_notehead]
+    self.border_mask = border_mask
+    self.border_grad = border_grad
+    self.border_points = border_points
+    self.point_grad = point_grad
+
   def process(self):
     self.choose_model_glyph_candidates()
     self.choose_model_glyphs()
     self.fit_model_ellipses()
     self.create_ellipse_model_mask()
-    #print self.search_glyph(316)
-    self.notehead_search()
 
   def color_image(self):
     pass
