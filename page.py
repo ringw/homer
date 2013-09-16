@@ -1,6 +1,6 @@
 import numpy as np
+import rotate
 import staff
-import line
 import glyph
 import gradient
 import notehead
@@ -11,10 +11,10 @@ class Page:
     self.colored = colored # RGB copy of image for coloring
     self.staves = []
     self.get_runlength_encoding()
-    self.tasks = [staff.StavesTask(self),
+    self.tasks = [rotate.RotateTask(self),
+                  staff.StavesTask(self),
                   gradient.GradientTask(self),
                   glyph.GlyphsTask(self),
-                  line.LinesTask(self),
                   notehead.NoteheadsTask(self)]
 
   # Store column and row runlength encoding
