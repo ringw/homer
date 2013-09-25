@@ -11,6 +11,7 @@ class Page:
     self.colored = colored # RGB copy of image for coloring
     self.staves = []
     self.get_runlength_encoding()
+    self.get_spacing()
     self.tasks = [rotate.RotateTask(self),
                   staff.StavesTask(self),
                   gradient.GradientTask(self),
@@ -46,6 +47,18 @@ class Page:
       row_runs[:,4] = (row[pos[:-1] + 1] == 1)
       all_row_runs.append(row_runs)
     self.row_runs = np.concatenate(all_row_runs)
+
+  def get_spacing(self):
+    dark_cols = np.array(self.col_runs[:,4], dtype=bool)
+
+    # Histogram of light lengths (space between staff lines)
+    dists = np.bincount(self.col_runs[~dark_cols, 3])
+    # Histogram of dark lengths (thickness of staff lines)
+    thicks = np.bincount(self.col_runs[dark_cols, 3])
+
+    self.staff_space = np.argmax(dists)
+    self.staff_thick = np.argmax(thicks)
+    return (self.staff_space, self.staff_thick)
 
   def process(self):
     for task in self.tasks:

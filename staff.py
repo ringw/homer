@@ -31,18 +31,6 @@ class StavesTask:
   STAFF_SPACE_DY = 10
   STAFF_THICK_DY = 5
 
-  def get_spacing(self):
-    dark_cols = np.array(self.page.col_runs[:,4], dtype=bool)
-
-    # Histogram of light lengths (space between staff lines)
-    dists = np.bincount(self.page.col_runs[~dark_cols, 3])
-    # Histogram of dark lengths (thickness of staff lines)
-    thicks = np.bincount(self.page.col_runs[dark_cols, 3])
-
-    self.page.staff_space = self.staff_space = np.argmax(dists)
-    self.page.staff_thick = self.staff_thick = np.argmax(thicks)
-    return (self.staff_space, self.staff_thick)
-
   # 1D array -> 5-tuples of coordinates of possible staff cross-sections
   def cross_sections(self, col_num):
     # Extract runs from this column
@@ -51,7 +39,7 @@ class StavesTask:
     # Ensure first run is dark
     if not runs[0,4]:
       runs = runs[1:]
-    
+
     # Runs alternate color, so there are (len(runs) + 1)/2 - 4 candidates
     num_candidates = (runs.shape[0] + 1)/2 - 4
     candidate_starts = np.arange(0, 2*num_candidates, 2)

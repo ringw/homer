@@ -7,9 +7,14 @@ import subprocess
 import numpy as np
 import page
 
+IMAGE_MAX_SIZE = 5000
 def image_array(f):
   im = Image.open(f)
   im = im.convert('1')
+  if im.size[0] > IMAGE_MAX_SIZE and im.size[0] > im.size[1]:
+    im = im.resize((IMAGE_MAX_SIZE, im.size[1]*IMAGE_MAX_SIZE/im.size[0]))
+  elif im.size[1] > IMAGE_MAX_SIZE:
+    im = im.resize((im.size[0]*IMAGE_MAX_SIZE/im.size[1], IMAGE_MAX_SIZE))
   im = im.convert('L')
   bytestring = im.tostring()
   pixels = np.fromstring(bytestring, dtype=np.uint8)
@@ -25,7 +30,6 @@ def read_pages(path):
   path.seek(0)
   if path.read(4) == '%PDF':
     path.seek(0)
-    #outFile = tempfile.NamedTemporaryFile(suffix='.png')
     tmpDir = tempfile.mkdtemp(prefix='moonshineTemp')
     tmpFormat = os.path.join(tmpDir, "page%05d.png")
     ARGS = ['gs', '-dBATCH', '-dNOPAUSE', '-dSAFER',
