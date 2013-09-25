@@ -40,7 +40,7 @@ class StavesTask:
                                  staff, space))
     return mask, 3*len(space) + len(staff)*5/2
 
-  def find_center_ys(self):
+  def find_candidate_center_ys(self):
     mask, offset = self.convolution_filter()
     cv = convolve(self.im.sum(1), mask, mode='same')
     cv[cv < 0] = 0
@@ -52,12 +52,37 @@ class StavesTask:
       cv[max(0, peak-STAFF_DIST):min(len(cv)-1, peak+STAFF_DIST)] = 0
     return asarray(ys)
 
+  def find_staff_ys(self):
+    candidates = self.find_candidate_center_ys()
+    SEARCH_SIZE = 2*(self.page.staff_space + self.page.staff_thick)
+    hsum = self.page.im.sum(1)
+    near_candidate_indices = (arange(-SEARCH_SIZE, SEARCH_SIZE+1)[None]
+                              + candidates[:, None])
+    near_candidate_indices[near_candidate_indices < 0] = 0
+    near_candidate_indices[near_candidate_indices >= self.page.im.shape[0]] \
+        = self.page.im.shape[0] - 1
+    NUM_NEAR = near_candidate_indices.shape[1]
+    near_candidates = hsum[near_candidate_indices]
+    INVALIDATE_SIZE = self.page.staff_space / 2
+    near_candidates[:, SEARCH_SIZE+1 - INVALIDATE_SIZE
+                      :SEARCH_SIZE+1 + INVALIDATE_SIZE] = 0
+    lines = zeros((len(candidates), 5), dtype=int)
+    lines[:, 0] = candidates
+    for i in range(1, 5):
+      next_line = argmax(near_candidates, axis=1)
+      lines[:, i] = next_line + candidates - SEARCH_SIZE - 1
+      near_candidates[  (near_candidate_indices
+                         >= (lines[:, i] - INVALIDATE_SIZE)[:, None])
+                      & (near_candidate_indices
+                         <= (lines[:, i] + INVALIDATE_SIZE)[:, None])] = 0
+    return lines
+
   def color_image(self):
     # Gray out center ys
     colored_array = array(self.colored)
-    center_ys = self.find_center_ys()
+    staff_ys = self.find_staff_ys()
     to_gray = zeros(self.page.im.shape[0], dtype=bool)
-    to_gray[(arange(-5, 5)[:, None] + center_ys[None, :]).ravel()] = True
+    to_gray[(arange(-5, 5)[:, None] + staff_ys.ravel()[None, :]).ravel()] = True
     colored_array[to_gray] |= 0x80
     self.page.colored = self.colored = Image.fromarray(colored_array)
 
