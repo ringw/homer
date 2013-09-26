@@ -75,7 +75,27 @@ class StavesTask:
                          >= (lines[:, i] - INVALIDATE_SIZE)[:, None])
                       & (near_candidate_indices
                          <= (lines[:, i] + INVALIDATE_SIZE)[:, None])] = 0
+    # Filter out unlikely staves
+    lines.sort(axis=1)
+    line_dist = diff(lines, axis=1)
+    staves = ((line_dist.std(axis=1) < self.page.staff_thick)
+              & (abs(line_dist.mean(axis=1)
+                     - (self.page.staff_space + self.page.staff_thick))
+                 < self.page.staff_thick))
+    lines = lines[staves]
+    self.staff_ys = lines
     return lines
+
+  def mask_staff_ys(self):
+    # Index into image around each staff line
+    STAFF_MASK_SIZE = self.page.staff_space / 2
+    im_index_y = (self.staff_ys[:, :, None, None]
+                  + arange(-STAFF_MASK_SIZE, STAFF_MASK_SIZE + 1)[None, None, :, None])
+    im_index_x = arange(self.page.im.shape[1])[None, None, None, :]
+    im_mask = self.page.im[im_index_y, im_index_x]
+    to_mask = (im_mask[..., 0, :] == 0) & (im_mask[..., -1, :] == 0)
+    im_mask[to_mask[..., None, :]] = 0
+    self.page.im[im_index_y, im_index_x] = im_mask
 
   def color_image(self):
     # Gray out center ys
@@ -87,4 +107,5 @@ class StavesTask:
     self.page.colored = self.colored = Image.fromarray(colored_array)
 
   def process(self):
-    print self.find_center_ys()
+    print self.find_staff_ys()
+    self.mask_staff_ys()
