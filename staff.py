@@ -84,18 +84,19 @@ class StavesTask:
                  < self.page.staff_thick))
     lines = lines[staves]
     self.staff_ys = lines
-    return lines
+    return lines[argsort(lines[:, 0])]
 
   def mask_staff_ys(self):
     # Index into image around each staff line
-    STAFF_MASK_SIZE = self.page.staff_space / 2
-    im_index_y = (self.staff_ys[:, :, None, None]
-                  + arange(-STAFF_MASK_SIZE, STAFF_MASK_SIZE + 1)[None, None, :, None])
-    im_index_x = arange(self.page.im.shape[1])[None, None, None, :]
-    im_mask = self.page.im[im_index_y, im_index_x]
-    to_mask = (im_mask[..., 0, :] == 0) & (im_mask[..., -1, :] == 0)
-    im_mask[to_mask[..., None, :]] = 0
-    self.page.im[im_index_y, im_index_x] = im_mask
+    STAFF_MASK_SIZE = self.page.staff_space / 3
+    for staff in self.staff_ys:
+      for line in staff:
+        edges = self.page.im[[[line - STAFF_MASK_SIZE],
+                              [line + STAFF_MASK_SIZE]],
+                             [arange(self.page.im.shape[1])]].astype(bool)
+        to_mask = (~edges[0]) & (~edges[1])
+        print to_mask
+        self.page.im[line - STAFF_MASK_SIZE:line + STAFF_MASK_SIZE, to_mask] = 0
 
   def color_image(self):
     # Gray out center ys
