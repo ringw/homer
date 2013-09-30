@@ -47,5 +47,12 @@ class RotateTask:
 
   def process(self):
     self.page.im = self.rotate_image()
+    self.page.colored = Image.fromstring('L', (self.page.im.shape[0],
+                                               self.page.im.shape[1]),
+                                         (self.page.im*255).tostring()) \
+                             .convert('RGBA')
+    # Force page to reload runlength encoding and spacing
+    self.page.get_runlength_encoding()
+    self.page.get_spacing()
   def color_image(self):
     pass
