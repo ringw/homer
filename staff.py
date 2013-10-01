@@ -25,8 +25,6 @@ class Staff:
 class StavesTask:
   def __init__(self, page):
     self.page = page
-    self.im = page.im
-    self.colored = page.colored
 
   # Filter to be convolved with horizontal projection of image,
   # along with offset for actual staff
@@ -42,7 +40,7 @@ class StavesTask:
 
   def find_candidate_center_ys(self):
     mask, offset = self.convolution_filter()
-    cv = convolve(self.im.sum(1), mask, mode='same')
+    cv = convolve(self.page.im.sum(1), mask, mode='same')
     cv[cv < 0] = 0
     ys = []
     STAFF_DIST = 5*(self.page.staff_space + self.page.staff_thick)
@@ -54,7 +52,7 @@ class StavesTask:
 
   def find_staff_ys(self):
     candidates = self.find_candidate_center_ys()
-    SEARCH_SIZE = 2*(self.page.staff_space + self.page.staff_thick)
+    SEARCH_SIZE = 3*(self.page.staff_space + self.page.staff_thick)
     hsum = self.page.im.sum(1)
     near_candidate_indices = (arange(-SEARCH_SIZE, SEARCH_SIZE+1)[None]
                               + candidates[:, None])
@@ -95,17 +93,16 @@ class StavesTask:
                               [line + STAFF_MASK_SIZE]],
                              [arange(self.page.im.shape[1])]].astype(bool)
         to_mask = (~edges[0]) & (~edges[1])
-        print to_mask
         self.page.im[line - STAFF_MASK_SIZE:line + STAFF_MASK_SIZE, to_mask] = 0
 
   def color_image(self):
     # Gray out center ys
-    colored_array = array(self.colored)
+    colored_array = array(self.page.colored)
     staff_ys = self.find_staff_ys()
     to_gray = zeros(self.page.im.shape[0], dtype=bool)
     to_gray[(arange(-5, 5)[:, None] + staff_ys.ravel()[None, :]).ravel()] = True
     colored_array[to_gray] |= 0x80
-    self.page.colored = self.colored = Image.fromarray(colored_array)
+    self.page.colored = self.page.colored = Image.fromarray(colored_array)
 
   def process(self):
     print self.find_staff_ys()
