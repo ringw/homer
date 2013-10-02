@@ -22,6 +22,7 @@ class Staff:
     d = ImageDraw.Draw(im)
     for line in self.lines:
       d.line(line, fill=(255, 255, 0))
+
 class StavesTask:
   def __init__(self, page):
     self.page = page
@@ -86,14 +87,14 @@ class StavesTask:
 
   def mask_staff_ys(self):
     # Index into image around each staff line
-    STAFF_MASK_SIZE = self.page.staff_space / 3
+    STAFF_MASK_SIZE = (self.page.staff_space + self.page.staff_thick) / 2
     for staff in self.staff_ys:
       for line in staff:
-        edges = self.page.im[[[line - STAFF_MASK_SIZE],
-                              [line + STAFF_MASK_SIZE]],
-                             [arange(self.page.im.shape[1])]].astype(bool)
-        to_mask = (~edges[0]) & (~edges[1])
-        self.page.im[line - STAFF_MASK_SIZE:line + STAFF_MASK_SIZE, to_mask] = 0
+        y_slice = slice(line - STAFF_MASK_SIZE,
+                        line + STAFF_MASK_SIZE + 1)
+        section = self.page.im[y_slice]
+        to_mask = sum(section, 0) < (self.page.staff_thick * 2)
+        self.page.im[y_slice, to_mask] = 0
 
   def color_image(self):
     # Gray out center ys
