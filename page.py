@@ -1,4 +1,5 @@
 import numpy as np
+import image
 import rotate
 import staff
 import glyph
@@ -6,17 +7,35 @@ import gradient
 import notehead
 
 class Page:
-  def __init__(self, im, colored=None):
-    self.im = im
-    self.colored = colored # RGB copy of image for coloring
+  def __init__(self, image_data):
+    self.image_data = image_data
+    self._im = None
+    self._colored = None # RGB copy of image for coloring
     self.staves = []
-    self.get_runlength_encoding()
-    self.get_spacing()
     self.tasks = [rotate.RotateTask(self),
                   staff.StavesTask(self),
                   gradient.GradientTask(self),
                   glyph.GlyphsTask(self),
                   notehead.NoteheadsTask(self)]
+
+  def load_image(self):
+    self._im, self._colored = image.image_array(self.image_data)
+
+  @property
+  def im(self):
+    if self._im is None:
+      self.load_image()
+    return self._im
+
+  @property
+  def colored(self):
+    if self._colored is None:
+      self.load_image()
+    return self._colored
+
+  def destroy_image(self):
+    self._im = None
+    self._colored = None
 
   # Store column and row runlength encoding
   def get_runlength_encoding(self):

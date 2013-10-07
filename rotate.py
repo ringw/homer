@@ -5,22 +5,19 @@ import Image
 class RotateTask:
   def __init__(self, page):
     self.page = page
-    im_string = page.im.astype(uint8).tostring()
-    self.pil_im = Image.fromstring('L', page.im.shape[::-1], im_string)
+    self.pil_im = None
 
   def test_angles(self, ts):
-    mask = empty(self.page.staff_thick)
-    mask[:] = -2
-    mask[len(mask)/2 - self.page.staff_space:len(mask)/2 + self.page.staff_space] = 1
+    if self.pil_im is None:
+      im_string = self.page.im.astype(uint8).tostring()
+      self.pil_im = Image.fromstring('L', self.page.im.shape[::-1], im_string)
+
     rotated_ims = [self.pil_im.rotate(t * 180.0 / pi) for t in ts]
     all_im_string = ''.join([im.tostring() for im in rotated_ims])
     np_ims = fromstring(all_im_string, dtype=uint8).reshape((len(ts),) + self.page.im.shape)
     # Horizontal projection
     im_proj = sum(np_ims, axis=-1)
-    # Convolve along y-axis
-    im_convolve = ndimage.convolve(im_proj, mask[None,:])
-    im_convolve[im_convolve < 0] = 0
-    scores = sum(im_convolve ** 2, axis=-1)
+    scores = sum(im_proj ** 2, axis=-1)
     return scores, np_ims
 
   def rotate_image(self):
@@ -42,11 +39,10 @@ class RotateTask:
     rotate_candidates = linspace(-pi/360, pi/360, 21) + rotate_base
     scores, ims = self.test_angles(rotate_candidates)
     best_angle = argmax(scores)
-    print degrees(rotate_candidates[best_angle])
-    return ims[best_angle]
+    return ims[best_angle], rotate_candidates[best_angle]
 
   def process(self):
-    self.page.im = self.rotate_image()
+    self.page.im, self.t = self.rotate_image()
     self.page.colored = Image.fromstring('L', (self.page.im.shape[0],
                                                self.page.im.shape[1]),
                                          (self.page.im*255).tostring()) \
