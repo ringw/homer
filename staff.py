@@ -80,7 +80,11 @@ class StavesTask:
     staves = ((line_dist.std(axis=1) < self.page.staff_thick)
               & (abs(line_dist.mean(axis=1)
                      - (self.page.staff_space + self.page.staff_thick))
-                 < self.page.staff_thick))
+                 < self.page.staff_thick)
+              & (hsum[lines[..., None] + arange(-self.page.staff_thick,
+                                                 self.page.staff_thick)[None,None]]
+                     .sum(-1) > self.page.staff_thick*self.page.im.shape[1]/2)
+                  .all(-1))
     lines = lines[staves]
     self.staff_ys = lines
     return lines[argsort(lines[:, 0])]
@@ -116,5 +120,7 @@ class StavesTask:
       staff.draw(self.page.colored)
 
   def process(self):
-    print self.find_staff_ys()
+    self.find_staff_ys()
+    if self.staff_ys.shape[0] > 0:
+      print str(self.staff_ys.shape[0]), 'staves detected.'
     self.mask_staff_ys()
