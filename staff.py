@@ -86,24 +86,34 @@ class StavesTask:
     return lines[argsort(lines[:, 0])]
 
   def mask_staff_ys(self):
+    self.page.staves = []
     # Index into image around each staff line
     STAFF_MASK_SIZE = (self.page.staff_space + self.page.staff_thick) / 2
     for staff in self.staff_ys:
+      staffObject = Staff()
+      staffObject.line_masks = []
       for line in staff:
         y_slice = slice(line - STAFF_MASK_SIZE,
                         line + STAFF_MASK_SIZE + 1)
         section = self.page.im[y_slice]
         to_mask = sum(section, 0) < (self.page.staff_thick * 2)
         self.page.im[y_slice, to_mask] = 0
+        line_mask = zeros_like(self.page.im, dtype=bool)
+        line_mask[y_slice, to_mask] = True
+        staffObject.line_masks.append(where(line_mask & self.page.im))
+      staffObject.add_point(0, staff)
+      staffObject.add_point(self.page.im.shape[1]-1, staff)
+      self.page.staves.append(staffObject)
 
   def color_image(self):
     # Gray out center ys
     colored_array = array(self.page.colored)
-    staff_ys = self.find_staff_ys()
-    to_gray = zeros(self.page.im.shape[0], dtype=bool)
-    to_gray[(arange(-5, 5)[:, None] + staff_ys.ravel()[None, :]).ravel()] = True
-    colored_array[to_gray] |= 0x80
+    for staff in self.page.staves:
+      for line_mask in staff.line_masks:
+        colored_array[line_mask[1], line_mask[0]] |= 0x80
     self.page.colored = self.page.colored = Image.fromarray(colored_array)
+    for staff in self.page.staves:
+      staff.draw(self.page.colored)
 
   def process(self):
     print self.find_staff_ys()
