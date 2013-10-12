@@ -5,7 +5,6 @@ import ImageDraw
 class Staff:
   def __init__(self):
     self.lines = tuple([] for i in range(5))
-    self.line_masks = list(None for i in range(5))
   def add_point(self, x, ys):
     # Insert points in ys into each line at position x
     for i in range(5):
@@ -102,20 +101,11 @@ class StavesTask:
         section = self.page.im[y_slice]
         to_mask = sum(section, 0) < (self.page.staff_thick * 2)
         self.page.im[y_slice, to_mask] = 0
-        line_mask = zeros_like(self.page.im, dtype=bool)
-        line_mask[y_slice, to_mask] = True
-        staffObject.line_masks.append(where(line_mask & self.page.im))
       staffObject.add_point(0, staff)
       staffObject.add_point(self.page.im.shape[1]-1, staff)
       self.page.staves.append(staffObject)
 
   def color_image(self):
-    # Gray out center ys
-    colored_array = array(self.page.colored)
-    for staff in self.page.staves:
-      for line_mask in staff.line_masks:
-        colored_array[line_mask[1], line_mask[0]] |= 0x80
-    self.page.colored = self.page.colored = Image.fromarray(colored_array)
     for staff in self.page.staves:
       staff.draw(self.page.colored)
 
