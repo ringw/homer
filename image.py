@@ -6,6 +6,7 @@ from StringIO import StringIO
 import subprocess
 import numpy as np
 import page
+from pdfimage import pdf_to_images
 
 IMAGE_MAX_SIZE = 4096
 def image_array(data):
@@ -23,21 +24,6 @@ def image_array(data):
   np.logical_not(pixels, output=pixels)
   return (pixels, im.convert('RGB'))
 
-def pdf_to_pngs(path):
-  tmpDir = tempfile.mkdtemp(prefix='moonshineTemp')
-  tmpFormat = os.path.join(tmpDir, "page%05d.png")
-  ARGS = ['gs', '-dBATCH', '-dNOPAUSE', '-dSAFER',
-          '-sDEVICE=pngmono', '-r300',
-          '-sOutputFile=' + tmpFormat,
-          path.name]
-  gs = subprocess.Popen(ARGS)
-  gs.wait()
-  if gs.returncode != 0: return False
-  images = []
-  for filename in sorted(os.listdir(tmpDir)):
-    images.append(open(os.path.join(tmpDir, filename)).read())
-  shutil.rmtree(tmpDir)
-  return images
 # Open image or multi-page PDF, return list of pages
 def read_pages(path):
   if isinstance(path, basestring):
@@ -45,7 +31,7 @@ def read_pages(path):
   images = []
   path.seek(0)
   if path.read(4) == '%PDF':
-    images = pdf_to_pngs(path)
+    images = pdf_to_images(path)
   else:
     path.seek(0)
     images = [path.read()]
