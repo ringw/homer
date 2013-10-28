@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.ndimage.morphology as m
 import skimage.morphology
-import ImageDraw
+from PIL import ImageDraw
 import matplotlib.pyplot as plt
 
 class LinesTask:

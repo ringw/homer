@@ -1,6 +1,6 @@
 from numpy import *
 from scipy import ndimage
-import Image
+from PIL import Image
 
 class RotateTask:
   def __init__(self, page):
@@ -10,10 +10,10 @@ class RotateTask:
   def test_angles(self, ts):
     if self.pil_im is None:
       im_string = self.page.im.astype(uint8).tostring()
-      self.pil_im = Image.fromstring('L', self.page.im.shape[::-1], im_string)
+      self.pil_im = Image.frombytes('L', self.page.im.shape[::-1], im_string)
 
     rotated_ims = [self.pil_im.rotate(t * 180.0 / pi) for t in ts]
-    all_im_string = ''.join([im.tostring() for im in rotated_ims])
+    all_im_string = ''.join([im.tobytes() for im in rotated_ims])
     np_ims = fromstring(all_im_string, dtype=uint8).reshape((len(ts),) + self.page.im.shape)
     # Horizontal projection
     im_proj = sum(np_ims, axis=-1)
@@ -43,9 +43,9 @@ class RotateTask:
 
   def process(self):
     self.page.im, self.t = self.rotate_image()
-    self.page.colored = Image.fromstring('L', (self.page.im.shape[0],
-                                               self.page.im.shape[1]),
-                                         (self.page.im*255).tostring()) \
+    self.page.colored = Image.frombytes('L', (self.page.im.shape[1],
+                                              self.page.im.shape[0]),
+                                        (self.page.im*255).tostring()) \
                              .convert('RGBA')
     # Force page to reload runlength encoding and spacing
     self.page.get_runlength_encoding()

@@ -9,4 +9,4 @@ later on with PyOpenCL, etc. for a fast, parallelizable OMR system.
 * numpy
 * scipy
 * numexpr
-* pylab/matplotlib (plotting/debugging)
+* Pillow

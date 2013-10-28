@@ -1,4 +1,4 @@
-import Image
+from PIL import Image
 import tempfile
 import os
 import shutil
@@ -17,7 +17,7 @@ def image_array(data):
   elif im.size[1] > IMAGE_MAX_SIZE:
     im = im.resize((im.size[0]*IMAGE_MAX_SIZE/im.size[1], IMAGE_MAX_SIZE))
   im = im.convert('L')
-  bytestring = im.tostring()
+  bytestring = im.tobytes()
   pixels = np.fromstring(bytestring, dtype=np.uint8)
   pixels = pixels.reshape((im.size[1], im.size[0]))
   # Swap pixels so colored pixels are 1
@@ -27,7 +27,7 @@ def image_array(data):
 # Open image or multi-page PDF, return list of pages
 def read_pages(path):
   if isinstance(path, basestring):
-    path = open(path)
+    path = open(path, 'rb')
   images = []
   path.seek(0)
   if path.read(4) == '%PDF':

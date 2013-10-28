@@ -1,6 +1,5 @@
 from numpy import *
-import Image
-import ImageDraw
+from PIL import Image, ImageDraw
 
 class Staff:
   def __init__(self):
