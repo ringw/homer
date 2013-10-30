@@ -26,7 +26,7 @@ class PageTree(Quadtree):
       staff_dist = self.page.staff_thick + self.page.staff_space
       ys = slice(ys.start, min(ys.stop + staff_dist*6, self.page.im.shape[0]))
       staff_sections = self.page.im[ys, xs].sum(1)
-      expected = (xs.stop - xs.start) / 2
+      expected = (xs.stop - xs.start) * 2.0 / 3
       staff_ys = staff_sections >= expected
       y_ind, = where(staff_ys)
       if len(y_ind) == 0:
@@ -39,7 +39,7 @@ class PageTree(Quadtree):
         return True
       run_centers = bincount(run_ind, weights=y_ind).astype(double) / num_in_run
       # Remove anything past the actual rect except a staff starting here
-      if len(run_centers) > 5 \
+      if len(run_centers) >= 5 \
          and run_centers[0] < self.bounds[2] \
          and any(run_centers[1:5] >= self.bounds[2]):
         run_centers = run_centers[:5]
