@@ -14,59 +14,72 @@ class PageTree(Quadtree):
   def create_child(self, bounds):
     return PageTree(self.page, bounds=bounds, parent=self)
 
+  def analyze(self):
+    pass
+
   def can_split(self):
-    print 'hi'
+    if self.bounds[2] <= self.page.staff_space*2:
+      return False
     if self.leaf and self.staff is None:
-      staff_sections = self.page.staff_filter[self.slice].sum(1)
-      maximum = self.page.filter_max * self.bounds[3]
-      #indices, = where(staff_sections > maximum * 1.0/4)
-      indices, = where(staff_sections > maximum * 1.0/8)
-      print indices
-      return (diff(indices) > 1).any()
+      ys, xs = self.slice
+      # Extend slice to include possible staff starting at bottom
+      staff_dist = self.page.staff_thick + self.page.staff_space
+      ys = slice(ys.start, min(ys.stop + staff_dist*6, self.page.im.shape[0]))
+      staff_sections = self.page.im[ys, xs].sum(1)
+      expected = (xs.stop - xs.start) / 2
+      staff_ys = staff_sections >= expected
+      y_ind, = where(staff_ys)
+      if len(y_ind) == 0:
+        return True
+      # Combine consecutive y_ind
+      new_run = concatenate([[0], diff(y_ind) > 1]).astype(int)
+      run_ind = cumsum(new_run) # Index starting from 0 for each positive run
+      num_in_run = bincount(run_ind)
+      if any(num_in_run) >= self.page.staff_space*1.5:
+        return True
+      run_centers = bincount(run_ind, weights=y_ind).astype(double) / num_in_run
+      # Remove anything past the actual rect except a staff starting here
+      if len(run_centers) > 5 \
+         and run_centers[0] < self.bounds[2] \
+         and any(run_centers[1:5] >= self.bounds[2]):
+        run_centers = run_centers[:5]
+      else:
+        run_centers = run_centers[run_centers < self.bounds[2]]
+        if len(run_centers) != 5:
+          return True
+      # Look for actual staff
+      staff_dists = diff(run_centers)
+      if (abs(mean(staff_dists) - staff_dist) < self.page.staff_thick
+          and std(staff_dists) <= self.page.staff_thick):
+        self.staff = tuple(run_centers + self.bounds[0])
+        return False
+      else:
+        return True
     return False
 
   def recursive_split(self):
     if self.try_split():
-      self.nw.try_split()
-      self.sw.try_split()
-      self.ne.try_split()
-      self.se.try_split()
+      self.nw.recursive_split()
+      self.sw.recursive_split()
+      self.ne.recursive_split()
+      self.se.recursive_split()
 
 class Layout:
   def __init__(self, page):
     self.page = page
 
-  @property
-  def weights(self):
-    space = self.page.staff_space
-    thick = self.page.staff_thick
-    weights = concatenate((-2*space*ones(thick),
-                           -thick*ones(space),
-                           2*space*ones(thick),
-                           -thick*ones(space),
-                           2*space*ones(thick),
-                           -thick*ones(space),
-                           2*space*ones(thick),
-                           -thick*ones(space),
-                           2*space*ones(thick),
-                           -thick*ones(space),
-                           2*space*ones(thick),
-                           -thick*ones(space),
-                           -2*space*ones(thick)))
-    return (weights, abs(weights).sum())
-
-  def analyze(self):
-    weights, maximum = self.weights
-    signed_im = self.page.im.astype(float32) * 2 - 1
-    self.page.filter_max = maximum
-    staff_filter = convolve1d(signed_im, weights, axis=0)
-    #orig = staff_filter.copy()
-    #space = self.page.staff_space
-    #thick = self.page.staff_thick
-    #staff_filter[:-(space+thick)] -= orig[:-(space+thick)]/2
-    #staff_filter[space+thick:] -= orig[:-(space+thick)]/2
-    self.page.staff_filter = staff_filter
-
   def build(self):
     self.tree = PageTree(self.page)
     self.tree.recursive_split()
+
+def searchstaves(q):
+  if q.leaf:
+    if type(q.staff) is tuple:
+      return [q.staff]
+    else:
+      return []
+  else:
+    A = []
+    for subq in [q.nw, q.sw, q.ne, q.se]:
+      A.extend(searchstaves(subq))
+    return A

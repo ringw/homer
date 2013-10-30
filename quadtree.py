@@ -17,8 +17,8 @@ class Quadtree:
     if not self.leaf:
       raise ValueError("Attempt to split non-leaf")
     elif self.bounds[2] > 1 and self.bounds[3] > 1:
-      self.nw = Quadtree((self.bounds[0], self.bounds[1],
-                          self.bounds[2]/2, self.bounds[3]/2), parent=self)
+      self.nw = self.create_child((self.bounds[0], self.bounds[1],
+                                   self.bounds[2]/2, self.bounds[3]/2))
       south_y = self.bounds[0] + self.nw.bounds[2]
       south_h = self.bounds[0] + self.bounds[2] - south_y
       east_x = self.bounds[1] + self.nw.bounds[3]
