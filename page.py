@@ -1,10 +1,7 @@
 import numpy as np
 import image
 import rotate
-import staff
-import glyph
-import gradient
-import notehead
+import layout
 
 class Page:
   def __init__(self, image_data):
@@ -12,11 +9,8 @@ class Page:
     self._im = None
     self._colored = None # RGB copy of image for coloring
     self.staves = []
-    self.tasks = [rotate.RotateTask(self),
-                  staff.StavesTask(self),
-                  gradient.GradientTask(self),
-                  glyph.GlyphsTask(self),
-                  notehead.NoteheadsTask(self)]
+    self.rotate = rotate.RotateTask(self)
+    self.layout = layout.Layout(self)
 
   def load_image(self):
     self._im, self._colored = image.image_array(self.image_data)
@@ -80,11 +74,10 @@ class Page:
     return (self.staff_space, self.staff_thick)
 
   def process(self):
-    for task in self.tasks:
-      task.process()
+    self.rotate.process()
+    self.layout.process()
   def color(self):
-    for task in self.tasks:
-      task.color_image()
+    pass
 
   def get_glyph(self, g):
     glyph_box = self.glyph_boxes[g]

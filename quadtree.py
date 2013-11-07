@@ -46,3 +46,13 @@ class Quadtree:
 
   def __repr__(self):
     return "<%s%s%s at %s>" % (self.__class__.__name__, self.bounds, " (leaf)" if self.leaf else "", hex(id(self)))
+
+  def traverse(self):
+    if self.leaf:
+      return [self]
+    A = []
+    A.extend(self.nw.traverse())
+    A.extend(self.ne.traverse())
+    A.extend(self.sw.traverse())
+    A.extend(self.se.traverse())
+    return A

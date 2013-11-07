@@ -1,6 +1,7 @@
 from quadtree import Quadtree
 from numpy import *
-from scipy.ndimage import convolve1d
+from scipy.cluster import hierarchy
+from scipy.spatial import distance
 
 class PageTree(Quadtree):
   def __init__(self, page, bounds=None, parent=None):
@@ -24,13 +25,13 @@ class PageTree(Quadtree):
       ys, xs = self.slice
       # Extend slice to include possible staff starting at bottom
       staff_dist = self.page.staff_thick + self.page.staff_space
-      ys = slice(ys.start, min(ys.stop + staff_dist*6, self.page.im.shape[0]))
+      ys = slice(ys.start, min(ys.stop + staff_dist*4, self.page.im.shape[0]))
       staff_sections = self.page.im[ys, xs].sum(1)
       expected = (xs.stop - xs.start) * 2.0 / 3
       staff_ys = staff_sections >= expected
       y_ind, = where(staff_ys)
       if len(y_ind) == 0:
-        return True
+        return False
       # Combine consecutive y_ind
       new_run = concatenate([[0], diff(y_ind) > 1]).astype(int)
       run_ind = cumsum(new_run) # Index starting from 0 for each positive run
@@ -68,18 +69,55 @@ class Layout:
   def __init__(self, page):
     self.page = page
 
-  def build(self):
+  def build_tree(self):
     self.tree = PageTree(self.page)
     self.tree.recursive_split()
 
-def searchstaves(q):
-  if q.leaf:
-    if type(q.staff) is tuple:
-      return [q.staff]
-    else:
-      return []
-  else:
-    A = []
-    for subq in [q.nw, q.sw, q.ne, q.se]:
-      A.extend(searchstaves(subq))
-    return A
+  def build_staves(self):
+    # Split horizontal stretches of quadtree until we have only leaves
+    horizontals = [[self.tree]]
+    while True:
+      new_horizontals = []
+      did_split = False
+      #print horizontals
+      for run in horizontals:
+        run_top = []
+        run_bottom = None
+        for n in run:
+          if n.leaf:
+            run_top.append(n)
+            if run_bottom is not None:
+              run_bottom.append(n)
+          else:
+            if run_bottom is None:
+              run_bottom = list(run_top)
+            run_top.append(n.nw)
+            run_top.append(n.ne)
+            run_bottom.append(n.sw)
+            run_bottom.append(n.se)
+            did_split = True
+        if run_bottom is not None:
+          new_horizontals.append(run_top)
+          new_horizontals.append(run_bottom)
+        else:
+          new_horizontals.append(run)
+      if not did_split:
+        break
+      horizontals = new_horizontals
+    self.horizontals = filter(lambda r: any(map(lambda n: n.staff, r)), horizontals)
+    self.build_staves_from_clusters()
+
+  def build_staves_from_clusters(self):
+    staff_sections = map(lambda n: n.staff, self.tree.traverse())
+    staff_sections = asarray(filter(None, staff_sections))
+    dists = distance.pdist(staff_sections)
+    Z = hierarchy.linkage(dists, method='complete')
+    fc = hierarchy.fcluster(Z, sqrt(5) * (self.page.staff_space + self.page.staff_thick) / 2, criterion='distance')
+    cluster_nums = argsort(bincount(fc))[::-1]
+    for c in cluster_nums:
+      if count_nonzero(fc == c) < 5: break
+      print staff_sections[fc == c]
+
+  def process(self):
+    self.build_tree()
+    self.build_staves()
