@@ -74,9 +74,30 @@ class Page:
       return None
     self.blank = False
 
-    self.staff_space = np.argmax(dists)
+    # Assume uniform staff line thickness
     self.staff_thick = np.argmax(thicks)
-    self.staff_dist  = self.staff_space + self.staff_thick
+    # Detect different sized staves
+    staff_expected = np.amax(dists) / 4.0
+    candidate_staff_dist, = np.where(dists > staff_expected)
+    # Detect gaps > 1 between possible spaces
+    different_staff, = np.where(np.diff(candidate_staff_dist) > 1)
+    if len(different_staff):
+      dists = []
+      prev = 0
+      print candidate_staff_dist.shape
+      for n in different_staff:
+        n += 1
+        print prev, n
+        dists.append(candidate_staff_dist[prev:n].sum() / (n - prev))
+        prev = n
+      print prev, n
+      dists.append(candidate_staff_dist[prev:].sum()
+                   / (len(candidate_staff_dist) - prev))
+      self.staff_space = tuple(dists)
+      self.staff_dist = tuple(self.staff_thick + d for d in dists)
+    else:
+      self.staff_space = np.argmax(dists)
+      self.staff_dist  = self.staff_space + self.staff_thick
     return (self.staff_space, self.staff_thick)
 
   def process(self):

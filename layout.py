@@ -104,13 +104,13 @@ class Layout:
       if not did_split:
         break
       horizontals = new_horizontals
-    self.horizontals = filter(lambda r: any(map(lambda n: n.staff, r)), horizontals)
+    self.horizontals = filter(lambda r: any([n.staff for n in r]), horizontals)
     self.build_staves_from_clusters()
 
   def build_staves_from_clusters(self):
     tree_leaves = array(filter(lambda n: n.leaf, self.tree.traverse()))
-    staff_leaves = array(map(lambda n: bool(n.staff), tree_leaves))
-    staff_sections = map(lambda n: n.staff, tree_leaves[staff_leaves])
+    staff_leaves = array([bool(n.staff) for n in tree_leaves])
+    staff_sections = [n.staff for n in tree_leaves[staff_leaves]]
     if not any(staff_sections):
       return None
     staff_sections = asarray(filter(None, staff_sections))
