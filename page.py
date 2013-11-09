@@ -69,8 +69,14 @@ class Page:
     # Histogram of dark lengths (thickness of staff lines)
     thicks = np.bincount(self.col_runs[dark_cols, 3])
 
+    if not any(dists) or not any(thicks):
+      self.blank = True
+      return None
+    self.blank = False
+
     self.staff_space = np.argmax(dists)
     self.staff_thick = np.argmax(thicks)
+    self.staff_dist  = self.staff_space + self.staff_thick
     return (self.staff_space, self.staff_thick)
 
   def process(self):

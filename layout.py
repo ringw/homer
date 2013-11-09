@@ -19,7 +19,7 @@ class PageTree(Quadtree):
     pass
 
   def can_split(self):
-    if self.bounds[2] <= self.page.staff_space*2:
+    if self.bounds[2] <= self.page.staff_dist*2:
       return False
     if self.leaf and self.staff is None:
       ys, xs = self.slice
@@ -31,7 +31,7 @@ class PageTree(Quadtree):
       staff_ys = staff_sections >= expected
       y_ind, = where(staff_ys)
       if len(y_ind) == 0:
-        return False
+        return True
       # Combine consecutive y_ind
       new_run = concatenate([[0], diff(y_ind) > 1]).astype(int)
       run_ind = cumsum(new_run) # Index starting from 0 for each positive run
@@ -108,16 +108,47 @@ class Layout:
     self.build_staves_from_clusters()
 
   def build_staves_from_clusters(self):
-    staff_sections = map(lambda n: n.staff, self.tree.traverse())
+    tree_leaves = array(filter(lambda n: n.leaf, self.tree.traverse()))
+    staff_leaves = array(map(lambda n: bool(n.staff), tree_leaves))
+    staff_sections = map(lambda n: n.staff, tree_leaves[staff_leaves])
+    if not any(staff_sections):
+      return None
     staff_sections = asarray(filter(None, staff_sections))
     dists = distance.pdist(staff_sections)
     Z = hierarchy.linkage(dists, method='complete')
     fc = hierarchy.fcluster(Z, sqrt(5) * (self.page.staff_space + self.page.staff_thick) / 2, criterion='distance')
     cluster_nums = argsort(bincount(fc))[::-1]
+    self.staves = []
+    seen_staff_ys = zeros(self.page.im.shape[0], dtype=bool)
     for c in cluster_nums:
-      if count_nonzero(fc == c) < 5: break
-      print staff_sections[fc == c]
-
+      staff_num = len(self.staves)
+      which_nodes = fc == c
+      if not which_nodes.any(): break
+      sections = staff_sections[which_nodes]
+      staff_ys = sections.mean(axis=0)
+      if any(seen_staff_ys[staff_ys[0]:staff_ys[-1]]):
+        # This cluster overlaps with a staff that's already been seen
+        # Likely off by 1 staff line or other issue
+        continue
+      staff_ymin = max(staff_ys[0] - self.page.staff_dist*3, 0)
+      staff_ymax = min(staff_ys[-1] + self.page.staff_dist*3,
+                       self.page.im.shape[0])
+      seen_staff_ys[staff_ymin:staff_ymax] = True
+      self.staves.append(staff_ys)
+    self.staves = asarray(self.staves, dtype=double)
+    self.staves = self.staves[argsort( self.staves[:,0] )]
+    # Assign tree leaves to staves which are close enough, or remove
+    # staff assignment if it is too far from any detected staves
+    for leaf in tree_leaves[staff_leaves]:
+      FOUND_STAFF = False
+      for i, staff in enumerate(self.staves):
+        if amax(abs(leaf.staff - staff)) < self.page.staff_dist / 2.0:
+          leaf.staff_num = i
+          FOUND_STAFF = True
+          break
+      if not FOUND_STAFF:
+        leaf.staff = None
+    
   def process(self):
     self.build_tree()
-    self.build_staves()
+    self.build_staves_from_clusters()
