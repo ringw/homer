@@ -152,3 +152,17 @@ class Layout:
   def process(self):
     self.build_tree()
     self.build_staves_from_clusters()
+
+  # Simple check to ensure we didn't miss any staves
+  def check_missing_staves(self):
+    col_runs = self.page.col_runs.copy()
+    # Remove runs overlapping with any detected staff
+    to_remove = zeros(col_runs.shape[0], bool)
+    for staff in self.staves:
+      to_remove |= ((col_runs[:,1] >= staff[0] - self.page.staff_thick)
+                    & (col_runs[:,2] <= staff[-1] + self.page.staff_thick))
+    col_runs = col_runs[~ to_remove]
+    hist = bincount(col_runs[:, 3])
+    # If all staves are removed, we expect no staves will remain
+    # A staff that goes across the whole page should have ~ page.shape[1]*5 runs
+    return not (hist[10:] >= self.page.im.shape[1]*5.0/2).any()
