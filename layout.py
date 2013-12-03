@@ -19,7 +19,7 @@ class PageTree(Quadtree):
     pass
 
   def can_split(self):
-    if self.bounds[2] <= self.page.staff_dist*2:
+    if self.bounds[2] <= self.page.staff_dist*4:
       return False
     if self.leaf and self.staff is None:
       ys, xs = self.slice
@@ -27,7 +27,11 @@ class PageTree(Quadtree):
       staff_dist = self.page.staff_thick + self.page.staff_space
       ys = slice(ys.start, min(ys.stop + staff_dist*4, self.page.im.shape[0]))
       staff_sections = self.page.im[ys, xs].sum(1)
-      expected = (xs.stop - xs.start) * 2.0 / 3
+      if staff_sections.sum() < self.bounds[2] * self.bounds[3] / 100.0:
+        return False # section is empty
+      expected = amax(staff_sections) * 0.75
+      if expected < (xs.stop - xs.start)/2:
+        return True
       staff_ys = staff_sections >= expected
       y_ind, = where(staff_ys)
       if len(y_ind) == 0:
@@ -125,7 +129,7 @@ class Layout:
       which_nodes = fc == c
       if not which_nodes.any(): break
       sections = staff_sections[which_nodes]
-      staff_ys = sections.mean(axis=0)
+      staff_ys = rint(sections.mean(axis=0)).astype(int)
       if any(seen_staff_ys[staff_ys[0]:staff_ys[-1]]):
         # This cluster overlaps with a staff that's already been seen
         # Likely off by 1 staff line or other issue
@@ -159,10 +163,10 @@ class Layout:
     # Remove runs overlapping with any detected staff
     to_remove = zeros(col_runs.shape[0], bool)
     for staff in self.staves:
-      to_remove |= ((col_runs[:,1] >= staff[0] - self.page.staff_thick)
-                    & (col_runs[:,2] <= staff[-1] + self.page.staff_thick))
+      to_remove |= ((col_runs[:,1] >= staff[0] - self.page.staff_dist)
+                    & (col_runs[:,2] <= staff[-1] + self.page.staff_dist))
     col_runs = col_runs[~ to_remove]
     hist = bincount(col_runs[:, 3])
     # If all staves are removed, we expect no staves will remain
     # A staff that goes across the whole page should have ~ page.shape[1]*5 runs
-    return not (hist[10:] >= self.page.im.shape[1]*5.0/2).any()
+    return not (hist[10:] >= self.page.im.shape[1]*4.0).any()
