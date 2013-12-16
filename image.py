@@ -22,7 +22,7 @@ def image_array(data):
   pixels = pixels.reshape((im.size[1], im.size[0]))
   # Swap pixels so colored pixels are 1
   np.logical_not(pixels, output=pixels)
-  return (pixels, im.convert('RGB'))
+  return pixels
 
 # Open image or multi-page PDF, return list of pages
 def read_pages(path):

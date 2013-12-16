@@ -169,4 +169,14 @@ class Layout:
     hist = bincount(col_runs[:, 3])
     # If all staves are removed, we expect no staves will remain
     # A staff that goes across the whole page should have ~ page.shape[1]*5 runs
-    return not (hist[10:] >= self.page.im.shape[1]*4.0).any()
+    return not (hist[10:] >= self.page.im.shape[1]*5.0/2).any()
+
+  def show(self):
+    leaves = filter(lambda n: n.leaf, self.tree.traverse())
+    import pylab
+    for leaf in leaves:
+      pylab.plot([leaf.bounds[1], leaf.bounds[1], leaf.bounds[1]+leaf.bounds[3],
+                  leaf.bounds[1]+leaf.bounds[3], leaf.bounds[1]],
+                 [leaf.bounds[0], leaf.bounds[0]+leaf.bounds[2],
+                  leaf.bounds[0]+leaf.bounds[2], leaf.bounds[0], leaf.bounds[0]]
+                 , 'g', alpha=0.25)

@@ -50,5 +50,6 @@ class RotateTask:
     # Force page to reload runlength encoding and spacing
     self.page.get_runlength_encoding()
     self.page.get_spacing()
-  def color_image(self):
-    pass
+
+  def show(self):
+    pass # nothing to draw

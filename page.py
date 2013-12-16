@@ -7,13 +7,13 @@ class Page:
   def __init__(self, image_data):
     self.image_data = image_data
     self._im = None
-    self._colored = None # RGB copy of image for coloring
     self.staves = []
     self.rotate = rotate.RotateTask(self)
     self.layout = layout.Layout(self)
+    self.tasks = [self.rotate, self.layout]
 
   def load_image(self):
-    self._im, self._colored = image.image_array(self.image_data)
+    self._im = image.image_array(self.image_data)
 
   @property
   def im(self):
@@ -21,11 +21,12 @@ class Page:
       self.load_image()
     return self._im
 
-  @property
-  def colored(self):
-    if self._colored is None:
-      self.load_image()
-    return self._colored
+  def show(self, show_tasks=True):
+    if show_tasks:
+      for task in self.tasks:
+        task.show()
+    import pylab
+    pylab.imshow(self.im != 0)
 
   def destroy_image(self):
     self._im = None
