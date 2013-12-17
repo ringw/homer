@@ -1,7 +1,9 @@
 from quadtree import Quadtree
 from numpy import *
 from scipy.cluster import hierarchy
-from scipy.spatial import distance
+from scipy.ndimage import label, center_of_mass
+from scipy.spatial import Voronoi, distance
+from scipy.sparse.csgraph import shortest_path
 
 class PageTree(Quadtree):
   def __init__(self, page, bounds=None, parent=None):
@@ -152,10 +154,169 @@ class Layout:
           break
       if not FOUND_STAFF:
         leaf.staff = None
-    
+
+  def update_staves(self):
+    # Assign staves to neighbors which don't have as staff
+    unassigned = filter(lambda n: n.leaf and not n.staff, self.tree.traverse())
+    while len(unassigned) > 0:
+      node = unassigned[0]
+      stretch = []
+      left_staff = None
+      for left_node in node.neighbors('w'):
+        if left_node.staff:
+          left_staff = left_node
+          break
+        else:
+          stretch.insert(0, left_node)
+      stretch.append(node)
+      right_staff = None
+      for right_node in node.neighbors('e'):
+        if right_node.staff:
+          right_staff = right_node
+          break
+        else:
+          stretch.append(right_node)
+      if left_staff and right_staff \
+          and left_staff.staff_num == right_staff.staff_num:
+        # XXX: weighted average?
+        staff = tuple((array(left_staff.staff) + array(right_staff.staff)) / 2)
+        staff_num = left_staff.staff_num
+      elif left_staff:
+        staff = left_staff.staff
+        staff_num = left_staff.staff_num
+      elif right_staff:
+        staff = right_staff.staff
+        staff_num = right_staff.staff_num
+      else:
+        staff = None
+        staff_num = None
+      for n in stretch:
+        if staff and (n.bounds[0] <= staff[-1] and n.bounds[0]+n.bounds[2] >= staff[0]):
+          n.staff = staff
+          n.staff_num = staff_num
+        if n in unassigned:
+          unassigned.remove(n)
+    # Update with previous and next staff
+    for leaf in self.tree.leaves():
+      if leaf.staff:
+        start = int(rint(leaf.staff[0]))
+        stop = int(rint(leaf.staff[-1]))
+        leaf.pre_staff = (start
+                          if start >= leaf.bounds[0]
+                          else None)
+        leaf.post_staff = (stop
+                           if stop < leaf.bounds[0]+leaf.bounds[2]
+                           else None)
+        # next_staff: next staff after leaf.bounds[0]
+        leaf.next_staff = leaf.staff_num
+      else:
+        leaf.pre_staff = None
+        leaf.post_staff = leaf.bounds[0]
+        # Invariant: if we go down far enough, we will intersect with the
+        # next staff
+        # XXX: we may want to unset staff on margins so this may not hold
+        leaf.next_staff = self.staves.shape[0] # no staves after
+        for s in leaf.neighbors('s'):
+          if s.staff:
+            leaf.next_staff = s.staff_num
+            break
+
+  def mask_staff_ys(self):
+    for l in self.tree.leaves():
+      if l.staff:
+        staff = rint(array(l.staff)).astype(int)
+        for y in staff:
+          xs = l.slice[1]
+          mask = (self.page.im[y - self.page.staff_thick, xs] == 0) \
+               & (self.page.im[y + self.page.staff_thick, xs] == 0)
+          self.page.im[y - self.page.staff_thick:y + self.page.staff_thick,
+                       where(mask)[0] + xs.start] *= -1
+
+  def build_boundaries(self):
+    labels, nlabels = label(self.page.im == 1)
+    centers = center_of_mass(self.page.im == 1, labels, arange(1, nlabels + 1))
+    staffpoints = set()
+    for leaf in self.tree.leaves():
+      if leaf.staff:
+        y0 = leaf.staff[0]
+        y1 = leaf.staff[1]
+        x0 = leaf.bounds[1]
+        x1 = leaf.bounds[1] + leaf.bounds[3]
+        staffpoints.add((y0, x0))
+        staffpoints.add((y0, x1))
+        staffpoints.add((y1, x0))
+        staffpoints.add((y1, x1))
+    staffpoints = array(list(staffpoints), double)
+    self.voronoi = Voronoi(vstack((centers, staffpoints)))
+
+  def choose_boundaries(self):
+    all_ridges = array(self.voronoi.ridge_vertices)
+    i = 8
+    #for i in xrange(self.staves.shape[0]+1):
+    verts = ((self.voronoi.vertices[:,0] > self.staves[i-1, -1])
+             & (self.voronoi.vertices[:,0] < self.staves[i, 0]))
+    vertinds, = where(verts)
+    vertconvert = cumsum(verts) - 1
+    vertpoints = self.voronoi.vertices[verts]
+    self.vertpoints = vertpoints
+    ok_ridges = (in1d(all_ridges[:,0], vertinds)
+                 & in1d(all_ridges[:,1], vertinds))
+    ridges = vertconvert[all_ridges[ok_ridges]]
+    ridge_mat = zeros((len(vertpoints), len(vertpoints)), bool)
+    ridge_mat[ridges[:,0], ridges[:,1]] = True
+    ridge_mat[ridges[:,1], ridges[:,0]] = True
+    self.ridges, self.ridge_mat = ridges, ridge_mat
+    # XXX: these are not very good predictions
+    start = argmin(vertpoints[:, 1])
+    end = argmax(vertpoints[:, 1])
+    self.start, self.end = start,end
+    distmat = distance.squareform(distance.pdist(vertpoints))
+    distmat[~ridge_mat] = 1e10
+    dists, paths = shortest_path(distmat, return_predecessors=True)
+    self.paths = paths
+
+    # Build up path from paths
+    path = [vertpoints[start]]
+    self.path = path
+    last_vert = start
+    while True:
+      next_vert = paths[end, last_vert]
+      path.append(vertpoints[next_vert])
+      if next_vert == end:
+        break
+      last_vert = next_vert
+
+    # Shortest path with Voronoi of object centers is not very good with long slurs
+    # For each leaf, if we detect a single long, near-horizontal line
+    # between these staves, move the boundary just above it
+    for leaf in self.tree.leaves():
+      if leaf.next_staff != i:
+        continue
+      runs = self.page.im[leaf.slice].sum(1) >= leaf.bounds[3]/2
+      if leaf.pre_staff:
+        runs[:leaf.pre_staff - leaf.bounds[0]] = 0
+      if leaf.post_staff:
+        runs[leaf.post_staff - leaf.bounds[0]:] = 0
+      # Ensure there is only one run
+      indices, = where(runs)
+      if (len(indices) and (diff(indices) > 1).all()
+          and len(indices) < self.page.staff_thick*2):
+        new_y = leaf.bounds[0] + int(mean(indices)) - self.page.staff_thick*2
+        ind = 0
+        while ind < len(path) and path[ind][1] < leaf.bounds[1]:
+          ind += 1
+        while ind < len(path) and path[ind][1] < leaf.bounds[1]+leaf.bounds[3]:
+          path.pop(ind)
+        path.insert(ind, array([new_y, leaf.bounds[1]]))
+        path.insert(ind+1, array([new_y, leaf.bounds[1]+leaf.bounds[3] - 1]))
+
   def process(self):
     self.build_tree()
     self.build_staves_from_clusters()
+    self.update_staves()
+    self.mask_staff_ys()
+    self.build_boundaries()
+    self.choose_boundaries()
 
   # Simple check to ensure we didn't miss any staves
   def check_missing_staves(self):
@@ -180,3 +341,6 @@ class Layout:
                  [leaf.bounds[0], leaf.bounds[0]+leaf.bounds[2],
                   leaf.bounds[0]+leaf.bounds[2], leaf.bounds[0], leaf.bounds[0]]
                  , 'g', alpha=0.25)
+
+    for p0, p1 in zip(self.path[:-1], self.path[1:]):
+      pylab.plot([p0[1], p1[1]], [p0[0], p1[0]], 'y')
