@@ -9,4 +9,5 @@ later on with PyOpenCL, etc. for a fast, parallelizable OMR system.
 * numpy
 * scipy
 * numexpr
-* Pillow
+* Pillow, PyPDF (PDF loading)
+* Pylab (drawing)
