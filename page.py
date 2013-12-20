@@ -22,10 +22,11 @@ class Page:
     return self._im
 
   def show(self, show_tasks=True):
+    import pylab
+    pylab.figure()
     if show_tasks:
       for task in self.tasks:
         task.show()
-    import pylab
     pylab.imshow(self.im != 0)
 
   def destroy_image(self):

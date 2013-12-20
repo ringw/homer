@@ -1,7 +1,7 @@
 from quadtree import Quadtree
 from numpy import *
 from scipy.cluster import hierarchy
-from scipy.ndimage import label, center_of_mass
+from scipy.ndimage import label, center_of_mass, distance_transform_edt
 from scipy.spatial import Voronoi, distance
 from scipy.sparse.csgraph import shortest_path
 
@@ -232,90 +232,89 @@ class Layout:
           self.page.im[y - self.page.staff_thick:y + self.page.staff_thick,
                        where(mask)[0] + xs.start] *= -1
 
-  def build_boundaries(self):
-    labels, nlabels = label(self.page.im == 1)
-    centers = center_of_mass(self.page.im == 1, labels, arange(1, nlabels + 1))
-    staffpoints = set()
-    for leaf in self.tree.leaves():
-      if leaf.staff:
-        y0 = leaf.staff[0]
-        y1 = leaf.staff[1]
-        x0 = leaf.bounds[1]
-        x1 = leaf.bounds[1] + leaf.bounds[3]
-        staffpoints.add((y0, x0))
-        staffpoints.add((y0, x1))
-        staffpoints.add((y1, x0))
-        staffpoints.add((y1, x1))
-    staffpoints = array(list(staffpoints), double)
-    self.voronoi = Voronoi(vstack((centers, staffpoints)))
+  def leaf_boundary_points(self, leaf):
+    ys, xs = leaf.slice
+    if leaf.staff:
+      ys = slice(ys.start, leaf.staff[0] - self.page.staff_dist)
+    image = self.page.im[ys, xs]
+    # Find vertical runs where every horizontal slice is background
+    is_bg = (image != 0).sum(1) < self.page.staff_thick
+    if not is_bg.any():
+      return zeros(0) # empty array
+    background_ys, num_ys = label(is_bg)
+    background_centers = array(center_of_mass(is_bg, background_ys, arange(1, num_ys + 1)))
+    return (background_centers.ravel() + leaf.bounds[0])
+
+  # Multiply each edge distance by an arbitrary cost function
+  # (in this case, sum of distance transform of image along line)
+  def edge_cost(self, y0, x0, y1, x1):
+    # It should be that x1 > x0
+    if x1 <= x0:
+      return 1
+    ys = rint(arange(x1 - x0) * (y1 - y0) / float(x1 - x0) + y0).astype(int)
+    xs = arange(x0, x1)
+    if not hasattr(self, 'distance_transform'):
+      self.distance_transform = distance_transform_edt(self.page.im == 0)
+    return exp(-self.distance_transform[ys, xs]).sum()
 
   def choose_boundaries(self):
-    all_ridges = array(self.voronoi.ridge_vertices)
+    leaves = self.tree.leaves()
     i = 8
     #for i in xrange(self.staves.shape[0]+1):
-    verts = ((self.voronoi.vertices[:,0] > self.staves[i-1, -1])
-             & (self.voronoi.vertices[:,0] < self.staves[i, 0]))
-    vertinds, = where(verts)
-    vertconvert = cumsum(verts) - 1
-    vertpoints = self.voronoi.vertices[verts]
-    self.vertpoints = vertpoints
-    ok_ridges = (in1d(all_ridges[:,0], vertinds)
-                 & in1d(all_ridges[:,1], vertinds))
-    ridges = vertconvert[all_ridges[ok_ridges]]
-    ridge_mat = zeros((len(vertpoints), len(vertpoints)), bool)
-    ridge_mat[ridges[:,0], ridges[:,1]] = True
-    ridge_mat[ridges[:,1], ridges[:,0]] = True
-    self.ridges, self.ridge_mat = ridges, ridge_mat
-    # XXX: these are not very good predictions
-    start = argmin(vertpoints[:, 1])
-    end = argmax(vertpoints[:, 1])
+    staff_leaves = [leaf for leaf in leaves if leaf.next_staff == i]
+    leaf_ys = map(self.leaf_boundary_points, staff_leaves)
+    point_ys = concatenate(leaf_ys)
+    point_leaf = arange(len(leaf_ys)).repeat([len(a) for a in leaf_ys])
+    distlist = [] # build condensed distance matrix
+    # XXX: set start (end) to arbitrary minimum (maximum) x-valued point
+    min_x, start, max_x, end = self.page.im.shape[1], -1, 0, -1
+    point_xs = [] # accumulate x positions
+    for p0 in xrange(len(point_ys) - 1):
+      y0 = point_ys[p0]
+      leaf0 = staff_leaves[point_leaf[p0]]
+      x0 = leaf0.bounds[1] + leaf0.bounds[3]/2
+      point_xs.append(x0)
+      if x0 < min_x:
+        min_x = x0
+        start = p0
+      if x0 > max_x:
+        max_x = x0
+        end = p0
+      for p1 in xrange(p0+1, len(point_ys)):
+        leaf1 = staff_leaves[point_leaf[p1]]
+        if (leaf0.bounds[1] + leaf0.bounds[3] == leaf1.bounds[1]
+            or leaf1.bounds[1] + leaf1.bounds[3] == leaf0.bounds[1]):
+          y1 = point_ys[p1]
+          x1 = leaf1.bounds[1] + leaf1.bounds[3]/2
+          distlist.append(sqrt((y0 - y1)**2 + (x0 - x1)**2)
+                          * self.edge_cost(y0, x0, y1, x1))
+        else:
+          distlist.append(inf)
+    last_leaf = staff_leaves[point_leaf[-1]]
+    point_xs.append(last_leaf.bounds[1] + last_leaf.bounds[3]/2)
     self.start, self.end = start,end
-    distmat = distance.squareform(distance.pdist(vertpoints))
-    distmat[~ridge_mat] = 1e10
+    self.point_ys, self.point_xs = point_ys, point_xs
+    distmat = distance.squareform(distlist)
     dists, paths = shortest_path(distmat, return_predecessors=True)
+    print dists[start, end]
     self.paths = paths
 
     # Build up path from paths
-    path = [vertpoints[start]]
+    path = [(point_ys[start], point_xs[start])]
     self.path = path
     last_vert = start
     while True:
       next_vert = paths[end, last_vert]
-      path.append(vertpoints[next_vert])
+      path.append((point_ys[next_vert], point_xs[next_vert]))
       if next_vert == end:
         break
       last_vert = next_vert
-
-    # Shortest path with Voronoi of object centers is not very good with long slurs
-    # For each leaf, if we detect a single long, near-horizontal line
-    # between these staves, move the boundary just above it
-    for leaf in self.tree.leaves():
-      if leaf.next_staff != i:
-        continue
-      runs = self.page.im[leaf.slice].sum(1) >= leaf.bounds[3]/2
-      if leaf.pre_staff:
-        runs[:leaf.pre_staff - leaf.bounds[0]] = 0
-      if leaf.post_staff:
-        runs[leaf.post_staff - leaf.bounds[0]:] = 0
-      # Ensure there is only one run
-      indices, = where(runs)
-      if (len(indices) and (diff(indices) > 1).all()
-          and len(indices) < self.page.staff_thick*2):
-        new_y = leaf.bounds[0] + int(mean(indices)) - self.page.staff_thick*2
-        ind = 0
-        while ind < len(path) and path[ind][1] < leaf.bounds[1]:
-          ind += 1
-        while ind < len(path) and path[ind][1] < leaf.bounds[1]+leaf.bounds[3]:
-          path.pop(ind)
-        path.insert(ind, array([new_y, leaf.bounds[1]]))
-        path.insert(ind+1, array([new_y, leaf.bounds[1]+leaf.bounds[3] - 1]))
 
   def process(self):
     self.build_tree()
     self.build_staves_from_clusters()
     self.update_staves()
     self.mask_staff_ys()
-    self.build_boundaries()
     self.choose_boundaries()
 
   # Simple check to ensure we didn't miss any staves
