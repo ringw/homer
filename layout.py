@@ -3,7 +3,7 @@ from numpy import *
 from scipy.cluster import hierarchy
 from scipy.ndimage import label, center_of_mass, distance_transform_edt
 from scipy.spatial import Voronoi, distance
-from scipy.sparse.csgraph import shortest_path
+from scipy.sparse.csgraph import dijkstra
 
 class PageTree(Quadtree):
   def __init__(self, page, bounds=None, parent=None):
@@ -85,7 +85,6 @@ class Layout:
     while True:
       new_horizontals = []
       did_split = False
-      #print horizontals
       for run in horizontals:
         run_top = []
         run_bottom = None
@@ -232,10 +231,10 @@ class Layout:
           self.page.im[y - self.page.staff_thick:y + self.page.staff_thick,
                        where(mask)[0] + xs.start] *= -1
 
-  def leaf_boundary_points(self, leaf):
-    ys, xs = leaf.slice
-    if leaf.staff:
-      ys = slice(ys.start, leaf.staff[0] - self.page.staff_dist)
+  def leaf_boundary_points(self, ys, xs):
+    #ys, xs = leaf.slice
+    #if leaf.staff:
+      #ys = slice(ys.start, leaf.staff[0] - self.page.staff_dist)
     image = self.page.im[ys, xs]
     # Find vertical runs where every horizontal slice is background
     is_bg = (image != 0).sum(1) < self.page.staff_thick
@@ -243,79 +242,142 @@ class Layout:
       return zeros(0) # empty array
     background_ys, num_ys = label(is_bg)
     background_centers = array(center_of_mass(is_bg, background_ys, arange(1, num_ys + 1)))
-    return (background_centers.ravel() + leaf.bounds[0])
+    return (background_centers.ravel() + ys.start)
 
   # Multiply each edge distance by an arbitrary cost function
   # (in this case, sum of distance transform of image along line)
   def edge_cost(self, y0, x0, y1, x1):
     # It should be that x1 > x0
-    if x1 <= x0:
-      return 1
-    ys = rint(arange(x1 - x0) * (y1 - y0) / float(x1 - x0) + y0).astype(int)
-    xs = arange(x0, x1)
+    assert(x1 > x0)
+    dx = x1 - x0
+    ys = rint(arange(dx) * (y1 - y0) / float(x1 - x0) + y0).astype(int)
+    xs = arange(x0, x1, 1 if x0 < x1 else -1)
     if not hasattr(self, 'distance_transform'):
       self.distance_transform = distance_transform_edt(self.page.im == 0)
-    return exp(-self.distance_transform[ys, xs]).sum()
+    #  self.distance_transform[self.distance_transform < self.page.staff_thick] = -self.page.staff_dist/4.0
+    #return exp(-self.distance_transform[ys, xs]/self.page.staff_dist*4).sum()
+    return count_nonzero(self.distance_transform[ys, xs] < self.page.staff_thick) + 1
 
-  def choose_boundaries(self):
-    leaves = self.tree.leaves()
-    i = 8
-    #for i in xrange(self.staves.shape[0]+1):
-    staff_leaves = [leaf for leaf in leaves if leaf.next_staff == i]
-    leaf_ys = map(self.leaf_boundary_points, staff_leaves)
+  # Given staff number, return a small distance above staff (for first staff), 
+  # a small distance below (for last staff), or midway between staff
+  # and previous staff
+  def inter_staff_y(self, staff):
+    prev_sum = 0
+    prev_count = 0
+    this_sum = 0
+    this_count = 0
+    for leaf in self.tree.leaves():
+      if leaf.staff:
+        if leaf.next_staff == staff - 1:
+          prev_sum += leaf.staff[-1]
+          prev_count += 1
+        elif leaf.next_staff == staff:
+          this_sum += leaf.staff[0]
+          this_count += 1
+    if staff == 0:
+      return this_sum / this_count - self.page.staff_dist
+    elif staff == len(self.staves):
+      return prev_sum / prev_count + self.page.staff_dist
+    else:
+      return (this_sum / this_count + prev_sum / prev_count) / 2
+
+  def build_boundary(self, staff):
+    leaf_slices = []
+    leaf_xs = []
+    for leaf in self.tree.leaves():
+      ys, xs = leaf.slice
+      if leaf.next_staff == staff:
+        if leaf.staff:
+          ys = slice(ys.start, leaf.staff[0] - self.page.staff_dist)
+      elif staff > 0 and leaf.next_staff == staff - 1 and leaf.staff:
+        # a node may be assigned to the previous staff, but contain some
+        # area of the boundary
+        ys = slice(leaf.staff[-1] + self.page.staff_dist, ys.stop)
+      else:
+        continue
+      leaf_slices.append((ys, xs))
+      leaf_xs.append((xs.start + xs.stop)/2)
+    # sort staff_leaves and leaf_slices by center x coordinate
+    inds = argsort(leaf_xs)
+    leaf_slices = array(leaf_slices)
+    leaf_slices = leaf_slices[inds]
+    leaf_xs = take(leaf_xs, inds)
+    leaf_ys = [self.leaf_boundary_points(ys, xs) for (ys, xs) in leaf_slices]
+    num_per_leaf = [len(a) for a in leaf_ys]
+    point_xs = leaf_xs.repeat(num_per_leaf)
     point_ys = concatenate(leaf_ys)
-    point_leaf = arange(len(leaf_ys)).repeat([len(a) for a in leaf_ys])
-    distlist = [] # build condensed distance matrix
-    # XXX: set start (end) to arbitrary minimum (maximum) x-valued point
-    min_x, start, max_x, end = self.page.im.shape[1], -1, 0, -1
-    point_xs = [] # accumulate x positions
-    for p0 in xrange(len(point_ys) - 1):
-      y0 = point_ys[p0]
-      leaf0 = staff_leaves[point_leaf[p0]]
-      x0 = leaf0.bounds[1] + leaf0.bounds[3]/2
-      point_xs.append(x0)
-      if x0 < min_x:
-        min_x = x0
-        start = p0
-      if x0 > max_x:
-        max_x = x0
-        end = p0
+    point_leaf = arange(len(leaf_ys)).repeat(num_per_leaf)
+    # Build condensed distance matrix, storing distance from start
+    # separately and then concatenating.
+    # Distance to end is stored after all entries for the point.
+    from_start = []
+    distlist = []
+    # Additional "start" node with index 0, and "end" node with last index
+    # Both have y-index inter_y and x-indices the edge of the image.
+    inter_y = self.inter_staff_y(staff)
+    for p0 in xrange(len(point_ys)):
+      leaf0num = point_leaf[p0]
+      x0, y0 = point_xs[p0], point_ys[p0]
+      x0min = leaf_slices[leaf0num, 1].start
+      x0max = leaf_slices[leaf0num, 1].stop
+
+      # Add distance from start
+      from_start.append(sqrt((y0 - inter_y)**2 + (x0 - 0)**2)
+                        * self.edge_cost(inter_y, 0, y0, x0)
+                        if x0min == 0 else inf)
+
       for p1 in xrange(p0+1, len(point_ys)):
-        leaf1 = staff_leaves[point_leaf[p1]]
-        if (leaf0.bounds[1] + leaf0.bounds[3] == leaf1.bounds[1]
-            or leaf1.bounds[1] + leaf1.bounds[3] == leaf0.bounds[1]):
-          y1 = point_ys[p1]
-          x1 = leaf1.bounds[1] + leaf1.bounds[3]/2
+        leaf1num = point_leaf[p1]
+        x1min = leaf_slices[leaf1num, 1].start
+        x1max = leaf_slices[leaf1num, 1].stop
+        if (x0max == x1min) or (x1max == x0min):
+          x1, y1 = point_xs[p1], point_ys[p1]
           distlist.append(sqrt((y0 - y1)**2 + (x0 - x1)**2)
                           * self.edge_cost(y0, x0, y1, x1))
         else:
           distlist.append(inf)
-    last_leaf = staff_leaves[point_leaf[-1]]
-    point_xs.append(last_leaf.bounds[1] + last_leaf.bounds[3]/2)
-    self.start, self.end = start,end
-    self.point_ys, self.point_xs = point_ys, point_xs
-    distmat = distance.squareform(distlist)
-    dists, paths = shortest_path(distmat, return_predecessors=True)
-    print dists[start, end]
-    self.paths = paths
+
+      # Add distance to end
+      xmax = self.page.im.shape[1]
+      distlist.append(sqrt((y0 - inter_y)**2 + (x0 - xmax)**2)
+                      * self.edge_cost(y0, x0, inter_y, xmax)
+                      if x0max == xmax else inf)
+
+    # Note: start is not connected to end.
+    distlist = concatenate([from_start, [inf], distlist])
+    # We traverse our path in reverse order, so we want the lower triangular.
+    distmat = tril(distance.squareform(distlist), 1)
+    distmat[isnan(distmat)] = 0
+
+    dists, paths = dijkstra(distmat, return_predecessors=True)
+    self.distmat, self.dists, self.paths = distmat, dists, paths
 
     # Build up path from paths
-    path = [(point_ys[start], point_xs[start])]
-    self.path = path
-    last_vert = start
+    path = [(inter_y, 0)]
+    last_vert = start = 0
+    end = distmat.shape[0] - 1
     while True:
       next_vert = paths[end, last_vert]
-      path.append((point_ys[next_vert], point_xs[next_vert]))
       if next_vert == end:
         break
+      path.append((point_ys[next_vert-1], point_xs[next_vert-1]))
       last_vert = next_vert
+    path.append((inter_y, self.page.im.shape[1]))
+    return path
+
+  def build_boundaries(self):
+    self.boundaries = []
+    # XXX: this only makes sense for piano solo music and we should detect
+    # which staves are actually joined
+    for i in xrange(0, self.staves.shape[0]+1, 2):
+      self.boundaries.append(self.build_boundary(i))
 
   def process(self):
     self.build_tree()
     self.build_staves_from_clusters()
     self.update_staves()
     self.mask_staff_ys()
-    self.choose_boundaries()
+    self.build_boundaries()
 
   # Simple check to ensure we didn't miss any staves
   def check_missing_staves(self):
@@ -331,15 +393,22 @@ class Layout:
     # A staff that goes across the whole page should have ~ page.shape[1]*5 runs
     return not (hist[10:] >= self.page.im.shape[1]*5.0/2).any()
 
-  def show(self):
+  def show(self, show_grid=True, show_boundaries=True):
     leaves = filter(lambda n: n.leaf, self.tree.traverse())
     import pylab
-    for leaf in leaves:
-      pylab.plot([leaf.bounds[1], leaf.bounds[1], leaf.bounds[1]+leaf.bounds[3],
-                  leaf.bounds[1]+leaf.bounds[3], leaf.bounds[1]],
-                 [leaf.bounds[0], leaf.bounds[0]+leaf.bounds[2],
-                  leaf.bounds[0]+leaf.bounds[2], leaf.bounds[0], leaf.bounds[0]]
-                 , 'g', alpha=0.25)
+    if show_grid:
+      for leaf in leaves:
+        pylab.plot([leaf.bounds[1], leaf.bounds[1],
+                    leaf.bounds[1]+leaf.bounds[3],
+                    leaf.bounds[1]+leaf.bounds[3],
+                    leaf.bounds[1]],
+                   [leaf.bounds[0], leaf.bounds[0]+leaf.bounds[2],
+                    leaf.bounds[0]+leaf.bounds[2],
+                    leaf.bounds[0],
+                    leaf.bounds[0]],
+                   'g', alpha=0.25)
 
-    for p0, p1 in zip(self.path[:-1], self.path[1:]):
-      pylab.plot([p0[1], p1[1]], [p0[0], p1[0]], 'y')
+    if show_boundaries:
+      for b in self.boundaries:
+        for p0, p1 in zip(b[:-1], b[1:]):
+          pylab.plot([p0[1], p1[1]], [p0[0], p1[0]], 'y')
