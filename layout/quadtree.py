@@ -1,7 +1,7 @@
 directions = dict(n=0, s=0, w=1, e=1)
 opposites = dict(n='s', s='n', w='e', e='w')
 
-class Quadtree:
+class QuadTree:
   # bounds: (y, x, h, w)
   def __init__(self, bounds, parent=None):
     self.bounds = bounds
