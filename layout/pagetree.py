@@ -59,10 +59,3 @@ class PageTree(QuadTree):
       else:
         return True
     return False
-
-  def recursive_split(self):
-    if self.try_split():
-      self.nw.recursive_split()
-      self.sw.recursive_split()
-      self.ne.recursive_split()
-      self.se.recursive_split()

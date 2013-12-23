@@ -58,10 +58,14 @@ class QuadTree:
 
   def can_split(self):
     return self.leaf
-  def try_split(self):
-    if self.can_split():
-      return self.split()
-    return False
+
+  def recursive_split(self, criterion):
+    if criterion(self):
+      self.split()
+      self.nw.recursive_split(criterion)
+      self.sw.recursive_split(criterion)
+      self.ne.recursive_split(criterion)
+      self.se.recursive_split(criterion)
 
   # Return child with path (e.g. ["ne", "sw", "se"])
   # If path asks for a child of a leaf node, the leaf is returned
@@ -70,7 +74,7 @@ class QuadTree:
     if self.leaf:
       return self
     elif len(path) == 0:
-      return filter(lambda n: n.leaf, self.traverse())
+      return self.leaves()
     else:
       return getattr(self, path[0]).child(path[1:])
 
