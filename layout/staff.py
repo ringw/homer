@@ -175,31 +175,57 @@ class StaffSegmenter:
     self.tree = page.tree
 
   def leaf_boundary_points(self, ys, xs):
-    #ys, xs = leaf.slice
-    #if leaf.staff:
-      #ys = slice(ys.start, leaf.staff[0] - self.page.staff_dist)
     image = self.page.im[ys, xs]
+    proj = (image != 0).sum(1)
+    # Detect runs of horizontal projection with various threshold
+    max_pixels = 0
     # Find vertical runs where every horizontal slice is background
-    is_bg = (image != 0).sum(1) < self.page.staff_thick
-    if not is_bg.any():
-      return zeros(0) # empty array
-    background_ys, num_ys = label(is_bg)
-    background_centers = array(center_of_mass(is_bg, background_ys, arange(1, num_ys + 1)))
-    return (background_centers.ravel() + ys.start)
+    points = []
+    while max_pixels < (xs.stop - xs.start)/2:
+      is_bg = proj <= max_pixels
+      # Break up runs every staff_dist so that we have several possible points
+      is_bg[arange(len(is_bg)) % self.page.staff_dist == 0] = 0
+      if is_bg.any():
+        if is_bg.all():
+          break
+        background_ys, num_ys = label(is_bg)
+        background_centers = array(center_of_mass(is_bg, background_ys,
+                                      arange(1, num_ys + 1))).ravel()
+        if len(background_centers):
+          points.extend(background_centers + ys.start)
+      max_pixels += self.page.staff_thick
+    if len(points) == 0:
+      return array([(ys.start + ys.stop)/2])
+    else:
+      return unique(points)
 
-  # Multiply each edge distance by an arbitrary cost function
-  # (in this case, sum of distance transform of image along line)
+  # Multiply each edge distance by an arbitrary cost function,
+  # favoring larger distance transform along boundary
   def edge_cost(self, y0, x0, y1, x1):
+    # Allow vector inputs which are cast to 1D array
+    y0, x0, y1, x1 = map(array, [y0, x0, y1, x1])
+    if y0.shape == (): # 0D array
+      y0, x0, y1, x1 = [a.reshape(1) for a in [y0, x0, y1, x1]]
     # It should be that x1 > x0
-    assert(x1 > x0)
-    dx = x1 - x0
-    ys = rint(arange(dx) * (y1 - y0) / float(x1 - x0) + y0).astype(int)
-    xs = arange(x0, x1, 1 if x0 < x1 else -1)
+    assert((x1 > x0).all())
+    dx = amax(x1 - x0)
+    # Create arrays long enough for all arguments
+    ts = arange(dx)[None, :].repeat(y0.size, 0) # parametrize x and y
+    ys = rint(ts * (y1 - y0)[:, None].astype(double) / (x1 - x0)[:, None] + y0[:, None]).astype(int)
+    xs = ts + x0[:, None]
+    # Mask out bad ys and xs with 0
+    in_range = ts < (x1 - x0)[:, None]
+    ys *= in_range
+    xs *= in_range
     if not hasattr(self, 'distance_transform'):
       self.distance_transform = distance_transform_edt(self.page.im == 0)
-    #  self.distance_transform[self.distance_transform < self.page.staff_thick] = -self.page.staff_dist/4.0
-    #return exp(-self.distance_transform[ys, xs]/self.page.staff_dist*4).sum()
-    return count_nonzero(self.distance_transform[ys, xs] < self.page.staff_thick) + 1
+    dists = self.distance_transform[ys, xs]
+    count = (dists < self.page.staff_thick).astype(int)
+    count *= in_range
+    if y0.size == 1:
+      return count.sum() + 1
+    else:
+      return count.sum(1) + 1
 
   # Given staff number, return a small distance above staff (for first staff), 
   # a small distance below (for last staff), or midway between staff
@@ -225,6 +251,12 @@ class StaffSegmenter:
       return (this_sum / this_count + prev_sum / prev_count) / 2
 
   def build_boundary(self, staff):
+    inter_y = self.inter_staff_y(staff)
+    # If the page cross-section at y position inter_y is empty, then the
+    # boundary is approximately this cross-section.
+    if self.page.im[inter_y].sum() == 0:
+      return [(0, inter_y), (self.page.im.shape[1], inter_y)]
+
     leaf_slices = []
     leaf_xs = []
     for leaf in self.tree.leaves():
@@ -238,14 +270,14 @@ class StaffSegmenter:
         ys = slice(leaf.staff[-1] + self.page.staff_dist, ys.stop)
       else:
         continue
-      leaf_slices.append((ys, xs))
+      leaf_slices.append((ys.start, ys.stop, xs.start, xs.stop))
       leaf_xs.append((xs.start + xs.stop)/2)
     # sort staff_leaves and leaf_slices by center x coordinate
     inds = argsort(leaf_xs)
     leaf_slices = array(leaf_slices)
     leaf_slices = leaf_slices[inds]
     leaf_xs = take(leaf_xs, inds)
-    leaf_ys = [self.leaf_boundary_points(ys, xs) for (ys, xs) in leaf_slices]
+    leaf_ys = [self.leaf_boundary_points(slice(y0, y1), slice(x0, x1)) for (y0, y1, x0, x1) in leaf_slices]
     num_per_leaf = [len(a) for a in leaf_ys]
     point_xs = leaf_xs.repeat(num_per_leaf)
     point_ys = concatenate(leaf_ys)
@@ -257,28 +289,30 @@ class StaffSegmenter:
     distlist = []
     # Additional "start" node with index 0, and "end" node with last index
     # Both have y-index inter_y and x-indices the edge of the image.
-    inter_y = self.inter_staff_y(staff)
     for p0 in xrange(len(point_ys)):
       leaf0num = point_leaf[p0]
       x0, y0 = point_xs[p0], point_ys[p0]
-      x0min = leaf_slices[leaf0num, 1].start
-      x0max = leaf_slices[leaf0num, 1].stop
+      x0min = leaf_slices[leaf0num, 2]
+      x0max = leaf_slices[leaf0num, 3]
 
       # Add distance from start
       from_start.append(sqrt((y0 - inter_y)**2 + (x0 - 0)**2)
                         * self.edge_cost(inter_y, 0, y0, x0)
                         if x0min == 0 else inf)
 
-      for p1 in xrange(p0+1, len(point_ys)):
-        leaf1num = point_leaf[p1]
-        x1min = leaf_slices[leaf1num, 1].start
-        x1max = leaf_slices[leaf1num, 1].stop
-        if (x0max == x1min) or (x1max == x0min):
+      # Vectorize pairs going from p0
+      if p0 + 1 < len(point_ys):
+        leaf1num = point_leaf[p0+1 : len(point_ys)]
+        x1min, x1max = leaf_slices[leaf1num, 2:4].T
+        adj = (x0max == x1min) | (x1max == x0min)
+        pairs = repeat(inf, len(point_ys) - p0 - 1)
+        for i in where(adj)[0]:
+          p1 = i + p0 + 1
           x1, y1 = point_xs[p1], point_ys[p1]
-          distlist.append(sqrt((y0 - y1)**2 + (x0 - x1)**2)
-                          * self.edge_cost(y0, x0, y1, x1))
-        else:
-          distlist.append(inf)
+          dist = sqrt((y0 - y1)**2 + (x0 - x1)**2)
+          cost = self.edge_cost(y0, x0, y1, x1)
+          pairs[i] = (dist * cost)
+        distlist.extend(pairs)
 
       # Add distance to end
       xmax = self.page.im.shape[1]
