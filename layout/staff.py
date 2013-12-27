@@ -1,9 +1,11 @@
 from .pagetree import PageTree
+from util import label_1d, center_of_mass_1d
 from numpy import *
 from scipy.cluster import hierarchy
 from scipy.spatial import distance
-from scipy.ndimage import label, center_of_mass, distance_transform_edt
+from scipy.ndimage import distance_transform_edt
 from scipy.sparse.csgraph import dijkstra
+
 
 class StaffBuilder:
   def __init__(self, page):
@@ -22,7 +24,8 @@ class StaffBuilder:
     staff_sections = asarray(filter(None, staff_sections))
     dists = distance.pdist(staff_sections)
     Z = hierarchy.linkage(dists, method='complete')
-    fc = hierarchy.fcluster(Z, sqrt(5) * (self.page.staff_space + self.page.staff_thick) / 2, criterion='distance')
+    fc = hierarchy.fcluster(Z, sqrt(5) * self.page.staff_dist / 2,
+                            criterion='distance')
     cluster_nums = argsort(bincount(fc))[::-1]
     self.staves = []
     seen_staff_ys = zeros(self.page.im.shape[0], dtype=bool)
@@ -122,6 +125,8 @@ class StaffBuilder:
             break
 
   def mask_staff_ys(self):
+    # Set staff pixels to INT_MAX
+    INT_MAX = iinfo(self.page.im.dtype).max
     for l in self.tree.leaves():
       if l.staff:
         staff = rint(array(l.staff)).astype(int)
@@ -130,7 +135,7 @@ class StaffBuilder:
           mask = (self.page.im[y - self.page.staff_thick, xs] == 0) \
                & (self.page.im[y + self.page.staff_thick, xs] == 0)
           self.page.im[y - self.page.staff_thick:y + self.page.staff_thick,
-                       where(mask)[0] + xs.start] *= -1
+                       where(mask)[0] + xs.start] *= INT_MAX
 
   def process(self):
     self.split_tree()
@@ -188,9 +193,8 @@ class StaffSegmenter:
       if is_bg.any():
         if is_bg.all():
           break
-        background_ys, num_ys = label(is_bg)
-        background_centers = array(center_of_mass(is_bg, background_ys,
-                                      arange(1, num_ys + 1))).ravel()
+        background_ys, num_ys = label_1d(is_bg)
+        background_centers = center_of_mass_1d(background_ys)
         if len(background_centers):
           points.extend(background_centers + ys.start)
       max_pixels += self.page.staff_thick
@@ -211,7 +215,8 @@ class StaffSegmenter:
     dx = amax(x1 - x0)
     # Create arrays long enough for all arguments
     ts = arange(dx)[None, :].repeat(y0.size, 0) # parametrize x and y
-    ys = rint(ts * (y1 - y0)[:, None].astype(double) / (x1 - x0)[:, None] + y0[:, None]).astype(int)
+    ys = rint(ts * (y1 - y0)[:, None].astype(double)
+                 / (x1 - x0)[:, None] + y0[:, None]).astype(int)
     xs = ts + x0[:, None]
     # Mask out bad ys and xs with 0
     in_range = ts < (x1 - x0)[:, None]
@@ -277,7 +282,8 @@ class StaffSegmenter:
     leaf_slices = array(leaf_slices)
     leaf_slices = leaf_slices[inds]
     leaf_xs = take(leaf_xs, inds)
-    leaf_ys = [self.leaf_boundary_points(slice(y0, y1), slice(x0, x1)) for (y0, y1, x0, x1) in leaf_slices]
+    leaf_ys = [self.leaf_boundary_points(slice(y0, y1), slice(x0, x1))
+               for (y0, y1, x0, x1) in leaf_slices]
     num_per_leaf = [len(a) for a in leaf_ys]
     point_xs = leaf_xs.repeat(num_per_leaf)
     point_ys = concatenate(leaf_ys)
@@ -288,12 +294,13 @@ class StaffSegmenter:
     from_start = repeat(inf, len(point_ys))
     is_leftmost = point_leaf_bounds[:, 2] == 0
     num_start = count_nonzero(is_leftmost)
-    leftmost_dists = (sqrt((point_ys[is_leftmost] - inter_y)**2
-                           + (point_xs[is_leftmost] - 0)**2)
-                      * self.edge_cost(inter_y.repeat(num_start),
-                                       repeat(0, num_start),
-                                       point_ys[is_leftmost],
-                                       point_xs[is_leftmost]))
+    leftmost_dists = sqrt((point_ys[is_leftmost] - inter_y)**2
+                          + (point_xs[is_leftmost] - 0)**2)
+    leftmost_y0 = repeat(inter_y, num_start)
+    leftmost_x0 = repeat(0, num_start)
+    leftmost_cost = self.edge_cost(leftmost_y0, leftmost_x0,
+                                   point_ys[is_leftmost], point_xs[is_leftmost])
+    leftmost_dists *= leftmost_cost
     from_start[is_leftmost] = leftmost_dists
     # Build condensed distance matrix.
     # Additional "start" node with index 0, and "end" node with last index.
@@ -312,8 +319,6 @@ class StaffSegmenter:
     adj = zeros_like(p1)
     adj[cumsum(numinpair[:-1])] = -numinpair[:-1] + 1
     p1 += cumsum(adj)
-    #p0, p1 = array([[a, b] for a in xrange(len(point_ys))
-    #                       for b in xrange(a+1, len(point_ys)+1)]).T
     # Indicate distance to end with -1
     # also prevents complaining when we use p1 to index into something
     p1[p1 == len(point_ys)] = -1
