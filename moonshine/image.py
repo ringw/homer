@@ -5,8 +5,7 @@ import shutil
 from StringIO import StringIO
 import subprocess
 import numpy as np
-import page
-from pdfimage import pdf_to_images
+from .pdfimage import pdf_to_images
 
 IMAGE_MAX_SIZE = 4096
 def image_array(data):
@@ -24,7 +23,7 @@ def image_array(data):
   np.logical_not(pixels, output=pixels)
   return pixels
 
-# Open image or multi-page PDF, return list of pages
+# Open image or multi-page PDF, return list of data
 def read_pages(path):
   if isinstance(path, basestring):
     path = open(path, 'rb')
@@ -35,4 +34,4 @@ def read_pages(path):
   else:
     path.seek(0)
     images = [path.read()]
-  return map(page.Page, images)
+  return images

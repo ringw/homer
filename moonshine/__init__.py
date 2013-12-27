@@ -1,9 +1,10 @@
+from . import debug, image, page
 import numpy as np
-import debug
-import image
 import argparse
 
-open = image.read_pages
+def open(image_path):
+  images = image.read_pages(image_path)
+  return map(page.Page, images)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-d", "--debug", type=str,
@@ -20,9 +21,3 @@ def moonshine(path, show=False):
     import pylab
     page.show()
     pylab.show()
-
-if __name__ == "__main__":
-  args = parser.parse_args()
-  if args.debug:
-    debug.DEBUG_MODULES = args.debug.split(',')
-  moonshine(args.path, show=args.show)

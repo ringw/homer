@@ -1,5 +1,5 @@
 from .pagetree import PageTree
-from util import label_1d, center_of_mass_1d
+from ..util import label_1d, center_of_mass_1d
 from numpy import *
 from scipy.cluster import hierarchy
 from scipy.spatial import distance

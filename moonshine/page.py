@@ -1,7 +1,5 @@
 import numpy as np
-import image
-import rotate
-import layout
+from . import image, rotate, layout
 
 class Page:
   def __init__(self, image_data):
