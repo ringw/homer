@@ -15,6 +15,19 @@ class QuadTree:
     else:
       return self.parent.path() + [self.direction]
 
+  # Look up leaf containing point (y, x)
+  def find(self, y, x):
+    if ((y < self.bounds[0]) or (self.bounds[0] + self.bounds[2] <= y)
+        or (x < self.bounds[1]) or (self.bounds[1] + self.bounds[3] <= x)):
+      return None
+    elif self.leaf:
+      return self
+    else:
+      # Generator searching each child
+      search = (child.find(y, x) for child in
+                [self.nw, self.ne, self.sw, self.se])
+      return next((s for s in search if s is not None), None)
+
   @property
   def slice(self):
     return (slice(self.bounds[0], self.bounds[0] + self.bounds[2]),

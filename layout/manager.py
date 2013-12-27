@@ -1,5 +1,5 @@
 from .pagetree import PageTree
-from . import staff
+from . import staff, measure
 from numpy import *
 
 class Layout:
@@ -15,9 +15,13 @@ class Layout:
     self.page.staff_segmenter = staff.StaffSegmenter(self.page)
     self.page.staff_segmenter.process()
 
+  def build_measures(self):
+    pass
+
   def process(self):
     self.build_staves()
     self.segment_staves()
+    self.build_measures()
 
   def show(self, show_grid=True, show_boundaries=True):
     if show_grid:
