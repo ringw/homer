@@ -282,46 +282,60 @@ class StaffSegmenter:
     point_xs = leaf_xs.repeat(num_per_leaf)
     point_ys = concatenate(leaf_ys)
     point_leaf = arange(len(leaf_ys)).repeat(num_per_leaf)
-    # Build condensed distance matrix, storing distance from start
-    # separately and then concatenating.
-    # Distance to end is stored after all entries for the point.
-    from_start = []
-    distlist = []
-    # Additional "start" node with index 0, and "end" node with last index
+    point_leaf_bounds = leaf_slices[point_leaf]
+    # Calculate distance from start to each point
+    # (infinity if point does not belong to a leftmost leaf)
+    from_start = repeat(inf, len(point_ys))
+    is_leftmost = point_leaf_bounds[:, 2] == 0
+    num_start = count_nonzero(is_leftmost)
+    leftmost_dists = (sqrt((point_ys[is_leftmost] - inter_y)**2
+                           + (point_xs[is_leftmost] - 0)**2)
+                      * self.edge_cost(inter_y.repeat(num_start),
+                                       repeat(0, num_start),
+                                       point_ys[is_leftmost],
+                                       point_xs[is_leftmost]))
+    from_start[is_leftmost] = leftmost_dists
+    # Build condensed distance matrix.
+    # Additional "start" node with index 0, and "end" node with last index.
     # Both have y-index inter_y and x-indices the edge of the image.
-    for p0 in xrange(len(point_ys)):
-      leaf0num = point_leaf[p0]
-      x0, y0 = point_xs[p0], point_ys[p0]
-      x0min = leaf_slices[leaf0num, 2]
-      x0max = leaf_slices[leaf0num, 3]
 
-      # Add distance from start
-      from_start.append(sqrt((y0 - inter_y)**2 + (x0 - 0)**2)
-                        * self.edge_cost(inter_y, 0, y0, x0)
-                        if x0min == 0 else inf)
+    # Create all pairs of points
+    # Each point, after appearing as the first point in the pair, is followed
+    # by its distance from the end node
+    # This method of generating pairs of indices is fast but not at all
+    # elegant. Is there a better way to do it?
+    pnums = arange(len(point_ys))
+    numinpair = len(point_ys) - pnums
+    p0 = pnums.repeat(numinpair)
+    p1 = arange(1, len(p0) + 1)
+    # Need to adjust elements of p1 downwards
+    adj = zeros_like(p1)
+    adj[cumsum(numinpair[:-1])] = -numinpair[:-1] + 1
+    p1 += cumsum(adj)
+    #p0, p1 = array([[a, b] for a in xrange(len(point_ys))
+    #                       for b in xrange(a+1, len(point_ys)+1)]).T
+    # Indicate distance to end with -1
+    # also prevents complaining when we use p1 to index into something
+    p1[p1 == len(point_ys)] = -1
+    bounds0 = point_leaf_bounds[p0]
+    bounds1 = point_leaf_bounds[p1]
+    good_pairs = bounds0[:, 3] == bounds1[:, 2]
+    # Must replace pairs where p1 == -1 with whether p1's leaf is rightmost
+    good_pairs[p1 == -1] = bounds0[p1 == -1, 3] == self.page.im.shape[1]
+    x0, y0 = point_xs[p0], point_ys[p0]
+    x1, y1 = point_xs[p1], point_ys[p1]
+    x1[p1 == -1] = self.page.im.shape[1]
+    y1[p1 == -1] = inter_y
 
-      # Vectorize pairs going from p0
-      if p0 + 1 < len(point_ys):
-        leaf1num = point_leaf[p0+1 : len(point_ys)]
-        x1min, x1max = leaf_slices[leaf1num, 2:4].T
-        adj = (x0max == x1min) | (x1max == x0min)
-        pairs = repeat(inf, len(point_ys) - p0 - 1)
-        for i in where(adj)[0]:
-          p1 = i + p0 + 1
-          x1, y1 = point_xs[p1], point_ys[p1]
-          dist = sqrt((y0 - y1)**2 + (x0 - x1)**2)
-          cost = self.edge_cost(y0, x0, y1, x1)
-          pairs[i] = (dist * cost)
-        distlist.extend(pairs)
+    x0 = x0[good_pairs]
+    y0 = y0[good_pairs]
+    x1 = x1[good_pairs]
+    y1 = y1[good_pairs]
+    pdists = repeat(inf, len(p0))
+    pdists[good_pairs] = (sqrt((y1 - y0)**2 + (x1 - x0)**2)
+                          * self.edge_cost(y0, x0, y1, x1))
 
-      # Add distance to end
-      xmax = self.page.im.shape[1]
-      distlist.append(sqrt((y0 - inter_y)**2 + (x0 - xmax)**2)
-                      * self.edge_cost(y0, x0, inter_y, xmax)
-                      if x0max == xmax else inf)
-
-    # Note: start is not connected to end.
-    distlist = concatenate([from_start, [inf], distlist])
+    distlist = concatenate([from_start, [inf], pdists])
     # We traverse our path in reverse order, so we want the lower triangular.
     distmat = tril(distance.squareform(distlist), 1)
     distmat[isnan(distmat)] = 0
@@ -342,10 +356,28 @@ class StaffSegmenter:
     path.append((inter_y, self.page.im.shape[1]))
     return path
 
+  # Build region_labels array
+  def build_region_labels(self):
+    self.region_labels = region_labels = ones_like(self.page.im, dtype=uint8)
+    region_labels *= 255 # -1 in uint8
+    y_index = arange(self.page.im.shape[0])[:, None]
+    # Increment by 1 for each boundary any pixel lies beneath
+    for boundary in self.boundaries:
+      # y-index of boundary for each x-index
+      boundary_y = zeros(self.page.im.shape[1], int)
+      for (y0, x0), (y1, x1) in zip(boundary[:-1], boundary[1:]):
+        dx = arange(x1 - x0)
+        y = dx * float(y1 - y0) / (x1 - x0) + y0
+        boundary_y[x0:x1] = rint(y)
+      mask = y_index >= boundary_y[None, :]
+      region_labels[mask] += 1
+    region_labels[region_labels == len(self.page.staves) + 1] = 255
+
   def process(self):
     self.boundaries = [self.build_boundary(i)
-                       for i in xrange(0, len(self.page.staves)+1, 2)]
+                       for i in xrange(0, len(self.page.staves)+1)]
     self.page.boundaries = self.boundaries
+    self.build_region_labels()
 
   def show(self):
     import pylab
