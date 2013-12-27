@@ -43,7 +43,7 @@ class QuadTree:
             else 'se')
 
   def create_child(self, bounds):
-    return Quadtree(bounds, parent=self)
+    return QuadTree(bounds, parent=self)
 
   def split(self):
     if not self.leaf:
