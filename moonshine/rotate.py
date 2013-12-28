@@ -1,4 +1,5 @@
 from numpy import *
+import numpy as np
 from scipy import ndimage
 from PIL import Image
 
@@ -16,8 +17,8 @@ class RotateTask:
     all_im_string = ''.join([im.tobytes() for im in rotated_ims])
     np_ims = fromstring(all_im_string, dtype=uint8).reshape((len(ts),) + self.page.im.shape)
     # Horizontal projection
-    im_proj = sum(np_ims, axis=-1)
-    scores = sum(im_proj ** 2, axis=-1)
+    im_proj = np.sum(np_ims, axis=-1)
+    scores = np.sum(im_proj ** 2, axis=-1)
     return scores, np_ims
 
   def rotate_image(self):
