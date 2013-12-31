@@ -290,8 +290,8 @@ class StaffSegmenter:
     point_leaf = arange(len(leaf_ys)).repeat(num_per_leaf)
     point_leaf_bounds = leaf_slices[point_leaf]
     # Calculate distance from start to each point
-    # (infinity if point does not belong to a leftmost leaf)
-    from_start = repeat(inf, len(point_ys))
+    # (0/no connection if point does not belong to a leftmost leaf)
+    from_start = repeat(0, len(point_ys))
     is_leftmost = point_leaf_bounds[:, 2] == 0
     num_start = count_nonzero(is_leftmost)
     leftmost_dists = sqrt((point_ys[is_leftmost] - inter_y)**2
@@ -336,14 +336,13 @@ class StaffSegmenter:
     y0 = y0[good_pairs]
     x1 = x1[good_pairs]
     y1 = y1[good_pairs]
-    pdists = repeat(inf, len(p0))
+    pdists = zeros(len(p0), double)
     pdists[good_pairs] = (sqrt((y1 - y0)**2 + (x1 - x0)**2)
                           * self.edge_cost(y0, x0, y1, x1))
 
-    distlist = concatenate([from_start, [inf], pdists])
+    distlist = concatenate([from_start, [0], pdists])
     # We traverse our path in reverse order, so we want the lower triangular.
     distmat = tril(distance.squareform(distlist), 1)
-    distmat[isnan(distmat)] = 0
 
     dists, paths = dijkstra(distmat, return_predecessors=True)
     self.distmat, self.dists, self.paths = distmat, dists, paths
