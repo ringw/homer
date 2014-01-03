@@ -181,12 +181,15 @@ class StaffSegmenter:
 
   def leaf_boundary_points(self, ys, xs):
     image = self.page.im[ys, xs]
+    if image.size == 0:
+      return array([])
     proj = (image != 0).sum(1)
     # Detect runs of horizontal projection with various threshold
     max_pixels = 0
     # Find vertical runs where every horizontal slice is background
     points = []
-    while max_pixels < (xs.stop - xs.start)/2:
+    covered = zeros_like(proj, bool)
+    while max_pixels < (xs.stop - xs.start)/2 and not covered.all():
       is_bg = proj <= max_pixels
       # Break up runs every staff_dist so that we have several possible points
       is_bg[arange(len(is_bg)) % self.page.staff_dist == 0] = 0
@@ -196,7 +199,11 @@ class StaffSegmenter:
         background_ys, num_ys = label_1d(is_bg)
         background_centers = center_of_mass_1d(background_ys)
         if len(background_centers):
-          points.extend(background_centers + ys.start)
+          dy = self.page.staff_thick
+          for center in background_centers:
+            if not covered[rint(center).astype(int)]:
+              points.append(center + ys.start)
+            covered[max(center-dy, 0):min(center+dy, xs.stop-xs.start)] = True
       max_pixels += self.page.staff_thick
     if len(points) == 0:
       return array([(ys.start + ys.stop)/2])
