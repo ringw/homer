@@ -9,7 +9,10 @@ from .pdfimage import pdf_to_images
 
 IMAGE_MAX_SIZE = 4096
 def image_array(data):
-  im = Image.open(StringIO(data))
+  if type(data) is str:
+    im = Image.open(StringIO(data))
+  else:
+    im = data
   im = im.convert('1')
   if im.size[0] > IMAGE_MAX_SIZE and im.size[0] > im.size[1]:
     im = im.resize((IMAGE_MAX_SIZE, im.size[1]*IMAGE_MAX_SIZE/im.size[0]))
@@ -23,7 +26,7 @@ def image_array(data):
   np.logical_not(pixels, output=pixels)
   return pixels
 
-# Open image or multi-page PDF, return list of data
+# Open image or multi-page PDF, return list of data (or PIL Images)
 def read_pages(path):
   if isinstance(path, basestring):
     path = open(path, 'rb')
