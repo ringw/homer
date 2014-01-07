@@ -6,7 +6,6 @@ from scipy.spatial import distance
 from scipy.ndimage import distance_transform_edt
 from scipy.sparse.csgraph import dijkstra
 
-
 class StaffBuilder:
   def __init__(self, page):
     self.page = page
@@ -30,7 +29,6 @@ class StaffBuilder:
     self.staves = []
     seen_staff_ys = zeros(self.page.im.shape[0], dtype=bool)
     for c in cluster_nums:
-      staff_num = len(self.staves)
       which_nodes = fc == c
       if not which_nodes.any(): break
       sections = staff_sections[which_nodes]
@@ -58,11 +56,11 @@ class StaffBuilder:
       if not FOUND_STAFF:
         leaf.staff = None
 
-  def update_staves(self):
-    # Assign staves to neighbors which don't have as staff
-    unassigned = filter(lambda n: n.leaf and not n.staff, self.tree.traverse())
+  def assign_staves(self):
+    # Assign staves to neighbors which don't have a staff
+    unassigned = set(n for n in self.tree.traverse() if n.leaf and not n.staff)
     while len(unassigned) > 0:
-      node = unassigned[0]
+      node = iter(unassigned).next()
       stretch = []
       left_staff = None
       for left_node in node.neighbors('w'):
@@ -84,23 +82,21 @@ class StaffBuilder:
         # XXX: weighted average?
         staff = tuple((array(left_staff.staff) + array(right_staff.staff)) / 2)
         staff_num = left_staff.staff_num
-      elif left_staff:
-        staff = left_staff.staff
-        staff_num = left_staff.staff_num
-      elif right_staff:
-        staff = right_staff.staff
-        staff_num = right_staff.staff_num
-      else:
-        staff = None
-        staff_num = None
-      for n in stretch:
-        if staff and (n.bounds[0] <= staff[-1] and n.bounds[0]+n.bounds[2] >= staff[0]):
-          n.staff = staff
-          n.staff_num = staff_num
-        if n in unassigned:
-          unassigned.remove(n)
+        for n in stretch:
+          if n.bounds[0] <= staff[0] and n.bounds[0]+n.bounds[2] >= staff[0]:
+            n.staff = staff
+            n.staff_num = staff_num
+      unassigned.difference_update(stretch)
     # Update with previous and next staff
+    # prev_staff: first staff number above this node
+    # next_staff: first staff number in this node or any nodes beneath it
     for leaf in self.tree.leaves():
+      for n in leaf.neighbors('n'):
+        if n.staff:
+          leaf.prev_staff = n.staff_num
+          break
+      else:
+        leaf.prev_staff = -1
       if leaf.staff:
         start = int(rint(leaf.staff[0]))
         stop = int(rint(leaf.staff[-1]))
@@ -112,16 +108,33 @@ class StaffBuilder:
                            else None)
         # next_staff: next staff after leaf.bounds[0]
         leaf.next_staff = leaf.staff_num
+
+        # leaf's staff may hang down below leaf; update south neighbors
+        if leaf.bounds[0] + leaf.bounds[2] <= leaf.staff[-1]:
+          for s in leaf.nonleaf_neighbors('s'):
+            if leaf.staff[-1] < s.bounds[0]:
+              break
+            for leaf2 in s.leaves():
+              if leaf2.bounds[0] <= leaf.staff[-1]:
+                leaf2.staff = leaf.staff
+                leaf2.staff_num = leaf.staff_num
+                leaf2.prev_staff = leaf.staff_num
+                leaf2.post_staff = int(rint(leaf.staff[-1]))
       else:
         leaf.pre_staff = None
         leaf.post_staff = leaf.bounds[0]
-        # Invariant: if we go down far enough, we will intersect with the
-        # next staff
-        # XXX: we may want to unset staff on margins so this may not hold
         leaf.next_staff = self.staves.shape[0] # no staves after
         for s in leaf.neighbors('s'):
           if s.staff:
             leaf.next_staff = s.staff_num
+            break
+    # Now assign prev_staff and next_staff based on global staff positions
+    for leaf in self.tree.leaves():
+      if leaf.staff is None:
+        for staff_num, staff in enumerate(self.page.staves):
+          if leaf.bounds[0] <= staff[0]:
+            leaf.prev_staff = staff_num - 1
+            leaf.next_staff = staff_num
             break
 
   def mask_staff_ys(self):
@@ -140,7 +153,7 @@ class StaffBuilder:
   def process(self):
     self.split_tree()
     self.build_staves_from_clusters()
-    self.update_staves()
+    self.assign_staves()
     self.mask_staff_ys()
 
   def show(self):
@@ -214,9 +227,7 @@ class StaffSegmenter:
   # favoring larger distance transform along boundary
   def edge_cost(self, y0, x0, y1, x1):
     # Allow vector inputs which are cast to 1D array
-    y0, x0, y1, x1 = map(array, [y0, x0, y1, x1])
-    if y0.shape == (): # 0D array
-      y0, x0, y1, x1 = [a.reshape(1) for a in [y0, x0, y1, x1]]
+    y0, x0, y1, x1 = map(atleast_1d, [y0, x0, y1, x1])
     # It should be that x1 > x0
     assert((x1 > x0).all())
     dx = amax(x1 - x0)
@@ -226,7 +237,9 @@ class StaffSegmenter:
                  / (x1 - x0)[:, None] + y0[:, None]).astype(int)
     xs = ts + x0[:, None]
     # Mask out bad ys and xs with 0
-    in_range = ts < (x1 - x0)[:, None]
+    in_range = ((ts < (x1 - x0)[:, None])
+                & (0 <= ys) & (ys < self.page.im.shape[0])
+                & (0 <= xs) & (xs < self.page.im.shape[1]))
     ys *= in_range
     xs *= in_range
     if not hasattr(self, 'distance_transform'):
@@ -264,16 +277,12 @@ class StaffSegmenter:
 
   def build_boundary(self, staff):
     inter_y = self.inter_staff_y(staff)
-    # If the page cross-section at y position inter_y is empty, then the
-    # boundary is approximately this cross-section.
-    if self.page.im[inter_y].sum() == 0:
-      return [(0, inter_y), (self.page.im.shape[1], inter_y)]
 
     leaf_slices = []
     leaf_xs = []
     for leaf in self.tree.leaves():
       ys, xs = leaf.slice
-      if leaf.next_staff == staff:
+      if leaf.prev_staff == staff - 1 and leaf.next_staff == staff:
         if leaf.staff:
           ys = slice(ys.start, leaf.staff[0] - self.page.staff_dist)
       elif staff > 0 and leaf.next_staff == staff - 1 and leaf.staff:
@@ -299,7 +308,7 @@ class StaffSegmenter:
     # Calculate distance from start to each point
     # (0/no connection if point does not belong to a leftmost leaf)
     from_start = repeat(0, len(point_ys))
-    is_leftmost = point_leaf_bounds[:, 2] == 0
+    is_leftmost = point_leaf_bounds[:, 2] == amin(point_leaf_bounds[:, 2])
     num_start = count_nonzero(is_leftmost)
     leftmost_dists = sqrt((point_ys[is_leftmost] - inter_y)**2
                           + (point_xs[is_leftmost] - 0)**2)
@@ -333,7 +342,7 @@ class StaffSegmenter:
     bounds1 = point_leaf_bounds[p1]
     good_pairs = bounds0[:, 3] == bounds1[:, 2]
     # Must replace pairs where p1 == -1 with whether p1's leaf is rightmost
-    good_pairs[p1 == -1] = bounds0[p1 == -1, 3] == self.page.im.shape[1]
+    good_pairs[p1 == -1] = bounds0[p1 == -1, 3] == amax(bounds0[p1 == -1, 3])
     x0, y0 = point_xs[p0], point_ys[p0]
     x1, y1 = point_xs[p1], point_ys[p1]
     x1[p1 == -1] = self.page.im.shape[1]
@@ -385,8 +394,13 @@ class StaffSegmenter:
     region_labels[region_labels == len(self.page.staves) + 1] = 255
 
   def process(self):
-    self.boundaries = [self.build_boundary(i)
-                       for i in xrange(0, len(self.page.staves)+1)]
+    self.boundaries = []
+    for i in xrange(0, len(self.page.staves) + 1):
+      try:
+        self.boundaries.append(self.build_boundary(i))
+      except:
+        inter_y = self.inter_staff_y(i)
+        self.boundaries.append([(i, 0), (i, self.page.im.shape[1])])
     self.page.boundaries = self.boundaries
     self.build_region_labels()
 

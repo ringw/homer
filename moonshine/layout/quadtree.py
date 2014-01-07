@@ -1,3 +1,5 @@
+import numpy as np
+
 directions = dict(n=0, s=0, w=1, e=1)
 opposites = dict(n='s', s='n', w='e', e='w')
 
@@ -7,9 +9,18 @@ class QuadTree:
     self.bounds = bounds
     self.parent = parent
     self.nw = self.ne = self.sw = self.se = None
+    self.leaf = True
+    # Parent must assign this node's direction
+    self.direction = None
 
-  # Look up path to root
+  def root(self):
+    if self.parent is None:
+      return self
+    else:
+      return self.parent.root()
+
   def path(self):
+    ''' Look up path to root '''
     if self.parent is None:
       return []
     else:
@@ -33,15 +44,6 @@ class QuadTree:
     return (slice(self.bounds[0], self.bounds[0] + self.bounds[2]),
             slice(self.bounds[1], self.bounds[1] + self.bounds[3]))
 
-  @property
-  def direction(self):
-    # Assign nw/ne/sw/se to this node based on parent
-    return (     None if self.parent is None
-            else 'nw' if self.parent.nw == self
-            else 'ne' if self.parent.ne == self
-            else 'sw' if self.parent.sw == self
-            else 'se')
-
   def create_child(self, bounds):
     return QuadTree(bounds, parent=self)
 
@@ -51,23 +53,24 @@ class QuadTree:
     elif self.bounds[2] > 1 and self.bounds[3] > 1:
       self.nw = self.create_child((self.bounds[0], self.bounds[1],
                                    self.bounds[2]/2, self.bounds[3]/2))
+      self.nw.direction = 'nw'
       south_y = self.bounds[0] + self.nw.bounds[2]
       south_h = self.bounds[0] + self.bounds[2] - south_y
       east_x = self.bounds[1] + self.nw.bounds[3]
       east_w = self.bounds[1] + self.bounds[3] - east_x
       self.sw = self.create_child((south_y, self.bounds[1],
                                    south_h, self.bounds[3]/2))
+      self.sw.direction = 'sw'
       self.ne = self.create_child((self.bounds[0], east_x,
                                    self.bounds[2]/2, east_w))
+      self.ne.direction = 'ne'
       self.se = self.create_child((south_y, east_x,
                                    south_h, east_w))
+      self.se.direction = 'se'
+      self.leaf = False
       return True
     else:
       return False
-
-  @property
-  def leaf(self):
-    return (self.nw == None) # if nw is None, there are no children
 
   def can_split(self):
     return self.leaf
@@ -81,13 +84,9 @@ class QuadTree:
       self.se.recursive_split(criterion)
 
   # Return child with path (e.g. ["ne", "sw", "se"])
-  # If path asks for a child of a leaf node, the leaf is returned
-  # If path does not end at a leaf, all leaf children are returned in a list
   def child(self, path):
-    if self.leaf:
+    if self.leaf or len(path) == 0:
       return self
-    elif len(path) == 0:
-      return self.leaves()
     else:
       return getattr(self, path[0]).child(path[1:])
 
@@ -110,66 +109,93 @@ class QuadTree:
       else:
         return getattr(self.parent, self.direction[0] + direction)
 
-  # Return lists (n, e, s, w) with all neighbors
-  def neighbors(self, direction=None):
-    if direction is None:
-      return tuple(self.neighbors(d) for d in ['n', 'e', 's', 'w'])
-
-    neighs = []
-    n = self.neighbor(direction)
-    path = self.path()
+  def nonleaf_neighbors(self, direction):
+    # ind = 0 (n/s) or 1 (e/w)
     ind = directions[direction]
-    while n is not None:
-      # Find subchildren of n along our path
-      children = [n]
-      while True:
-        nonleaf = False
-        new_children = []
-        for child in children:
-          if child.leaf:
-            new_children.append(child)
-          else:
-            nonleaf = True
-            depth = len(child.path())
-            if depth >= len(path):
-              new_children.extend(filter(lambda node: node.leaf, child.traverse()))
-            else:
-              next_subpath = path[len(child.path())]
-              if ind == 0:
-                new_children.append(getattr(child, opposites[direction] + next_subpath[1]))
-                new_children.append(getattr(child, direction + next_subpath[1]))
-              else:
-                new_children.append(getattr(child, next_subpath[0] + opposites[direction]))
-                new_children.append(getattr(child, next_subpath[0] + direction))
-            
-        if nonleaf:
-          children = new_children
+    if self.parent is None:
+      return
+    elif self.direction[ind] == direction:
+      # Get all of parent's neighbors, then try to get children along our path
+      pneigh = self.parent.nonleaf_neighbors(direction)
+      for p in pneigh:
+        if p.leaf:
+          yield p
         else:
-          break
-      neighs.extend(children)
-      n = n.neighbor(direction)
-    return neighs
+          # Return 2 children along our path in the correct order
+          child1 = list(self.direction)
+          child1[ind] = opposites[direction]
+          child1 = ''.join(child1)
+          child2 = self.direction
+          yield getattr(p, child1)
+          yield getattr(p, child2)
+    else:
+      # Get first neighbor, then yield from their neighbors
+      child = list(self.direction)
+      child[ind] = direction
+      child = ''.join(child)
+      neigh = getattr(self.parent, child)
+      yield neigh
+      for n in neigh.nonleaf_neighbors(direction):
+        yield n
 
+  def neighbors(self, direction):
+    ''' All leaves in the region bounded by self extended along direction '''
+    for nonleaf in self.nonleaf_neighbors(direction):
+      for leaf in nonleaf.leaves(direction):
+        yield leaf
 
   def __repr__(self):
     return "<%s%s%s at %s>" % (self.__class__.__name__, self.bounds, " (leaf)" if self.leaf else "", hex(id(self)))
 
   def traverse(self):
     if self.leaf:
-      return [self]
-    A = []
-    A.extend(self.nw.traverse())
-    A.extend(self.ne.traverse())
-    A.extend(self.sw.traverse())
-    A.extend(self.se.traverse())
-    return A
-  def leaves(self):
-    return filter(lambda n: n.leaf, self.traverse())
+      yield self
+      return
+    for child in [self.nw, self.ne, self.sw, self.se]:
+      for node in child.traverse():
+        yield node
 
-  # Return starting x-coordinates of all subtrees
-  def x_coords(self):
-    import numpy
-    xs = numpy.zeros(self.bounds[3], bool)
+  def leaves(self, direction='s'):
+    ''' Iterate over tree, returning all leaves. If direction is specified,
+        the returned leaves will be ordered in a particular direction. '''
+    if self.leaf:
+      yield self
+      return
+    ind = directions[direction]
+    child_leaves = [n.leaves(direction)
+                    for n in [self.nw, self.ne, self.sw, self.se]]
+    next_leaves = [None for l in child_leaves]
+    while True:
+      for iterator in child_leaves:
+        ind = child_leaves.index(iterator)
+        if next_leaves[ind] is None:
+          try:
+            next_leaves[ind] = iterator.next()
+          except StopIteration:
+            del child_leaves[ind]
+            del next_leaves[ind]
+            continue
+      if len(child_leaves) == 0:
+        break
+      if direction == 's':
+        order = [n.bounds[0] for n in next_leaves]
+      elif direction == 'n':
+        order = [-n.bounds[0] for n in next_leaves]
+      elif direction == 'e':
+        order = [n.bounds[1] for n in next_leaves]
+      elif direction == 'w':
+        order = [-n.bounds[1] for n in next_leaves]
+      ind = np.argmin(order)
+      yield next_leaves[ind]
+      next_leaves[ind] = None
+
+  def draw_rect(self):
+    import pylab
+    pylab.plot([self.bounds[1], self.bounds[1],
+                self.bounds[1]+self.bounds[3], self.bounds[1]+self.bounds[3]],
+               [self.bounds[0], self.bounds[0]+self.bounds[2],
+                self.bounds[0]+self.bounds[2], self.bounds[0]], 'g')
+
+  def draw(self):
     for leaf in self.leaves():
-      xs[leaf.bounds[1]] = True
-    return xs
+      leaf.draw_rect()
