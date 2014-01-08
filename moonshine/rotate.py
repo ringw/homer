@@ -41,9 +41,9 @@ class RotateTask:
     # If needs to be rotated, determine rotation to nearest degree
     rotate_base = 0
     if dt:
-      rotate_angles = arange(11) * dt
+      rotate_angles = np.arange(11) * dt
       scores, _ = self.test_angles(rotate_angles)
-      rotate_base = rotate_angles[argmax(scores)]
+      rotate_base = rotate_angles[np.argmax(scores)]
     # Determine angle to nearest 0.05 degree
     rotate_candidates = np.linspace(-np.pi/360, np.pi/360, 21) + rotate_base
     scores, im = self.test_angles(rotate_candidates)
