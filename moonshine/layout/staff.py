@@ -269,11 +269,11 @@ class StaffSegmenter:
           this_sum += leaf.staff[0]
           this_count += 1
     if staff == 0:
-      return this_sum / this_count - self.page.staff_dist
+      return int(this_sum / this_count - self.page.staff_dist)
     elif staff == len(self.page.staves):
-      return prev_sum / prev_count + self.page.staff_dist
+      return int(prev_sum / prev_count + self.page.staff_dist)
     else:
-      return (this_sum / this_count + prev_sum / prev_count) / 2
+      return int((this_sum / this_count + prev_sum / prev_count) / 2)
 
   def build_boundary(self, staff):
     inter_y = self.inter_staff_y(staff)
@@ -371,7 +371,8 @@ class StaffSegmenter:
       next_vert = paths[end, last_vert]
       if next_vert == end:
         break
-      path.append((point_ys[next_vert-1], point_xs[next_vert-1]))
+      path.append((int(rint(point_ys[next_vert-1])),
+                   int(rint(point_xs[next_vert-1]))))
       last_vert = next_vert
     path.append((inter_y, self.page.im.shape[1]))
     return path

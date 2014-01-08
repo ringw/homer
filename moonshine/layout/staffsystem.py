@@ -29,7 +29,7 @@ class SystemBuilder:
     if hough_lines.size == 0:
       return None
     else:
-      return sorted(list(hough_lines[:, 0]))
+      return sorted(hough_lines[:, 0].tolist())
 
   def build_next_system(self):
     num_staves = self.num_staves
