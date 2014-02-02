@@ -22,8 +22,12 @@ def image_array(data):
   bytestring = im.tobytes()
   pixels = np.fromstring(bytestring, dtype=np.uint8)
   pixels = pixels.reshape((im.size[1], im.size[0]))
-  # Swap pixels so colored pixels are 1
-  np.logical_not(pixels, output=pixels)
+  # Heuristic to detect whether image needs inverting
+  if (pixels == 1).sum() > im.size[0] * im.size[1] / 2:
+    # Swap pixels so colored pixels are 1
+    np.logical_not(pixels, output=pixels)
+  else:
+    pixels[pixels != 0] = 1
   return pixels
 
 # Open image or multi-page PDF, return list of data (or PIL Images)
