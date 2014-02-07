@@ -1,5 +1,6 @@
 from .pagetree import PageTree
 from ..util import label_1d, center_of_mass_1d
+import logging
 from numpy import *
 from scipy.cluster import hierarchy
 from scipy.spatial import distance
@@ -402,7 +403,8 @@ class StaffSegmenter:
         self.boundaries.append(self.build_boundary(i))
       except:
         inter_y = self.inter_staff_y(i)
-        self.boundaries.append([(i, 0), (i, self.page.im.shape[1])])
+        self.boundaries.append([(inter_y, 0), (inter_y, self.page.im.shape[1])])
+        logging.warn('Boundary building failed')
     self.page.boundaries = self.boundaries
     self.build_region_labels()
 

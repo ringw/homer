@@ -1,6 +1,6 @@
 import numpy as np
 
-def bincount_2d(samples):
+def bincount_2d(samples, shape=None):
   """ Bin samples which are in rows with 2 columns of observations. """
   samples = samples.astype(int)
   stride = np.amax(samples[:, 1]) + 1
@@ -9,9 +9,15 @@ def bincount_2d(samples):
   rows = -(-len(bins) / stride)
   cols = stride
   bins.resize(rows * cols, refcheck=False)
-  return bins.reshape((rows, cols))
+  bins = bins.reshape((rows, cols))
+  if shape is None or shape == bins.shape:
+    return bins
+  else:
+    new_bins = np.zeros(shape, np.int)
+    new_bins[:rows, :cols] = bins
+    return new_bins
 
-def hough_line(image, ts):
+def hough_line(image, ts, bins=None):
   """ Detect line in image with intercept on the 0th axis and angle to the
       horizontal t (in ts). Return accumulators with intercept on the
       0th axis and t on the 1st axis.
@@ -28,7 +34,17 @@ def hough_line(image, ts):
   intercept_point, intercept_t = np.where(in_range)
   # 1D intercepts which are in range
   intercept_val = intercepts[intercept_point, intercept_t]
-  return bincount_2d(np.c_[intercept_val, intercept_t])
+  if bins is not None:
+    # Bin intercepts into bins number of bins, using bin labels
+    bin_edge = np.zeros(image.shape[0], bool)
+    bin_nums = np.arange(1, bins)
+    bin_edge[np.rint(float(image.shape[0]) / bins * bin_nums).astype(int)] = 1
+    bin_labels = np.cumsum(bin_edge)
+    intercept_val = bin_labels[intercept_val]
+  else:
+    bins = image.shape[0]
+  return bincount_2d(np.c_[intercept_val, intercept_t],
+                     shape=(bins, len(ts)))
 
 def hough_peaks(bins, size=None, min_val=1):
   if size is None:
