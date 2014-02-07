@@ -5,7 +5,11 @@ import shutil
 from StringIO import StringIO
 import subprocess
 import numpy as np
-from .pdfimage import pdf_to_images
+try:
+  from .pdfimage import pdf_to_images
+except ImportError:
+  print "PDF import disabled; please install pylibtiff"
+  pdf_to_images = None
 
 IMAGE_MAX_SIZE = 4096
 def image_array(data):
@@ -33,6 +37,8 @@ def read_pages(path):
   images = []
   path.seek(0)
   if path.read(4) == '%PDF':
+    if pdf_to_images is None:
+      raise ValueError("pylibtiff required for PDF import")
     images = pdf_to_images(path)
   else:
     path.seek(0)
