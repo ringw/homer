@@ -17,34 +17,30 @@ def bincount_2d(samples, shape=None):
     new_bins[:rows, :cols] = bins
     return new_bins
 
-def hough_line(image, ts, bins=None):
+def hough_line(image, ts=np.linspace(0, 2*np.pi, 60), rho_res=1, bins=None):
   """ Detect line in image with intercept on the 0th axis and angle to the
       horizontal t (in ts). Return accumulators with intercept on the
       0th axis and t on the 1st axis.
   """
+  num_rho = int(np.ceil(np.sqrt(image.shape[0]**2 + image.shape[1]**2) / rho_res))
   # Stack coordinates of dark pixels in image
   coords = np.c_[np.where(image)]
-  # Multiply coords . coeffs to get intercepts for each t value for each point
-  # y0 = y - tan(t)*x
-  coeffs = np.vstack([np.ones(len(ts)),
-                      -np.tan(ts)])
-  intercepts = np.rint(coords.dot(coeffs)).astype(int)
-  # Extract original point and t value belonging to intercepts
-  in_range = (0 <= intercepts) & (intercepts < image.shape[0])
-  intercept_point, intercept_t = np.where(in_range)
-  # 1D intercepts which are in range
-  intercept_val = intercepts[intercept_point, intercept_t]
-  if bins is not None:
-    # Bin intercepts into bins number of bins, using bin labels
-    bin_edge = np.zeros(image.shape[0], bool)
-    bin_nums = np.arange(1, bins)
-    bin_edge[np.rint(float(image.shape[0]) / bins * bin_nums).astype(int)] = 1
-    bin_labels = np.cumsum(bin_edge)
-    intercept_val = bin_labels[intercept_val]
-  else:
-    bins = image.shape[0]
-  return bincount_2d(np.c_[intercept_val, intercept_t],
-                     shape=(bins, len(ts)))
+  # Multiply coords . coeffs to get rho for each t value for each point
+  # rho = x cos t + y sin t
+  coeffs = np.r_[[np.cos(ts),
+                  np.sin(ts)]]
+  rho_vals = coords.dot(coeffs)
+  rho_index = np.rint(rho_vals / rho_res).astype(int)
+  in_range = (0 <= rho_index) & (rho_index < num_rho)
+  rho_index[~ in_range] = num_rho
+  # We want to bincount each column (t value), but the results of np.bincount
+  # may be a different length. We need to add an additional row with fake
+  # out-of-range rho values (set to num_rho) so that all columns are length
+  # num_rho + 1. Then we discard the last row which counts all out-of-range
+  # rho values.
+  rho_index = np.vstack([rho_index, np.repeat(num_rho, len(ts))])
+  H = np.apply_along_axis(np.bincount, 0, rho_index)
+  return H[:-1]
 
 def hough_peaks(bins, size=None, min_val=1):
   if size is None:
@@ -67,7 +63,8 @@ def hough_peaks(bins, size=None, min_val=1):
 def hough_line_plot(bins, ts, image_shape, min_val=1):
   import pylab
   import scipy.ndimage
-  bin_max = scipy.ndimage.maximum_filter(bins, size=(bins.shape[0]/10, bins.shape[1]/10))
+  bin_max = scipy.ndimage.maximum_filter(bins, size=(bins.shape[0]/10,
+                                                     bins.shape[1]/10))
   lines = (bins == bin_max) & (bins >= min_val)
   unique_lines, num_lines = scipy.ndimage.label(lines)
   for i in xrange(1, num_lines+1):
