@@ -32,6 +32,7 @@ def hough_line(image, ts=np.linspace(0, 2*np.pi, 60), rho_res=1, bins=None):
   rho_vals = coords.dot(coeffs)
   rho_index = np.rint(rho_vals / rho_res).astype(int)
   in_range = (0 <= rho_index) & (rho_index < num_rho)
+  # Set rho out-of-range to num_rho, which will be removed
   rho_index[~ in_range] = num_rho
   # We want to bincount each column (t value), but the results of np.bincount
   # may be a different length. We need to add an additional row with fake
@@ -40,7 +41,7 @@ def hough_line(image, ts=np.linspace(0, 2*np.pi, 60), rho_res=1, bins=None):
   # rho values.
   rho_index = np.vstack([rho_index, np.repeat(num_rho, len(ts))])
   H = np.apply_along_axis(np.bincount, 0, rho_index)
-  return H[:-1]
+  return H[:-1] # remove last row for out-of-bounds rho
 
 def hough_peaks(bins, size=None, min_val=1):
   if size is None:
