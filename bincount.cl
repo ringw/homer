@@ -2,7 +2,7 @@
  * (1st and 2nd axes). temp must store nbins ints and bins has size
  * get_global_size(0) * nbins
  */
-__kernel void bincount(__global const short *input,
+__kernel void bincount(__global const short16 *input,
                        int nbins,
                        __local volatile int *temp,
                        __global volatile int *bins) {
@@ -18,9 +18,11 @@ __kernel void bincount(__global const short *input,
 
     int input_ind = get_global_id(1) * get_global_size(2) + get_global_id(2);
 
-    short val = input[input_ind];
-    if (0 <= val && val < nbins)
-        atomic_inc(&temp[val]);
+    union { short s[16]; short16 v; } val;
+    val.v = input[input_ind];
+    for (int i = 0; i < 16; i++)
+        if (0 <= val.s[i] && val.s[i] < nbins)
+            atomic_inc(&temp[val.s[i]]);
     mem_fence(CLK_LOCAL_MEM_FENCE);
 
     for (int i = 0; i < bins_per_worker; i++) {
