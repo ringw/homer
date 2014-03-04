@@ -248,10 +248,11 @@ class StaffSegmenter:
     dists = self.distance_transform[ys, xs]
     count = (dists < self.page.staff_thick).astype(int)
     count *= in_range
+    score = 1.0 / (dists + 1)
     if y0.size == 1:
-      return count.sum() + 1
+      return count.sum() * score.sum() + 1
     else:
-      return count.sum(1) + 1
+      return count.sum(1) * score.sum(1) + 1
 
   # Given staff number, return a small distance above staff (for first staff), 
   # a small distance below (for last staff), or midway between staff
