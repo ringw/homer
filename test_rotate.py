@@ -26,7 +26,7 @@ def run():
   dout = cla.zeros(q, dimg.shape, np.uint8)
   #temp = cl.LocalMemory(4*numrho)
 
-  return prg.rotate_image(q, (W/8, H), (16, 16), dimg.data, sintheta, costheta, dout.data), dout
+  return prg.rotate_image(q, (W/8, H), (8, 32), dimg.data, sintheta, costheta, dout.data), dout
 
 e, bins = run()
 e.wait()

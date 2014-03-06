@@ -28,7 +28,7 @@ def run():
   prg = cl.Program(cx, open("hough_line.cl").read()).build()
   prg.hough_line.set_scalar_arg_dtypes([None, None, np.int32, np.int32, None, None])
 
-  return prg.hough_line(q, (W/8, H, len(theta)), (16, 16, 1), dimg.data, dtheta.data, np.int32(rhores), np.int32(numrho), temp, bins.data), bins
+  return prg.hough_line(q, (W/8, H, len(theta)), (8, 64, 1), dimg.data, dtheta.data, np.int32(rhores), np.int32(numrho), temp, bins.data), bins
 
 e, bins = run()
 e.wait()
