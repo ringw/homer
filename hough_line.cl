@@ -21,13 +21,16 @@ __kernel void hough_line(__global const uchar *input,
     int input_ind = get_global_id(1) * get_global_size(0) + get_global_id(0);
 
     int8 blockX = {0, 1, 2, 3, 4, 5, 6, 7};
-    blockX += convert_int8(get_local_id(0) * 8);
+    int8 thread_x0 = get_local_id(0);
+    thread_x0 *= 8;
+    blockX += thread_x0;
     int blockY = get_local_id(1);
     float8 rhovals = (-tt * convert_float8(blockX) + blockY) / rhores;
     int8 rhoind = convert_int8(rhovals);
 
     // Mask rhoind where image is zero to a negative value so it's not counted
-    uchar8 val = convert_uchar8(input[input_ind]);
+    uchar byteval = input[input_ind];
+    uchar8 val = byteval;
     uchar8 bitmask = {1<<7, 1<<6, 1<<5, 1<<4, 1<<3, 1<<2, 1<<1, 1};
     val &= bitmask;
     int8 mask = ~ convert_int8(val);
