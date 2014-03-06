@@ -1,8 +1,8 @@
 __kernel void hough_line(__global const uchar *input,
-                       __global const float *tan_theta,
-                       int rhores, int nbins,
-                       __local int8 *temp,
-                       __global volatile int *bins) {
+                         __global const float *tan_theta,
+                         int rhores, int nbins,
+                         __local int8 *temp,
+                         __global volatile int *bins) {
     // Get top left x and y of block
     int blockW = get_local_size(0)*8;
     int blockH = get_local_size(1);
@@ -39,7 +39,8 @@ __kernel void hough_line(__global const uchar *input,
     mem_fence(CLK_LOCAL_MEM_FENCE);
 
     __local int *tempScalar = (__local int *)temp;
-    // Worker i sums rho bin i and atomically updates global bins
+    // Worker i sums rho bin i, i+num_workers, ...
+    // and atomically updates global bins
     int localRho = worker_id;
     while (localRho < numrho && localRho + minrho < nbins) {
         int binCount = 0;
