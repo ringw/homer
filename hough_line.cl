@@ -1,4 +1,4 @@
-__kernel void hough_line(__global const uchar8 *input,
+__kernel void hough_line(__global const uchar *input,
                        __global const float *tan_theta,
                        int rhores, int nbins,
                        __local int8 *temp,
@@ -27,8 +27,13 @@ __kernel void hough_line(__global const uchar8 *input,
     int8 rhoind = convert_int8(rhovals);
 
     // Mask rhoind where image is zero to a negative value so it's not counted
-    int8 val = convert_int8(input[input_ind]);
-    int8 mask = (val == 0) << 31;
+    uchar8 val = convert_uchar8(input[input_ind]);
+    uchar8 bitmask = {1<<7, 1<<6, 1<<5, 1<<4, 1<<3, 1<<2, 1<<1, 1};
+    val &= bitmask;
+    int8 mask = ~ convert_int8(val);
+    mask += 1;
+    mask = ~mask;
+    mask &= 1 << 31;
     rhoind |= mask;
     temp[worker_id] = rhoind;
     mem_fence(CLK_LOCAL_MEM_FENCE);

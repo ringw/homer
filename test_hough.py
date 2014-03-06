@@ -16,7 +16,8 @@ img = np.zeros((H, W), np.uint8)
 import moonshine
 data = moonshine.open('samples/chopin.pdf')[0].im
 img[:data.shape[0], :data.shape[1]] = data != 0
-dimg = cla.to_device(q, img)
+imgbits = np.packbits(img)
+dimg = cla.to_device(q, imgbits)
 temp = cl.LocalMemory(4*numrho)
 bins = cla.zeros(q, (len(theta), numrho), np.int32)
 
