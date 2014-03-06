@@ -47,9 +47,17 @@ __kernel void hough_line(__global const uchar *input,
     int localRho = worker_id;
     while (localRho < numrho && localRho + minrho < nbins) {
         int binCount = 0;
-        for (int i = num_workers*8 - 1; i >= 0; i--)
-            if (tempScalar[i] == localRho)
-                binCount++;
+        //for (int i = num_workers*8 - 1; i >= 0; i--)
+            //if (tempScalar[i] == localRho)
+                //binCount++;
+        for (int i = num_workers - 1; i >= 0; i--) {
+            int8 rhos = temp[i];
+            //rhos ^= localRho;
+            rhos = (rhos == localRho) & 1; // XXX why are any other bits set?
+            //binCount += rhos.s0 + rhos.s1 + rhos.s2 + rhos.s3 + rhos.s4 + rhos.s5 + rhos.s6 + rhos.s7;
+            binCount += dot(convert_float4(rhos.s0123), (float4)(1.0));
+            binCount += dot(convert_float4(rhos.s4567), (float4)(1.0));
+        }
         if (binCount != 0)
             atomic_add(&bins[nbins * theta_num + minrho + localRho], binCount);
         localRho += num_workers;
