@@ -27,7 +27,7 @@ __kernel void hough_line(__global const uchar *input,
     thread_x0 *= 8;
     blockX += thread_x0;
     int blockY = get_local_id(1);
-    float8 rhovals = (-tt * convert_float8(blockX) + blockY) / rhores;
+    float8 rhovals = (-tt * convert_float8(blockX) + (float8)blockY) / (float8)rhores;
     int8 rhoind = convert_int8(rhovals);
 
     // Mask rhoind where image is zero to a negative value so it's not counted

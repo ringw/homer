@@ -23,7 +23,7 @@ def image_array(data):
   elif im.size[1] > IMAGE_MAX_SIZE:
     im = im.resize((im.size[0]*IMAGE_MAX_SIZE/im.size[1], IMAGE_MAX_SIZE))
   im = im.convert('L')
-  bytestring = im.tobytes()
+  bytestring = im.tostring()
   pixels = np.fromstring(bytestring, dtype=np.uint8)
   pixels = pixels.reshape((im.size[1], im.size[0]))
   # Heuristic to detect whether image needs inverting
