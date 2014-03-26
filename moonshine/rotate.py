@@ -1,5 +1,14 @@
 import numpy as np
-from PIL import Image
+from opencl import *
+
+HOUGH_NUM_THETA = 11 # should be odd
+def rotate(page):
+    """ Find the angle with the maximum sum of squares of each Hough bin.
+        This should correspond to the strongest horizontal lines.
+    """
+    ts = np.linspace(-np.pi/100, np.pi/100, HOUGH_NUM_THETA)
+    tan_ts = cla.to_device(q, np.tan(ts).astype(np.float32))
+    bins = cla.zeros(q, (HOUGH_NUM_THETA))
 
 class RotateTask:
   def __init__(self, page):
