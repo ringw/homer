@@ -84,17 +84,22 @@ class Page:
     if len(different_staff):
       dists = []
       prev = 0
-      print candidate_staff_dist.shape
       for n in different_staff:
         n += 1
-        print prev, n
-        dists.append(candidate_staff_dist[prev:n].sum() / (n - prev))
+        cur_dist = candidate_staff_dist[prev:n].sum() / (n - prev)
+        if cur_dist >= 8:
+          dists.append(cur_dist)
         prev = n
-      print prev, n
-      dists.append(candidate_staff_dist[prev:].sum()
-                   / (len(candidate_staff_dist) - prev))
-      self.staff_space = tuple(dists)
-      self.staff_dist = tuple(self.staff_thick + d for d in dists)
+      cur_dist = (candidate_staff_dist[prev:].sum()
+                    / (len(candidate_staff_dist) - prev))
+      if cur_dist >= 8:
+        dists.append(cur_dist)
+      if len(dists) == 1:
+        self.staff_space = dists[0]
+        self.staff_dist = self.staff_thick + dists[0]
+      else:
+        self.staff_space = tuple(dists)
+        self.staff_dist = tuple(self.staff_thick + d for d in dists)
     else:
       self.staff_space = np.argmax(dists)
       self.staff_dist  = self.staff_space + self.staff_thick
