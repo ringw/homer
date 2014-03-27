@@ -1,62 +1,64 @@
-__kernel void hough_line(__global const uchar *input,
-                         __global const float *tan_theta,
-                         int rhores, int nbins,
-                         __local int8 *temp,
-                         __global volatile int *bins) {
-    // Get top left x and y of block
-    int blockW = get_local_size(0)*8;
-    int blockH = get_local_size(1);
-    int x0 = blockW * get_group_id(0);
-    int y0 = blockH * get_group_id(1);
-    int theta_num = get_global_id(2);
-    float tt = tan_theta[theta_num];
+/*
+ * hough_line: Hough transform for lines
+ * (image_w, imageH) are the dimensions in bytes of the bit-packed image
+ * theta is angle to the horizontal
+ * bins are shape (len(theta), len(rho))
+ * global size should be (len(rho) * num_workers, len(theta))
+ * local size may be (num_workers, 1), multiple workers will sum pixels in parallel
+ */
+__kernel void hough_line(__global const uchar *image,
+                         uint image_w, uint image_h,
+                         uint rhores,
+                         __global const float *cos_thetas,
+                         __global const float *sin_thetas,
+                         __local float *worker_sums,
+                         __global float *bins) {
+    uint rho = get_group_id(0);
+    uint num_rho = get_num_groups(0);
+    uint theta = get_global_id(1);
 
-    // Calculate rho for (x0, y0)
-    // Maximum rho in block is less than minrho + (blockW + blockH)/rhores
-    // (temp should fit at least (8*local size 0 + local size 1)/rhores ints)
-    int minrho = convert_int_rtn((-tt * x0 + y0) / rhores);
-    int numrho = convert_int_rtn((blockW + blockH) / rhores);
+    float rho_val = rho * rhores;
+    float cos_theta = cos_thetas[theta];
+    float sin_theta = sin_thetas[theta];
 
-    int num_workers = get_local_size(0) * get_local_size(1);
-    int worker_id = get_local_id(1) * get_local_size(0) + get_local_id(0);
-    // Each worker reads a byte of input
-    int input_ind = get_global_id(1) * get_global_size(0) + get_global_id(0);
+    // Multiple workers help sum up the same rho
+    uint worker_id = get_local_id(0);
+    uint num_workers = get_local_size(0);
 
-    int8 blockX = {0, 1, 2, 3, 4, 5, 6, 7};
-    int8 thread_x0 = get_local_id(0);
-    thread_x0 *= 8;
-    blockX += thread_x0;
-    int blockY = get_local_id(1);
-    float8 rhovals = (-tt * convert_float8(blockX) + (float8)blockY) / (float8)rhores;
-    int8 rhoind = convert_int8(rhovals);
+    float worker_sum = 0.f;
+    // Sum each x-byte position. As an approximation, assume if the left
+    // corner is parameterized as (rho, theta) then we can sum up the whole byte
+    for (int x = 0; x < image_w; x += num_workers) {
+        float x_left_val = x * 8;
+        float y_val = (rho_val - x_left_val * sin_theta) / cos_theta;
+        int y = convert_int_rtn(y_val);
 
-    // Mask rhoind where image is zero to a negative value so it's not counted
-    uchar byteval = input[input_ind];
-    uchar8 val = byteval;
-    uchar8 bitmask = {1<<7, 1<<6, 1<<5, 1<<4, 1<<3, 1<<2, 1<<1, 1};
-    val &= bitmask;
-    int8 mask = ~ convert_int8(val);
-    mask += 1;
-    mask = ~mask;
-    mask &= 1 << 31;
-    rhoind |= mask;
-    temp[worker_id] = rhoind;
-    mem_fence(CLK_LOCAL_MEM_FENCE);
-
-    // Worker i sums rho bin i, i+num_workers, ...
-    // and atomically updates global bins
-    int localRho = worker_id;
-    while (localRho < numrho && localRho + minrho < nbins) {
-        int binCount = 0;
-        for (int i = num_workers - 1; i >= 0; i--) {
-            int8 rhos = temp[i];
-            rhos = (rhos == localRho) & 0x1; // XXX why are any other bits set?
-            //binCount += rhos.s0 + rhos.s1 + ...
-            binCount += dot(convert_float4(rhos.s0123), (float4)(1.0));
-            binCount += dot(convert_float4(rhos.s4567), (float4)(1.0));
+        if (0 <= x && x < image_w && 0 <= y && y < image_h) {
+            uchar byte = image[x + image_w * y];
+            uint8 bits = (uint8)byte;
+            bits >>= (uint8)(7, 6, 5, 4, 3, 2, 1, 0);
+            bits &= (uint8)(0x1);
+            // Sum using float dot product (faster)
+            float8 fbits = convert_float8(bits);
+            float4 one = (float4)(1.f);
+            worker_sum += dot(fbits.s0123, one);
+            worker_sum += dot(fbits.s4567, one);
         }
-        if (binCount != 0)
-            atomic_add(&bins[nbins * theta_num + minrho + localRho], binCount);
-        localRho += num_workers;
+    }
+
+    if (num_workers > 1) {
+        worker_sums[worker_id] = worker_sum;
+        mem_fence(CLK_LOCAL_MEM_FENCE);
+        if (worker_id == 0) {
+            // Sum all partial sums into global bin
+            float global_sum = 0.f;
+            for (int i = 0; i < num_workers; i++)
+                global_sum += worker_sums[i];
+            bins[rho + num_rho * theta] = global_sum;
+        }
+    }
+    else {
+        // We are the only worker
+        bins[rho + num_rho * theta] = worker_sum;
     }
 }
