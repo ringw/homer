@@ -18,7 +18,7 @@ hough_line_prg.hough_line.set_scalar_arg_dtypes([
     None, # output bins int32 of size (len(theta), numrho)
 ])
 
-def hough_line(img, rhores, numrho, thetas, num_workers=32):
+def hough_line_kernel(img, rhores, numrho, thetas, num_workers=32):
     cos_thetas = cla.to_device(q, np.cos(thetas).astype(np.float32))
     sin_thetas = cla.to_device(q, np.sin(thetas).astype(np.float32))
     bins = cla.zeros(q, (len(thetas), numrho), np.float32)
@@ -33,5 +33,24 @@ def hough_line(img, rhores, numrho, thetas, num_workers=32):
                                      temp,
                                      bins.data)
     e.wait()
-    logging.warn("hough_line took " + str((e.profile.end - e.profile.start) / 10.0**9))
+    logging.info("hough_line took " + str((e.profile.end - e.profile.start)
+                                          / 10.0**9))
     return bins
+
+rotate_prg = cl.Program(cx, open("opencl/rotate.cl").read()).build()
+rotate_prg.rotate_image.set_scalar_arg_dtypes([
+    None, # input image
+    np.float32, # cos(theta)
+    np.float32, # sin(theta)
+    None, # output image
+])
+
+def rotate_kernel(img, theta):
+    new_img = cla.zeros_like(img)
+    rotate_prg.rotate_image(q, (img.shape[1], img.shape[0]),
+                               (16, 8),
+                               img.data,
+                               np.cos(theta).astype(np.float32),
+                               np.sin(theta).astype(np.float32),
+                               new_img.data).wait()
+    return new_img

@@ -1,5 +1,5 @@
 __kernel void rotate_image(__global const uchar *input,
-                           float sin_theta, float cos_theta,
+                           float cos_theta, float sin_theta,
                            __global uchar *output) {
     uchar result = 0;
     int global_x = get_global_id(0);
