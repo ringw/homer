@@ -22,4 +22,4 @@ def rotate(page):
     page.rotated = cur_angle # adjust by angle of image
     new_img = rotate_kernel(page.img, page.rotated)
     page.img = new_img
-    print cur_angle
+    return cur_angle

@@ -62,3 +62,79 @@ __kernel void hough_line(__global const uchar *image,
         bins[rho + num_rho * theta] = worker_sum;
     }
 }
+
+/*
+ * hough_lineseg: extract longest line segment from each Hough peak
+ * Index of rho and theta on 0th axis, local size of 1
+ * For each line, output (x0, x1, y0, y1) in segments
+ */
+
+__kernel void hough_lineseg(__global const uchar *image,
+                            uint image_w, uint image_h,
+                            __global const uint *rho_bins,
+                            uint rhores,
+                            __global const float *cos_thetas,
+                            __global const float *sin_thetas,
+                            __local uchar *segment_pixels,
+                            __global int4 *segments) {
+    uint line_id = get_group_id(0);
+    uint worker_id = get_local_id(0);
+    uint num_workers = get_local_size(0);
+
+    uint rho_bin = rho_bins[line_id];
+    float cos_theta = cos_thetas[line_id];
+    float sin_theta = sin_thetas[line_id];
+
+    // Iterate over pixels comprising the line
+    // XXX this assumes rhores = 1
+    float x = 0.f, x0 = x;
+    float y = rho_bins[line_id] / cos_theta, y0 = y;
+    int num_pixels = 0;
+    while (0 <= x && x < image_w*8 && 0 <= y && y < image_h) {
+        int xind = convert_int_rtn(x);
+        int yind = convert_int_rtn(y);
+        uchar byte = image[xind/8 + image_w * yind];
+        segment_pixels[num_pixels] = (byte >> (7 - (xind % 8))) & 0x1;
+
+        x += cos_theta;
+        y += sin_theta;
+        num_pixels++;
+    }
+
+    // Prefix sum of contiguous pixels, keeping track of a maximum
+    int max_length = 0;
+    int max_end = -1;
+    int cur_length = 0;
+    int cur_skip = 0;
+
+    for (int i = 1; i < num_pixels; i++) {
+        if (segment_pixels[i]) {
+            if (cur_skip < 80) {
+                // Add any skip to the length
+                cur_length += cur_skip;
+                cur_skip = 0;
+
+                cur_length++;
+                if (cur_length > max_length) {
+                    max_length = cur_length;
+                    max_end = i;
+                }
+            }
+            else {
+                // Start a new segment
+                cur_skip = 0;
+                cur_length = 1;
+            }
+        }
+        else
+            cur_skip++;
+    }
+
+    if (max_length > 0) {
+        int max_start = max_end - max_length + 1;
+        segments[line_id] = (int4)(x0 + cos_theta * max_start,
+                                   x0 + cos_theta * max_end,
+                                   y0 + sin_theta * max_start,
+                                   y0 + sin_theta * max_end);
+    }
+}

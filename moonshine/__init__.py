@@ -14,11 +14,3 @@ parser.add_argument("-s", "--show", dest="show", action="store_true")
 parser.add_argument("-S", "--no-show", dest="show", action="store_false")
 parser.set_defaults(show=True)
 parser.add_argument("path", type=str, help="path to scanned music")
-
-def moonshine(path, page=0, show=False):
-  page = open(path)[page]
-  page.process()
-  if show:
-    import pylab
-    page.show()
-    pylab.show()
