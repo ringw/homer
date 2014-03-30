@@ -76,6 +76,7 @@ __kernel void hough_lineseg(__global const uchar *image,
                             __global const float *cos_thetas,
                             __global const float *sin_thetas,
                             __local uchar *segment_pixels,
+                            uint max_gap,
                             __global int4 *segments) {
     uint line_id = get_group_id(0);
     uint worker_id = get_local_id(0);
@@ -88,16 +89,27 @@ __kernel void hough_lineseg(__global const uchar *image,
     // Iterate over pixels comprising the line
     // XXX this assumes rhores = 1
     float x = 0.f, x0 = x;
-    float y = rho_bins[line_id] / cos_theta, y0 = y;
+    float y = rho_bin * rhores / cos_theta, y0 = y;
     int num_pixels = 0;
     while (0 <= x && x < image_w*8 && 0 <= y && y < image_h) {
-        int xind = convert_int_rtn(x);
-        int yind = convert_int_rtn(y);
-        uchar byte = image[xind/8 + image_w * yind];
-        segment_pixels[num_pixels] = (byte >> (7 - (xind % 8))) & 0x1;
+        // Iterate over xslice, yslice inside this slice with height rhores
+        // perpendicular to actual line
+        float xslice = x, yslice = y;
+        uchar is_segment = 0;
+        for (int s = 0; s < rhores; s++) {
+            int xind = convert_int_rtn(xslice);
+            int yind = convert_int_rtn(yslice);
+            uchar byte = image[xind/8 + image_w * yind];
+            is_segment |= (byte >> (7 - (xind % 8))) & 0x1;
+
+            // Move along normal line
+            xslice -= sin_theta;
+            yslice += cos_theta;
+        }
+        segment_pixels[num_pixels] = is_segment;
 
         x += cos_theta;
-        y += sin_theta;
+        y -= sin_theta;
         num_pixels++;
     }
 
@@ -109,7 +121,7 @@ __kernel void hough_lineseg(__global const uchar *image,
 
     for (int i = 1; i < num_pixels; i++) {
         if (segment_pixels[i]) {
-            if (cur_skip < 80) {
+            if (cur_skip < max_gap) {
                 // Add any skip to the length
                 cur_length += cur_skip;
                 cur_skip = 0;
@@ -134,7 +146,7 @@ __kernel void hough_lineseg(__global const uchar *image,
         int max_start = max_end - max_length + 1;
         segments[line_id] = (int4)(x0 + cos_theta * max_start,
                                    x0 + cos_theta * max_end,
-                                   y0 + sin_theta * max_start,
-                                   y0 + sin_theta * max_end);
+                                   y0 - sin_theta * max_start,
+                                   y0 - sin_theta * max_end);
     }
 }

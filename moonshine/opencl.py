@@ -22,9 +22,10 @@ hough_line_prg.hough_lineseg.set_scalar_arg_dtypes([
     np.uint32, # image_w
     np.uint32, # image_h
     None, # rho values
-    np.int32, # rhores
+    np.uint32, # rhores
     None, # cos(theta)
     None, # sin(theta)
+    np.uint32, # max_gap
     None, # LocalMemory of size >= 4 * sqrt((8*image_w)^2 + image_h^2)
     None, # output line segments shape (numlines, 4)
 ])
@@ -45,7 +46,7 @@ def hough_line_kernel(img, rhores, numrho, thetas, num_workers=32):
                                  bins.data).wait()
     return bins
 
-def hough_lineseg_kernel(img, rhos, thetas, rhores=1):
+def hough_lineseg_kernel(img, rhos, thetas, rhores=1, max_gap=0):
     device_rhos = cla.to_device(q, rhos.astype(np.uint32))
     cos_thetas = cla.to_device(q, np.cos(thetas).astype(np.float32))
     sin_thetas = cla.to_device(q, np.sin(thetas).astype(np.float32))
@@ -59,6 +60,7 @@ def hough_lineseg_kernel(img, rhos, thetas, rhores=1):
                                     np.uint32(rhores),
                                     cos_thetas.data, sin_thetas.data,
                                     temp,
+                                    np.uint32(max_gap),
                                     segments.data).wait()
     return segments
 
