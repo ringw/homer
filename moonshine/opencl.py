@@ -43,7 +43,7 @@ def hough_line_kernel(img, rhores, numrho, thetas, num_workers=32):
     sin_thetas = cla.to_device(q, np.sin(thetas).astype(np.float32))
     bins = cla.zeros(q, (len(thetas), numrho), np.float32)
     temp = cl.LocalMemory(4 * num_workers)
-    hough_line_prg.hough_line(q, (numrho * num_workers, len(thetas)),
+    hough_line_prg.hough_line(q, (int(numrho * num_workers), len(thetas)),
                                  (num_workers, 1),
                                  img.data,
                                  np.uint32(img.shape[1]),
@@ -114,6 +114,6 @@ maximum_filter_prg = cl.Program(cx, open("opencl/maximum_filter.cl").read()) \
                        .build()
 def maximum_filter_kernel(img):
     maximum = cla.zeros_like(img)
-    maximum_filter_prg.maximum_filter(q, img.shape[::-1], (1, 1),
+    maximum_filter_prg.maximum_filter(q, map(int, img.shape[::-1]), (1, 1),
                                          img.data, maximum.data).wait()
     return maximum
