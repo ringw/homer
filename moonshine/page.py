@@ -1,6 +1,6 @@
 import numpy as np
 from .opencl import *
-from . import image, rotate, staffsize, staves
+from . import image, rotate, staffsize, staves, staffsystems
 
 PAGE_SIZE = 4096
 
@@ -16,9 +16,11 @@ class Page:
         logging.info("rotate by %f", rotate.rotate(self))
         logging.info("staffsize %s", str(staffsize.staffsize(self)))
         logging.info("detected %d staves", len(staves.staves(self)))
+        staffsystems.system_measure_peaks(self)
 
     def show(self):
         import pylab as p
         p.figure()
         p.imshow(np.unpackbits(self.img.get()).reshape((PAGE_SIZE, PAGE_SIZE)))
         staves.show_staff_centers(self)
+        staffsystems.show_measure_peaks(self)
