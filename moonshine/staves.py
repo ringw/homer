@@ -1,6 +1,7 @@
 from .opencl import *
 from . import hough
 import numpy as np
+import scipy.cluster.hierarchy
 
 def staff_center_lines(page):
     staff_filt = staffpoints_kernel(page.img, page.staff_dist)
@@ -17,7 +18,9 @@ def staff_center_lines(page):
     peaks = hough.houghpeaks(page.staff_bins, npeaks=200)
     page.staff_peak_theta = thetas[peaks[:, 0]]
     page.staff_peak_rho = peaks[:, 1]
-    lines = hough_lineseg_kernel(staff_filt, page.staff_peak_rho, page.staff_peak_theta, rhores=rhores, max_gap=page.staff_dist*4).get()
+    lines = hough_lineseg_kernel(staff_filt,
+                                 page.staff_peak_rho, page.staff_peak_theta,
+                                 rhores=rhores, max_gap=page.staff_dist*4).get()
     page.staff_center_lines = lines
     return lines
 
@@ -29,35 +32,20 @@ def staves(page):
     # Each cluster should then be one staff, so assign the longest segment
     # from each cluster as a staff.
 
-    # Map each y position in the image to the index of the cluster
-    # -1: not assigned yet
-    cluster_id = -np.ones(page.img.shape[0], int)
-    clusters = []
-
-    for x0, x1, y0, y1 in lines:
-        ymin = min(y0, y1)
-        ymax = max(y0, y1)
-        line_cluster = cluster_id[ymin:ymax+1]
-        if (line_cluster == -1).all():
-            # Assign a new cluster
-            cluster_num = len(clusters)
-            cluster_id[ymin:ymax+1] = cluster_num
-            clusters.append([(x0, x1, y0, y1)])
-        else:
-            cluster_num = line_cluster[line_cluster >= 0][0]
-            # The cluster the line belongs to should not be ambiguous
-            if ((line_cluster != -1) & (line_cluster != cluster_num)).any():
-                raise Error("Error detecting staves")
-            
-        clusters[cluster_num].append((x0, x1, y0, y1))
-        cluster_id[max(0, ymin - page.staff_dist*4)
-                   : min(page.img.shape[0], ymax + page.staff_dist*4)] = cluster_num
-
-    # Take the longest segment from each cluster
+    # Staff center line ys should be separated by a clear margin
+    # Using SciPy's hierarchical clustering for this is overkill
+    staff_ids = scipy.cluster.hierarchy.fclusterdata(
+                    np.mean(lines[:, 2:4], 1)[:, None],
+                    page.staff_dist,
+                    criterion="distance", method="complete")
+    num_staves = np.amax(staff_ids)
     staves = []
-    for lines in clusters:
-        lines = np.array(lines)
-        staves.append(lines[np.argmax(lines[:, 1] - lines[:, 0])])
+    for s in xrange(1, num_staves + 1):
+        staff_candidates = lines[staff_ids == s]
+        staff_width = staff_candidates[:, 1] - staff_candidates[:, 0]
+        staff = staff_candidates[np.argmax(staff_width)]
+        if staff[1] - staff[0] > page.img.shape[1] * 8 / 2:
+            staves.append(staff)
     staves = np.array(staves)
     staves = staves[np.argsort(staves[:, 2])]
     page.staves = staves
