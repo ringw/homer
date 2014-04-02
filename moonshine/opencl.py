@@ -10,7 +10,7 @@ bitimage_prg = cl.Program(cx, open("opencl/bitimage.cl").read()).build()
 def bit_transpose_kernel(img):
     assert img.shape[0] % 8 == 0
     img_T = cla.zeros(q, (img.shape[1] * 8, img.shape[0] // 8), np.uint8)
-    bitimage_prg.transpose(q, img_T.shape[::-1], (8, 8),
+    bitimage_prg.transpose(q, img_T.shape[::-1], (1, 8),
                               img.data, img_T.data).wait()
     return img_T
 
