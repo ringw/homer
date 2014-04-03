@@ -16,7 +16,7 @@ class Page:
         logging.info("rotate by %f", rotate.rotate(self))
         logging.info("staffsize %s", str(staffsize.staffsize(self)))
         logging.info("detected %d staves", len(staves.staves(self)))
-        staffsystems.system_measure_peaks(self)
+        staffsystems.staff_systems(self)
 
     def show(self):
         import pylab as p
