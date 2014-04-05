@@ -1,3 +1,6 @@
+from .opencl import *
+
+prg = cl.Program(cx, """
 __kernel void transpose(__global const uchar *image,
                         __global uchar *image_T) {
     // Get coordinates in output image
@@ -15,3 +18,10 @@ __kernel void transpose(__global const uchar *image,
     }
     image_T[x + w * y] = output_byte;
 }
+""").build()
+
+def transpose(img):
+    assert img.shape[0] % 8 == 0
+    img_T = cla.zeros(q, (img.shape[1] * 8, img.shape[0] // 8), np.uint8)
+    prg.transpose(q, img_T.shape[::-1], (1, 8), img.data, img_T.data).wait()
+    return img_T

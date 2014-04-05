@@ -1,5 +1,5 @@
 from .opencl import *
-from . import hough
+from . import hough, bitimage
 import numpy as np
 import scipy.cluster.hierarchy
 
@@ -21,7 +21,7 @@ def build_staff_system(page, staff0):
         y1 = -(-staff1max.astype(np.int32) & -8)
         img_slice = page.staff_filt[y0:y1].copy()
         # hough_line assumes almost horizontal lines so we need the transpose
-        slice_T = bit_transpose_kernel(img_slice)
+        slice_T = bitimage.transpose(img_slice)
         slice_bins = hough_line_kernel(slice_T, rhores=rhores,
                                        numrho=slice_T.shape[0] // rhores,
                                        thetas=HOUGH_THETAS)

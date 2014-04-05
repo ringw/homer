@@ -6,14 +6,6 @@ import logging
 cx = cl.create_some_context()
 q = cl.CommandQueue(cx, properties=cl.command_queue_properties.PROFILING_ENABLE)
 
-bitimage_prg = cl.Program(cx, open("opencl/bitimage.cl").read()).build()
-def bit_transpose_kernel(img):
-    assert img.shape[0] % 8 == 0
-    img_T = cla.zeros(q, (img.shape[1] * 8, img.shape[0] // 8), np.uint8)
-    bitimage_prg.transpose(q, img_T.shape[::-1], (1, 8),
-                              img.data, img_T.data).wait()
-    return img_T
-
 hough_line_prg = cl.Program(cx, open("opencl/hough_line.cl").read()).build()
 hough_line_prg.hough_line.set_scalar_arg_dtypes([
     None, # input image
