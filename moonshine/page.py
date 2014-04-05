@@ -9,8 +9,10 @@ class Page:
         img = image.image_array(image_data)
         padded_img = np.zeros((PAGE_SIZE, PAGE_SIZE), np.uint8)
         padded_img[:img.shape[0], :img.shape[1]] = img
-        self.bitarray = np.packbits(padded_img).reshape((PAGE_SIZE, -1))
-        self.img = cla.to_device(q, self.bitarray)
+        self.byteimg = padded_img
+        self.orig_size = img.shape
+        self.bitimg = np.packbits(padded_img).reshape((PAGE_SIZE, -1))
+        self.img = cla.to_device(q, self.bitimg)
 
     def process(self):
         logging.info("rotate by %f", rotate.rotate(self))
