@@ -27,7 +27,7 @@ def build_staff_system(page, staff0):
                                        thetas=HOUGH_THETAS)
         max_bins = maximum_filter_kernel(slice_bins)
         measure_peaks = hough.houghpeaks(max_bins, npeaks=500,
-                                         invalidate=(5,
+                                         invalidate=(2,
                                                      page.staff_dist // rhores))
         measure_theta = HOUGH_THETAS[measure_peaks[:, 0]]
         measure_rho = measure_peaks[:, 1]
@@ -59,9 +59,9 @@ def staff_systems(page):
     page.barlines = []
     while staff0 < len(page.staves):
         staff0, staff1, barlines = build_staff_system(page, staff0)
-        print staff0, staff1, barlines[:, 0]
         page.barlines.append((staff0, staff1, barlines))
         staff0 = staff1
+    return page.barlines
 
 def show_measure_peaks(page):
     import pylab as p

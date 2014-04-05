@@ -117,3 +117,36 @@ def maximum_filter_kernel(img):
     maximum_filter_prg.maximum_filter(q, map(int, img.shape[::-1]), (1, 1),
                                          img.data, maximum.data).wait()
     return maximum
+
+taxicab_distance_prg = cl.Program(cx, open("opencl/taxicab_distance.cl")
+                                        .read()).build()
+def distance_transform_kernel(img, numiters=64):
+    for i in xrange(numiters):
+        e = taxicab_distance_prg.taxicab_distance_step(q, img.shape[::-1],
+                                                          (16, 32),
+                                                          img.data)
+    e.wait()
+
+boundary_prg = cl.Program(cx, open("opencl/boundary.cl").read()).build()
+boundary_prg.boundary_cost.set_scalar_arg_dtypes([
+    None, # float distance transform
+    np.uint32, # image width
+    np.uint32, np.uint32, np.uint32, # y0, ystep, numy
+    np.uint32, np.uint32, np.uint32, # x0, xstep, numx
+    None # output costs
+])
+def boundary_cost_kernel(dist, y0, ystep, y1, x0, xstep, x1):
+    numy = int(y1 - y0) // ystep
+    numx = int(x1 - x0) // xstep
+    costs = cla.zeros(q, (numx, numy, numy), np.float32)
+    boundary_prg.boundary_cost(q, (numx, numy, numy), (1, 1, 1),
+                                  dist.data,
+                                  np.uint32(dist.shape[0]),
+                                  np.uint32(y0),
+                                  np.uint32(ystep),
+                                  np.uint32(numy),
+                                  np.uint32(x0),
+                                  np.uint32(xstep),
+                                  np.uint32(numx),
+                                  costs.data).wait()
+    return costs
