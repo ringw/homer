@@ -132,5 +132,7 @@ if __name__ == "__main__":
     pylab.figure()
     pylab.imshow(p.byteimg)
     pylab.figure()
+    pylab.xlim([1083-50, 1083+50])
+    pylab.ylim([750+50, 750-50])
     pylab.plot(*(tuple(np.array(centers).T) + ('g.',)))
     pylab.show()
