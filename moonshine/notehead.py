@@ -87,6 +87,16 @@ inline ulong atom_split_rand(__global volatile ulong *rand) {
     } while (atom_cmpxchg(rand, prevVal, newVal) != prevVal);
     return retVal;
 }
+inline ulong atom_split_rand_l(__local volatile ulong *rand) {
+    ulong newVal, prevVal, retVal;
+    do {
+        prevVal = *rand;
+        ulong2 splitVal = split_rand(prevVal);
+        newVal = splitVal.s0;
+        retVal = splitVal.s1;
+    } while (atom_cmpxchg(rand, prevVal, newVal) != prevVal);
+    return retVal;
+}
 
 inline uchar8 get_patch(__global const uchar *image,
                         uint image_w, uint image_h,
@@ -250,23 +260,98 @@ __kernel void hough_ellipse_center(__global const uchar *image,
                                    __global volatile ulong *rand,
                                    __local volatile ulong *local_rand,
                                    __global volatile uint *accumulator) {
-    uint x = get_global_id(0),
-         y = get_global_id(1),
+    uint x0 = get_global_id(0),
+         y0 = get_global_id(1),
          w = get_global_size(0),
          h = get_global_size(1);
+    
+    uint local_id = get_local_id(0) + get_local_size(0) * get_local_id(1);
+    ulong worker_seed;
+    if (local_id == 0) {
+        // Must get local seed for all workers
+        *local_rand = worker_seed = atom_split_rand(rand);
+    }
+    mem_fence(CLK_LOCAL_MEM_FENCE);
+    if (local_id != 0) {
+        worker_seed = atom_split_rand_l(local_rand);
+    }
 
-    float t0 = patch_tangent_angle(image, w, h, x, y);
-    if (isnan(t0)) return;
+    float t0 = patch_tangent_angle(image, w, h, x0, y0);
+    if (!isfinite(t0)) return;
     uint x1 = 0, y1 = 0, x2 = 0, y2 = 0;
     float t1 = 0, t2 = 0;
 
-    uint xmin = MAX(0, x - search_dist),
-         xmax = MIN(w*8, x + search_dist),
-         ymin = MAX(0, y - search_dist),
-         ymax = MIN(h, y + search_dist);
+    uint xmin = MAX(0, x0 - search_dist),
+         xmax = MIN(w*8, x0 + search_dist),
+         ymin = MAX(0, y0 - search_dist),
+         ymax = MIN(h, y0 + search_dist);
+    float2 center = (float2)(-1, -1);
     for (int iter = 0; iter < MAXITER; iter++) {
-        
+        worker_seed = rand_next(worker_seed);
+        uint x2 = convert_uint_rtn(rand_val(worker_seed)
+                                      * (xmax - xmin) - xmin);
+        worker_seed = rand_next(worker_seed);
+        uint y2 = convert_uint_rtn(rand_val(worker_seed)
+                                      * (ymax - ymin) - ymin);
+        if ((x2 == x0 && y2 == y0) || (x2 == x1 && y2 == y1))
+            continue;
+        float t2 = patch_tangent_angle(image, w, h, x2, y2);
+        if (isfinite(t2)) {
+            if (x1 == 0 && y1 == 0) {
+                x1 = x2;
+                y1 = y2;
+                t1 = t2;
+            }
+            else {
+                // Convert tangent lines to homogenous coordinates:
+                // aX + bY + cW = 0 ==> L(a,b,c) . P(X,Y,W) = 0
+                // Vectors in R^3 must be stored as float4
+                float4 L0 = (sin(t0), -cos(t0), y0 * cos(t0) - x0 * sin(t0), 1);
+                float4 L1 = (sin(t1), -cos(t1), y1 * cos(t1) - x1 * sin(t1), 1);
+                float4 L2 = (sin(t2), -cos(t2), y2 * cos(t2) - x2 * sin(t2), 1);
+                // Find intersection of tangent lines T01 and T12
+                float4 T01 = cross(L0, L1), T12 = cross(L1, L2);
+                // Calculate midpoints between points 0/1 and 1/2
+                float4 M01 = (x0 + x1, y0 + y1, 2.0, 1.0);
+                float4 M12 = (x1 + x2, y1 + y2, 2.0, 1.0);
+                // The center of the ellipse is the intersection of the lines
+                // T01M01 and T12M12
+                float4 T01M01 = cross(T01, M01);
+                float4 T12M12 = cross(T12, M12);
+                float4 center_h = cross(T01M01, T12M12);
+                if (fabs(center_h.z) > 1e-5) {
+                    center = center_h.xy / center_h.z;
+                }
+            }
+        }
+    }
+
+    // Atomically update accumulator
+    if (0 <= center.x && center.x < w*8
+        && 0 <= center.y && center.y < h*8) {
+        uint acc_x = convert_uint_rtn(center.x / pixres);
+        uint acc_y = convert_uint_rtn(center.y / pixres);
+        uint acc_w = w * 8 / pixres;
+        atom_inc(&accumulator[acc_x + acc_w * acc_y]);
     }
 }
 """).build()
+prg.hough_ellipse_center.set_scalar_arg_dtypes([
+    None, np.uint32, np.uint32, None, None, None
+])
 
+if __name__ == "__main__":
+    # Run test
+    from . import image, page
+    p = page.Page(image.read_pages('samples/sonata.png')[0])
+    p.process()
+    seed = cla.to_device(q,
+               np.random.randint(0, 2**32, 2).astype(np.uint32).view(np.uint64))
+    acc = cla.zeros(q, (1024, 1024), np.float32)
+    prg.hough_ellipse_center(q, (p.img.shape[1] * 8, p.img.shape[0]), (8, 8),
+                                p.img.data,
+                                np.uint32(4),
+                                np.uint32(30),
+                                seed.data,
+                                cl.LocalMemory(4),
+                                acc.data).wait()
