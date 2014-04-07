@@ -117,6 +117,13 @@ inline uchar8 get_patch(__global const uchar *image,
     return patch.v;
 }
 
+__kernel void test_patch(__global const uchar *image,
+                         uint image_w, uint image_h,
+                         uint x0, uint y0,
+                         __global uchar8 *output) {
+    *output = get_patch(image, image_w, image_h, x0, y0);
+}
+
 __constant float SUM_1_LUT[256] = {
     0.0,1.0,1.0,2.0,1.0,2.0,2.0,3.0,
     1.0,2.0,2.0,3.0,2.0,3.0,3.0,4.0,
@@ -234,7 +241,7 @@ inline float patch_tangent_angle(__global const uchar *image,
     uchar8 border_pixel = patch & ~ erosion;
 
     // Patch must be centered on a border pixel
-    if ((patch.s4 & 0x10) == 0)
+    if ((border_pixel.s4 & 0x10) == 0)
         return NAN;
     // Store num_points, sum_x, sum_y, sum_xy, sum_xx of points along border
     // which we find, in order to use linear regression
@@ -259,10 +266,10 @@ __kernel void hough_ellipse_center(__global const uchar *image,
                                    uint pixres, uint search_dist,
                                    __global volatile ulong *rand,
                                    __local volatile ulong *local_rand,
-                                   __global volatile uint *accumulator) {
+                                   __global float2 *centers) {
     uint x0 = get_global_id(0),
          y0 = get_global_id(1),
-         w = get_global_size(0),
+         w = get_global_size(0)/8,
          h = get_global_size(1);
     
     uint local_id = get_local_id(0) + get_local_size(0) * get_local_id(1);
@@ -277,6 +284,7 @@ __kernel void hough_ellipse_center(__global const uchar *image,
     }
 
     float t0 = patch_tangent_angle(image, w, h, x0, y0);
+    centers[x0 + w*8 * y0] = t0;
     if (!isfinite(t0)) return;
     uint x1 = 0, y1 = 0, x2 = 0, y2 = 0;
     float t1 = 0, t2 = 0;
@@ -327,15 +335,19 @@ __kernel void hough_ellipse_center(__global const uchar *image,
     }
 
     // Atomically update accumulator
-    if (0 <= center.x && center.x < w*8
+    /*if (0 <= center.x && center.x < w*8
         && 0 <= center.y && center.y < h*8) {
         uint acc_x = convert_uint_rtn(center.x / pixres);
         uint acc_y = convert_uint_rtn(center.y / pixres);
         uint acc_w = w * 8 / pixres;
         atom_inc(&accumulator[acc_x + acc_w * acc_y]);
-    }
+    }*/
+    centers[x0 + w*8 * y0] = center;
 }
 """).build()
+prg.test_patch.set_scalar_arg_dtypes([
+    None, np.uint32, np.uint32, np.uint32, np.uint32, None
+])
 prg.hough_ellipse_center.set_scalar_arg_dtypes([
     None, np.uint32, np.uint32, None, None, None
 ])
@@ -345,13 +357,16 @@ if __name__ == "__main__":
     from . import image, page
     p = page.Page(image.read_pages('samples/sonata.png')[0])
     p.process()
+    patch = cla.zeros(q, (8,), np.uint8)
+    prg.test_patch(q, (1,), (1,), p.img.data)
     seed = cla.to_device(q,
                np.random.randint(0, 2**32, 2).astype(np.uint32).view(np.uint64))
-    acc = cla.zeros(q, (1024, 1024), np.float32)
+    centers = cla.zeros(q, (4096, 4096, 2), np.float32)
     prg.hough_ellipse_center(q, (p.img.shape[1] * 8, p.img.shape[0]), (8, 8),
                                 p.img.data,
                                 np.uint32(4),
                                 np.uint32(30),
                                 seed.data,
                                 cl.LocalMemory(4),
-                                acc.data).wait()
+                                centers.data).wait()
+    print np.count_nonzero(~np.isnan(centers.get()))
