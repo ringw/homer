@@ -296,18 +296,20 @@ __kernel void test_tangent(__global const uchar *image,
     *output = patch_tangent_angle(image, image_w, image_h, x0, y0);
 }
 
-#define MAXITER 100
+#define MAXITER 10
 __kernel void hough_ellipse_center(__global const uchar *image,
                                    uint pixres, uint search_dist,
                                    __global volatile ulong *rand,
                                    __local volatile ulong *local_rand,
-                                   __global float2 *centers) {
+                                   __local float2 *local_centers,
+                                   __global volatile uint *accumulator) {
     uint x0 = get_global_id(0),
          y0 = get_global_id(1),
          w = get_global_size(0)/8,
          h = get_global_size(1);
     
     uint local_id = get_local_id(0) + get_local_size(0) * get_local_id(1);
+    uint num_workers = get_local_size(0) * get_local_size(1);
     ulong worker_seed;
     if (local_id == 0) {
         // Must get local seed for all workers
@@ -319,10 +321,7 @@ __kernel void hough_ellipse_center(__global const uchar *image,
     }
 
     float t0 = patch_tangent_angle(image, w, h, x0, y0);
-    if (!isfinite(t0)) {
-        centers[x0 + w*8 * y0] = (float2)NAN;
-        return;
-    }
+    if (!isfinite(t0)) return;
     uint x1 = 0, y1 = 0, x2 = 0, y2 = 0;
     float t1 = 0, t2 = 0;
 
@@ -330,7 +329,7 @@ __kernel void hough_ellipse_center(__global const uchar *image,
          xmax = MIN(w*8, (int)(x0 + search_dist)),
          ymin = MAX(0, (int)(y0 - search_dist)),
          ymax = MIN(h, (int)(y0 + search_dist));
-    float2 center = (float2)NAN;
+    float2 center = (float2)(-1, -1);
     for (int iter = 0; iter < MAXITER; iter++) {
         worker_seed = rand_next(worker_seed);
         uint x2 = convert_uint_rtn(rand_val(worker_seed)
@@ -372,20 +371,31 @@ __kernel void hough_ellipse_center(__global const uchar *image,
                 float3 center_h = cross(T01M01, T12M12);
                 if (fabs(center_h.z) > 1e-5) {
                     center = center_h.xy / center_h.z;
+                    float2 dist = center - (float2)(x0, y0);
+                    if (dot(dist, dist) > search_dist * search_dist)
+                        center = (float2)-1;
                 }
+                break;
             }
         }
     }
+    local_centers[local_id] = center;
+    mem_fence(CLK_LOCAL_MEM_FENCE);
 
-    // Atomically update accumulator
-    /*if (0 <= center.x && center.x < w*8
-        && 0 <= center.y && center.y < h*8) {
-        uint acc_x = convert_uint_rtn(center.x / pixres);
-        uint acc_y = convert_uint_rtn(center.y / pixres);
-        uint acc_w = w * 8 / pixres;
-        atom_inc(&accumulator[acc_x + acc_w * acc_y]);
-    }*/
-    centers[x0 + w*8 * y0] = center;
+    if (local_id == 0) {
+        // Atomically update accumulator
+        for (uint i = 0; i < 64; i++) {
+            float2 center = local_centers[i];
+            if (0 <= center.x && center.x < w*8
+                && 0 <= center.y && center.y < h) {
+                uint acc_x = convert_uint_rtn(center.x / pixres);
+                uint acc_y = convert_uint_rtn(center.y / pixres);
+                uint acc_w = w * 8 / pixres;
+                if (acc_x > 0 && acc_y > 0)
+                    atom_inc(&accumulator[acc_x + acc_w * acc_y]);
+            }
+        }
+    }
 }
 """).build()
 prg.test_patch.set_scalar_arg_dtypes([
@@ -395,7 +405,7 @@ prg.test_tangent.set_scalar_arg_dtypes([
     None, np.uint32, np.uint32, np.uint32, np.uint32, None
 ])
 prg.hough_ellipse_center.set_scalar_arg_dtypes([
-    None, np.uint32, np.uint32, None, None, None
+    None, np.uint32, np.uint32, None, None, None, None
 ])
 
 if __name__ == "__main__":
@@ -403,44 +413,45 @@ if __name__ == "__main__":
     from . import image, page, rotate
     p = page.Page(image.read_pages('samples/sonata.png')[0])
     rotate.rotate(p)
-    patch = cla.zeros(q, (8,), np.uint8)
-    TEST_X=1076
-    TEST_Y=752
-    prg.test_patch(q, (1,), (1,),
-                      p.img.data,
-                      np.uint32(p.img.shape[1]),
-                      np.uint32(p.img.shape[0]),
-                      np.uint32(TEST_X), np.uint32(TEST_Y),
-                      patch.data).wait()
-    print np.unpackbits(patch.get()).reshape((8,8))
-    tangent = cla.zeros(q, (1,), np.float32)
-    prg.test_tangent(q, (1,), (1,),
-                      p.img.data,
-                      np.uint32(p.img.shape[1]),
-                      np.uint32(p.img.shape[0]),
-                      np.uint32(TEST_X), np.uint32(TEST_Y),
-                      tangent.data).wait()
-    print tangent[0]
+#    patch = cla.zeros(q, (8,), np.uint8)
+#    TEST_X=1076
+#    TEST_Y=752
+#    prg.test_patch(q, (1,), (1,),
+#                      p.img.data,
+#                      np.uint32(p.img.shape[1]),
+#                      np.uint32(p.img.shape[0]),
+#                      np.uint32(TEST_X), np.uint32(TEST_Y),
+#                      patch.data).wait()
+#    print np.unpackbits(patch.get()).reshape((8,8))
+#    tangent = cla.zeros(q, (1,), np.float32)
+#    prg.test_tangent(q, (1,), (1,),
+#                      p.img.data,
+#                      np.uint32(p.img.shape[1]),
+#                      np.uint32(p.img.shape[0]),
+#                      np.uint32(TEST_X), np.uint32(TEST_Y),
+#                      tangent.data).wait()
+#    print tangent[0]
     seed = cla.to_device(q,
                np.random.randint(0, 2**32, 2).astype(np.uint32).view(np.uint64))
-    centers = cla.zeros(q, (4096, 4096, 2), np.float32)
-    prg.hough_ellipse_center(q, (p.img.shape[1] * 8, p.img.shape[0]), (8, 8),
-                                p.img.data,
-                                np.uint32(4),
-                                np.uint32(30),
-                                seed.data,
-                                cl.LocalMemory(4),
-                                centers.data).wait()
-    C = centers.get()
-    print (~np.isnan(C).any(axis=2)).sum()
-    c = C[~np.isnan(C).any(axis=2)]
+    acc = cla.zeros(q, (1024, 1024), np.uint32)
+    for i in xrange(5):
+        prg.hough_ellipse_center(q, (p.img.shape[1] * 8, p.img.shape[0]), (8, 8),
+                                    p.img.data,
+                                    np.uint32(4),
+                                    np.uint32(30),
+                                    seed.data,
+                                    cl.LocalMemory(4),
+                                    cl.LocalMemory(64 * 8),
+                                    acc.data).wait()
+    A = acc.get()
+    print (A > 0).sum()
     import pylab
     pylab.ylim([p.byteimg.shape[0], 0])
     pylab.xlim([0, p.byteimg.shape[1]])
-    pylab.imshow(p.byteimg)
-    if len(c) > 10000:
-        choice = np.random.choice(len(c), 10000)
-        pylab.plot(*(tuple(c[choice].T) + ('g.',)))
-    else:
-        pylab.plot(*(tuple(c.T) + ('g.',)))
+    extent = (0,4096,4096,0)
+    pylab.imshow(p.byteimg, extent=extent, cmap='binary')
+    Aalpha = np.zeros((1024, 1024, 4), dtype=np.uint8)
+    Aalpha[..., 0] = 255 # red
+    Aalpha[..., 3] = np.uint8(np.float32(A) / A.max() * 255)
+    pylab.imshow(Aalpha, extent=extent)
     pylab.show()
