@@ -108,11 +108,39 @@ inline uchar8 get_patch(__global const uchar *image,
     patch.v = (uchar8)(0);
     
     uint image_x = x0 / 8;
+    uint patch_min = MAX(0, (int)(4 - y0));
+    uint image_min = MAX(0, (int)(y0 - 4));
+    uint patch_max = 8;
+    uint image_max = MIN((int)image_h, (int)(8 + y0 - 4));
     uint patch_y, image_y;
-    for (patch_y = MAX(0, 4 - y0), image_y = MAX(0, y0 - 4);
-         patch_y < 8 && image_y < MAX(image_h, 8 + y0 - 4);
+    for (patch_y = patch_min, image_y = image_min;
+         patch_y < patch_max && image_y < image_max;
          patch_y++, image_y++) {
         patch.a[patch_y] = image[image_x + image_w * image_y];
+    }
+    if (x0 % 8 < 4) {
+        uchar shift = 4 - (x0 % 8);
+        patch.v >>= shift;
+        if (image_x >= 1) {
+            for (patch_y = patch_min, image_y = image_min;
+                 patch_y < patch_max && image_y < image_max;
+                 patch_y++, image_y++) {
+                patch.a[patch_y] |= image[image_x-1 + image_w * image_y]
+                                        << 8 - shift;
+            }
+        }
+    }
+    else {
+        uchar shift = (x0 % 8) - 4;
+        patch.v <<= shift;
+        if (image_x < image_w - 1 && shift != 0) {
+            for (patch_y = patch_min, image_y = image_min;
+                 patch_y < patch_max && image_y < image_max;
+                 patch_y++, image_y++) {
+                patch.a[patch_y] |= image[image_x+1 + image_w * image_y]
+                                        >> 8 - shift;
+            }
+        }
     }
     return patch.v;
 }
@@ -241,7 +269,7 @@ inline float patch_tangent_angle(__global const uchar *image,
     uchar8 border_pixel = patch & ~ erosion;
 
     // Patch must be centered on a border pixel
-    if ((border_pixel.s4 & 0x10) == 0)
+    if ((border_pixel.s4 & 0x08) == 0)
         return NAN;
     // Store num_points, sum_x, sum_y, sum_xy, sum_xx of points along border
     // which we find, in order to use linear regression
@@ -259,6 +287,13 @@ inline float patch_tangent_angle(__global const uchar *image,
     float mn = sum_x * sum_y - num_points * sum_xy;
     float md = sum_x * sum_x - num_points * sum_xx;
     return atan2(mn, md);
+}
+
+__kernel void test_tangent(__global const uchar *image,
+                           uint image_w, uint image_h,
+                           uint x0, uint y0,
+                           __global float *output) {
+    *output = patch_tangent_angle(image, image_w, image_h, x0, y0);
 }
 
 #define MAXITER 100
@@ -284,23 +319,25 @@ __kernel void hough_ellipse_center(__global const uchar *image,
     }
 
     float t0 = patch_tangent_angle(image, w, h, x0, y0);
-    centers[x0 + w*8 * y0] = t0;
-    if (!isfinite(t0)) return;
+    if (!isfinite(t0)) {
+        centers[x0 + w*8 * y0] = (float2)NAN;
+        return;
+    }
     uint x1 = 0, y1 = 0, x2 = 0, y2 = 0;
     float t1 = 0, t2 = 0;
 
-    uint xmin = MAX(0, x0 - search_dist),
-         xmax = MIN(w*8, x0 + search_dist),
-         ymin = MAX(0, y0 - search_dist),
-         ymax = MIN(h, y0 + search_dist);
-    float2 center = (float2)(-1, -1);
+    uint xmin = MAX(0, (int)(x0 - search_dist)),
+         xmax = MIN(w*8, (int)(x0 + search_dist)),
+         ymin = MAX(0, (int)(y0 - search_dist)),
+         ymax = MIN(h, (int)(y0 + search_dist));
+    float2 center = (float2)NAN;
     for (int iter = 0; iter < MAXITER; iter++) {
         worker_seed = rand_next(worker_seed);
         uint x2 = convert_uint_rtn(rand_val(worker_seed)
-                                      * (xmax - xmin) - xmin);
+                                      * (xmax - xmin) + xmin);
         worker_seed = rand_next(worker_seed);
         uint y2 = convert_uint_rtn(rand_val(worker_seed)
-                                      * (ymax - ymin) - ymin);
+                                      * (ymax - ymin) + ymin);
         if ((x2 == x0 && y2 == y0) || (x2 == x1 && y2 == y1))
             continue;
         float t2 = patch_tangent_angle(image, w, h, x2, y2);
@@ -314,19 +351,25 @@ __kernel void hough_ellipse_center(__global const uchar *image,
                 // Convert tangent lines to homogenous coordinates:
                 // aX + bY + cW = 0 ==> L(a,b,c) . P(X,Y,W) = 0
                 // Vectors in R^3 must be stored as float4
-                float4 L0 = (sin(t0), -cos(t0), y0 * cos(t0) - x0 * sin(t0), 1);
-                float4 L1 = (sin(t1), -cos(t1), y1 * cos(t1) - x1 * sin(t1), 1);
-                float4 L2 = (sin(t2), -cos(t2), y2 * cos(t2) - x2 * sin(t2), 1);
+                float3 L0 = (float3)(sin(t0),
+                                     -cos(t0),
+                                     y0 * cos(t0) - x0 * sin(t0));
+                float3 L1 = (float3)(sin(t1),
+                                     -cos(t1),
+                                     y1 * cos(t1) - x1 * sin(t1));
+                float3 L2 = (float3)(sin(t2),
+                                     -cos(t2),
+                                     y2 * cos(t2) - x2 * sin(t2));
                 // Find intersection of tangent lines T01 and T12
-                float4 T01 = cross(L0, L1), T12 = cross(L1, L2);
+                float3 T01 = cross(L0, L1), T12 = cross(L1, L2);
                 // Calculate midpoints between points 0/1 and 1/2
-                float4 M01 = (x0 + x1, y0 + y1, 2.0, 1.0);
-                float4 M12 = (x1 + x2, y1 + y2, 2.0, 1.0);
+                float3 M01 = (float3)(x0 + x1, y0 + y1, 2.0);
+                float3 M12 = (float3)(x1 + x2, y1 + y2, 2.0);
                 // The center of the ellipse is the intersection of the lines
                 // T01M01 and T12M12
-                float4 T01M01 = cross(T01, M01);
-                float4 T12M12 = cross(T12, M12);
-                float4 center_h = cross(T01M01, T12M12);
+                float3 T01M01 = cross(T01, M01);
+                float3 T12M12 = cross(T12, M12);
+                float3 center_h = cross(T01M01, T12M12);
                 if (fabs(center_h.z) > 1e-5) {
                     center = center_h.xy / center_h.z;
                 }
@@ -348,17 +391,36 @@ __kernel void hough_ellipse_center(__global const uchar *image,
 prg.test_patch.set_scalar_arg_dtypes([
     None, np.uint32, np.uint32, np.uint32, np.uint32, None
 ])
+prg.test_tangent.set_scalar_arg_dtypes([
+    None, np.uint32, np.uint32, np.uint32, np.uint32, None
+])
 prg.hough_ellipse_center.set_scalar_arg_dtypes([
     None, np.uint32, np.uint32, None, None, None
 ])
 
 if __name__ == "__main__":
     # Run test
-    from . import image, page
+    from . import image, page, rotate
     p = page.Page(image.read_pages('samples/sonata.png')[0])
-    p.process()
+    rotate.rotate(p)
     patch = cla.zeros(q, (8,), np.uint8)
-    prg.test_patch(q, (1,), (1,), p.img.data)
+    TEST_X=1076
+    TEST_Y=752
+    prg.test_patch(q, (1,), (1,),
+                      p.img.data,
+                      np.uint32(p.img.shape[1]),
+                      np.uint32(p.img.shape[0]),
+                      np.uint32(TEST_X), np.uint32(TEST_Y),
+                      patch.data).wait()
+    print np.unpackbits(patch.get()).reshape((8,8))
+    tangent = cla.zeros(q, (1,), np.float32)
+    prg.test_tangent(q, (1,), (1,),
+                      p.img.data,
+                      np.uint32(p.img.shape[1]),
+                      np.uint32(p.img.shape[0]),
+                      np.uint32(TEST_X), np.uint32(TEST_Y),
+                      tangent.data).wait()
+    print tangent[0]
     seed = cla.to_device(q,
                np.random.randint(0, 2**32, 2).astype(np.uint32).view(np.uint64))
     centers = cla.zeros(q, (4096, 4096, 2), np.float32)
@@ -369,4 +431,16 @@ if __name__ == "__main__":
                                 seed.data,
                                 cl.LocalMemory(4),
                                 centers.data).wait()
-    print np.count_nonzero(~np.isnan(centers.get()))
+    C = centers.get()
+    print (~np.isnan(C).any(axis=2)).sum()
+    c = C[~np.isnan(C).any(axis=2)]
+    import pylab
+    pylab.ylim([p.byteimg.shape[0], 0])
+    pylab.xlim([0, p.byteimg.shape[1]])
+    pylab.imshow(p.byteimg)
+    if len(c) > 10000:
+        choice = np.random.choice(len(c), 10000)
+        pylab.plot(*(tuple(c[choice].T) + ('g.',)))
+    else:
+        pylab.plot(*(tuple(c.T) + ('g.',)))
+    pylab.show()

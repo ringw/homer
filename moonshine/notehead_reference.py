@@ -123,6 +123,7 @@ def hough_ellipse_fit(bitimg, x0, y0, maxdist=30):
 if __name__ == "__main__":
     from . import image, page
     p = page.Page(image.read_pages('samples/sonata.png')[0])
+    print np.unpackbits(patch(p.bitimg, 1095, 747)).reshape((8, 8))
     centers = []
     for i in xrange(1000):
         ell = hough_ellipse_fit(p.bitimg, 1095, 747)
@@ -130,6 +131,8 @@ if __name__ == "__main__":
             centers.append(ell)
     import pylab
     pylab.figure()
+    pylab.xlim([1083-50, 1083+50])
+    pylab.ylim([750+50, 750-50])
     pylab.imshow(p.byteimg)
     pylab.figure()
     pylab.xlim([1083-50, 1083+50])
