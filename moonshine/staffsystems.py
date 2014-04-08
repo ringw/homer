@@ -37,21 +37,24 @@ def build_staff_system(page, staff0):
         barlines = lines[(lines[:, 0] < page.staff_dist // rhores)
                          & (lines[:, 1] > slice_T.shape[1] * 8
                                           - page.staff_dist // rhores)]
-        barline_ids = scipy.cluster.hierarchy.fclusterdata(
-                          np.mean(barlines[:, 2:4], 1)[:, None],
-                          page.staff_dist,
-                          criterion="distance",
-                          method="complete")
-        actual_barlines = []
-        num_barlines = np.amax(barline_ids)
-        for b in xrange(1, num_barlines + 1):
-            candidates = barlines[barline_ids == b]
-            barline_height = candidates[:, 1] - candidates[:, 0]
-            barline = candidates[np.argmax(barline_height)]
-            actual_barlines.append(barline[[2, 3, 0, 1]])
-        barlines = np.array(actual_barlines)
-        barlines = barlines[np.argsort(barlines[:, 0])]
-        return (staff0, staff1 + 1, barlines)
+        if len(barlines):
+            barline_ids = scipy.cluster.hierarchy.fclusterdata(
+                              np.mean(barlines[:, 2:4], 1)[:, None],
+                              page.staff_dist,
+                              criterion="distance",
+                              method="complete")
+            actual_barlines = []
+            num_barlines = np.amax(barline_ids)
+            for b in xrange(1, num_barlines + 1):
+                candidates = barlines[barline_ids == b]
+                barline_height = candidates[:, 1] - candidates[:, 0]
+                barline = candidates[np.argmax(barline_height)]
+                actual_barlines.append(barline[[2, 3, 0, 1]])
+            barlines = np.array(actual_barlines)
+            barlines = barlines[np.argsort(barlines[:, 0])]
+            return (staff0, staff1 + 1, barlines)
+        else:
+            return (staff0, staff0 + 1, [])
         
 
 def staff_systems(page):
