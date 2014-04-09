@@ -6,7 +6,10 @@ import logging
 cx = cl.create_some_context()
 q = cl.CommandQueue(cx, properties=cl.command_queue_properties.PROFILING_ENABLE)
 
-hough_line_prg = cl.Program(cx, open("opencl/hough_line.cl").read()).build()
+from os import path
+OPENCL = path.join(path.dirname(__file__), "../opencl")
+
+hough_line_prg = cl.Program(cx, open(OPENCL + "/hough_line.cl").read()).build()
 hough_line_prg.hough_line.set_scalar_arg_dtypes([
     None, # input image
     np.uint32, # image_w
@@ -64,7 +67,7 @@ def hough_lineseg_kernel(img, rhos, thetas, rhores=1, max_gap=0):
                                     segments.data).wait()
     return segments
 
-rotate_prg = cl.Program(cx, open("opencl/rotate.cl").read()).build()
+rotate_prg = cl.Program(cx, open(OPENCL + "/rotate.cl").read()).build()
 rotate_prg.rotate_image.set_scalar_arg_dtypes([
     None, # input image
     np.float32, # cos(theta)
@@ -82,7 +85,7 @@ def rotate_kernel(img, theta):
                                new_img.data).wait()
     return new_img
 
-runhist_prg = cl.Program(cx, open("opencl/runhist.cl").read()).build()
+runhist_prg = cl.Program(cx, open(OPENCL + "/runhist.cl").read()).build()
 def runhist_kernel(img):
     light = cla.zeros(q, 64, np.uint32)
     dark = cla.zeros(q, 64, np.uint32)
@@ -90,7 +93,7 @@ def runhist_kernel(img):
                            img.data, light.data, dark.data).wait()
     return light, dark
 
-staffpoints_prg = cl.Program(cx, open("opencl/staffpoints.cl").read()).build()
+staffpoints_prg = cl.Program(cx, open(OPENCL + "/staffpoints.cl").read()).build()
 staffpoints_prg.staffpoints.set_scalar_arg_dtypes([
     None, # input image
     np.uint32, # staff_dist
@@ -102,7 +105,7 @@ def staffpoints_kernel(img, dist):
                                 img.data, np.uint32(dist), staff.data).wait()
     return staff
 
-maximum_filter_prg = cl.Program(cx, open("opencl/maximum_filter.cl").read()) \
+maximum_filter_prg = cl.Program(cx, open(OPENCL + "/maximum_filter.cl").read())\
                        .build()
 def maximum_filter_kernel(img):
     maximum = cla.zeros_like(img)
@@ -110,7 +113,7 @@ def maximum_filter_kernel(img):
                                          img.data, maximum.data).wait()
     return maximum
 
-taxicab_distance_prg = cl.Program(cx, open("opencl/taxicab_distance.cl")
+taxicab_distance_prg = cl.Program(cx, open(OPENCL + "/taxicab_distance.cl")
                                         .read()).build()
 def distance_transform_kernel(img, numiters=64):
     for i in xrange(numiters):
@@ -119,7 +122,7 @@ def distance_transform_kernel(img, numiters=64):
                                                           img.data)
     e.wait()
 
-boundary_prg = cl.Program(cx, open("opencl/boundary.cl").read()).build()
+boundary_prg = cl.Program(cx, open(OPENCL + "/boundary.cl").read()).build()
 boundary_prg.boundary_cost.set_scalar_arg_dtypes([
     None, # float distance transform
     np.uint32, # image width
