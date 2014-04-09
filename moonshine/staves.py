@@ -15,12 +15,12 @@ def staff_center_lines(page):
     # to find the longest segment, corresponding to the complete staff.
     # Most images shouldn't need this many peaks, but performance doesn't
     # seem to be an issue.
-    peaks = hough.houghpeaks(page.staff_bins, npeaks=500)
+    peaks = hough.houghpeaks(page.staff_bins, thresh=max_kernel(page.staff_bins)/4.0)
     page.staff_peak_theta = thetas[peaks[:, 0]]
     page.staff_peak_rho = peaks[:, 1]
     lines = hough_lineseg_kernel(staff_filt,
                                  page.staff_peak_rho, page.staff_peak_theta,
-                                 rhores=rhores, max_gap=page.staff_dist*4).get()
+                                 rhores=rhores, max_gap=page.staff_dist*2).get()
     page.staff_center_lines = lines
     return lines
 

@@ -10,7 +10,7 @@ import scipy.cluster.hierarchy
 # to add more staves below until some of the lines don't span that far.
 HOUGH_THETAS = np.linspace(-np.pi/500, np.pi/500, 11)
 def build_staff_system(page, staff0):
-    rhores = page.staff_thick
+    rhores = page.staff_thick * 2
     # Round y0 down to nearest multiple of 8
     staff0min = min(page.staves[staff0, 2:4])
     y0 = staff0min & -8
@@ -26,9 +26,7 @@ def build_staff_system(page, staff0):
                                        numrho=slice_T.shape[0] // rhores,
                                        thetas=HOUGH_THETAS)
         max_bins = maximum_filter_kernel(slice_bins)
-        measure_peaks = hough.houghpeaks(max_bins, npeaks=500,
-                                         invalidate=(2,
-                                                     page.staff_dist // rhores))
+        measure_peaks = hough.houghpeaks(max_bins, npeaks=500,)
         measure_theta = HOUGH_THETAS[measure_peaks[:, 0]]
         measure_rho = measure_peaks[:, 1]
         lines = hough_lineseg_kernel(slice_T, measure_rho, measure_theta,

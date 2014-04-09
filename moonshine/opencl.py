@@ -2,6 +2,7 @@ import pyopencl as cl
 import pyopencl.array as cla
 import numpy as np
 import logging
+from pyopencl.reduction import ReductionKernel
 
 cx = cl.create_some_context()
 q = cl.CommandQueue(cx, properties=cl.command_queue_properties.PROFILING_ENABLE)
@@ -145,3 +146,8 @@ def boundary_cost_kernel(dist, y0, ystep, y1, x0, xstep, x1):
                                   np.uint32(numx),
                                   costs.data).wait()
     return costs
+
+max_kernel = ReductionKernel(cx, np.float32, neutral="0.f",
+                             reduce_expr="(a>b) ? a : b",
+                             map_expr="x[i]",
+                             arguments="__global float *x")
