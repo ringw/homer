@@ -2,6 +2,8 @@ from .opencl import *
 from . import hough, bitimage
 import numpy as np
 import scipy.cluster.hierarchy
+import logging
+logger = logging.getLogger('systems')
 
 # Detect staff systems by finding barlines that cross multiple staves
 # The only barlines that remain in staff_filt cross multiple staves,
@@ -10,11 +12,15 @@ import scipy.cluster.hierarchy
 # to add more staves below until some of the lines don't span that far.
 HOUGH_THETAS = np.linspace(-np.pi/500, np.pi/500, 11)
 def build_staff_system(page, staff0):
+    barlines = np.zeros((0, 4))
+    if staff0 + 1 == len(page.staves):
+        return (staff0, staff0 + 1, barlines)
     rhores = page.staff_thick * 2
     # Round y0 down to nearest multiple of 8
     staff0min = min(page.staves[staff0, 2:4])
     y0 = staff0min & -8
     prev_measures = None
+    staff1 = staff0 + 1 # start with single staff
     for staff1 in xrange(staff0 + 1, len(page.staves)):
         # Round y1 up to nearest multiple of 8
         staff1max = max(page.staves[staff1, 2:4])
@@ -26,7 +32,9 @@ def build_staff_system(page, staff0):
                                        numrho=slice_T.shape[0] // rhores,
                                        thetas=HOUGH_THETAS)
         max_bins = maximum_filter_kernel(slice_bins)
-        measure_peaks = hough.houghpeaks(max_bins, npeaks=500,)
+        measure_peaks = hough.houghpeaks(max_bins, npeaks=1000,
+                                         invalidate=(1,
+                                                1))#page.staff_dist // rhores))
         measure_theta = HOUGH_THETAS[measure_peaks[:, 0]]
         measure_rho = measure_peaks[:, 1]
         lines = hough_lineseg_kernel(slice_T, measure_rho, measure_theta,
@@ -50,10 +58,13 @@ def build_staff_system(page, staff0):
                 actual_barlines.append(barline[[2, 3, 0, 1]])
             barlines = np.array(actual_barlines)
             barlines = barlines[np.argsort(barlines[:, 0])]
-            return (staff0, staff1 + 1, barlines)
+
+            staff1 += 1
         else:
-            return (staff0, staff0 + 1, [])
-        
+            # Previously we only had one staff or else we had a staff system
+            # with some barline
+            break
+    return (staff0, staff1, barlines)
 
 def staff_systems(page):
     staff0 = 0
@@ -62,6 +73,9 @@ def staff_systems(page):
         staff0, staff1, barlines = build_staff_system(page, staff0)
         page.barlines.append((staff0, staff1, barlines))
         staff0 = staff1
+    logger.debug("Systems contain "
+                 + ",".join([str(s1-s0) for (s0,s1,barlines) in page.barlines])
+                 + " staves")
     return page.barlines
 
 def show_measure_peaks(page):
