@@ -76,7 +76,7 @@ def border_tangent(bitimg, x, y):
     md = sum_x ** 2 - num_points * sum_xx
     return np.arctan2(mn, md)
 
-MAXITER = 100
+MAXITER = 50
 def hough_ellipse_fit(bitimg, x0, y0, maxdist=30):
     """ If (x0, y0) is a border point, choose two other border points within
         maxdist and find the candidate ellipse center.
@@ -125,10 +125,14 @@ if __name__ == "__main__":
     p = page.Page(image.read_pages('samples/sonata.png')[0])
     print np.unpackbits(patch(p.bitimg, 1095, 747)).reshape((8, 8))
     centers = []
-    for i in xrange(1000):
-        ell = hough_ellipse_fit(p.bitimg, 1095, 747)
-        if ell is not None:
-            centers.append(ell)
+    y_points, x_points = np.where(p.byteimg)
+    for i in xrange(1):
+        for ind in xrange(len(y_points)):
+            x = x_points[ind]
+            y = y_points[ind]
+            ell = hough_ellipse_fit(p.bitimg, x, y)
+            if ell is not None:
+                centers.append(ell)
     import pylab
     pylab.figure()
     pylab.xlim([1083-50, 1083+50])
