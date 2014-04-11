@@ -25,7 +25,10 @@ def staff_center_lines(page):
 
 def staves(page):
     lines = staff_center_lines(page)
-    page.staves = hough.hough_paths(lines)
+    staves = hough.hough_paths(lines)
+    # Filter out staves which are too short
+    good_staves = (staves[:, 1] - staves[:, 0]) > page.img.shape[1] * 8 / 2
+    page.staves = staves[good_staves]
     return page.staves
 
 def show_staff_segments(page):

@@ -70,12 +70,12 @@ def boundary_cost(page, staff):
     if staff == 0:
         y0 = 0
     else:
-        y0 = max(0, np.amax(page.staves[staff-1, 2:4]) + page.staff_dist*3)
+        y0 = max(0, np.amax(page.staves[staff-1, 2:4]) + page.staff_dist*2)
     if staff == len(page.staves):
         y1 = page.img.shape[0]
     else:
         y1 = min(page.img.shape[0] - 1,
-                 np.amin(page.staves[staff, 2:4]) - page.staff_dist*3)
+                 np.amin(page.staves[staff, 2:4]) - page.staff_dist*2)
     y0 /= DT_SCALE
     y1 /= DT_SCALE
     xstep = ystep = page.staff_thick
