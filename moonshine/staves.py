@@ -27,7 +27,7 @@ def staves(page):
     lines = staff_center_lines(page)
     staves = hough.hough_paths(lines)
     # Filter out staves which are too short
-    good_staves = (staves[:, 1] - staves[:, 0]) > page.img.shape[1] * 8 / 2
+    good_staves = (staves[:, 1] - staves[:, 0]) > page.orig_size[1] / 2.0
     page.staves = staves[good_staves]
     return page.staves
 
