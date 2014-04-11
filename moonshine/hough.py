@@ -4,10 +4,10 @@ from pyopencl.scan import GenericScanKernel
 import numpy as np
 import logging
 
-def houghpeaks(H, npeaks=None, thresh=1.0, invalidate=(1, 1)):
+def houghpeaks(H, npeaks=2000, thresh=1.0, invalidate=(1, 1)):
     Hmax = maximum_filter_kernel(H).get()
     peaks = []
-    for i in xrange(npeaks if npeaks is not None else 1000):
+    for i in xrange(npeaks):
         r, t = np.unravel_index(np.argmax(Hmax), Hmax.shape)
         if Hmax[r, t] < thresh:
             break

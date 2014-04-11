@@ -1,7 +1,6 @@
 from .opencl import *
 from . import hough, bitimage
 import numpy as np
-import scipy.cluster.hierarchy
 import logging
 logger = logging.getLogger('systems')
 
@@ -32,35 +31,26 @@ def build_staff_system(page, staff0):
                                        numrho=slice_T.shape[0] // rhores,
                                        thetas=HOUGH_THETAS)
         max_bins = maximum_filter_kernel(slice_bins)
-        measure_peaks = hough.houghpeaks(max_bins, npeaks=1000,
-                                         invalidate=(1,
-                                                1))#page.staff_dist // rhores))
+        measure_peaks = hough.houghpeaks(max_bins,
+                                         thresh=max_kernel(max_bins)/8.0,
+                                         invalidate=(page.staff_space // rhores, 3))
         measure_theta = HOUGH_THETAS[measure_peaks[:, 0]]
         measure_rho = measure_peaks[:, 1]
         lines = hough_lineseg_kernel(slice_T, measure_rho, measure_theta,
                                      rhores=rhores,
-                                     max_gap=page.staff_dist).get()
-        new_barlines = lines[(lines[:, 0] < page.staff_dist // rhores)
-                             & (lines[:, 1] > slice_T.shape[1] * 8
-                                              - page.staff_dist // rhores)]
+                                     max_gap=page.staff_space-page.staff_thick).get()
+        is_barline = ((np.abs(lines[:, 0].astype(int) - (staff0min - y0))
+                            < page.staff_dist)
+                      & (np.abs(lines[:, 1].astype(int) - (staff1max - y0))
+                            < page.staff_dist))
+        new_barlines = lines[is_barline]
         if len(new_barlines):
-            barline_ids = scipy.cluster.hierarchy.fclusterdata(
-                              np.mean(new_barlines[:, 2:4], 1)[:, None],
-                              page.staff_dist,
-                              criterion="distance",
-                              method="complete")
-            actual_barlines = []
-            num_barlines = np.amax(barline_ids)
-            for b in xrange(1, num_barlines + 1):
-                candidates = new_barlines[barline_ids == b]
-                barline_height = candidates[:, 1] - candidates[:, 0]
-                barline = candidates[np.argmax(barline_height)]
-                actual_barlines.append(barline[[2, 3, 0, 1]]
-                                       + [0, 0, y0, y0])
+            actual_barlines = hough.hough_paths(new_barlines)
             if len(actual_barlines) == 0:
                 break
-            barlines = np.array(actual_barlines)
-            barlines = barlines[np.argsort(barlines[:, 0])]
+            else:
+                barlines = (actual_barlines[:, [2, 3, 0, 1]]
+                                + [0, 0, y0, y0])
 
             staff1 += 1
         else:

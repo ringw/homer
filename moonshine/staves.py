@@ -1,7 +1,6 @@
 from .opencl import *
 from . import hough
 import numpy as np
-import scipy.cluster.hierarchy
 
 def staff_center_lines(page):
     staff_filt = staffpoints_kernel(page.img, page.staff_dist)
