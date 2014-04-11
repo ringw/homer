@@ -40,22 +40,25 @@ def build_staff_system(page, staff0):
         lines = hough_lineseg_kernel(slice_T, measure_rho, measure_theta,
                                      rhores=rhores,
                                      max_gap=page.staff_dist).get()
-        barlines = lines[(lines[:, 0] < page.staff_dist // rhores)
-                         & (lines[:, 1] > slice_T.shape[1] * 8
-                                          - page.staff_dist // rhores)]
-        if len(barlines):
+        new_barlines = lines[(lines[:, 0] < page.staff_dist // rhores)
+                             & (lines[:, 1] > slice_T.shape[1] * 8
+                                              - page.staff_dist // rhores)]
+        if len(new_barlines):
             barline_ids = scipy.cluster.hierarchy.fclusterdata(
-                              np.mean(barlines[:, 2:4], 1)[:, None],
+                              np.mean(new_barlines[:, 2:4], 1)[:, None],
                               page.staff_dist,
                               criterion="distance",
                               method="complete")
             actual_barlines = []
             num_barlines = np.amax(barline_ids)
             for b in xrange(1, num_barlines + 1):
-                candidates = barlines[barline_ids == b]
+                candidates = new_barlines[barline_ids == b]
                 barline_height = candidates[:, 1] - candidates[:, 0]
                 barline = candidates[np.argmax(barline_height)]
-                actual_barlines.append(barline[[2, 3, 0, 1]])
+                actual_barlines.append(barline[[2, 3, 0, 1]]
+                                       + [0, 0, y0, y0])
+            if len(actual_barlines) == 0:
+                break
             barlines = np.array(actual_barlines)
             barlines = barlines[np.argsort(barlines[:, 0])]
 
@@ -86,3 +89,9 @@ def show_measure_peaks(page):
         rho = r * page.staff_thick
         p.plot([rho/np.cos(theta), (rho - 4096*np.sin(theta)) / np.cos(theta)],
              [0, 4096], 'y')
+
+def show_barlines(page):
+    import pylab as p
+    for start, end, barlines in page.barlines:
+        for x0, x1, y0, y1 in barlines:
+            p.plot([x0, x1], [y0, y1], 'y')

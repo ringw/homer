@@ -26,5 +26,5 @@ class Page:
         p.figure()
         p.imshow(np.unpackbits(self.img.get()).reshape((PAGE_SIZE, PAGE_SIZE)))
         staves.show_staff_centers(self)
-        #staffsystems.show_measure_peaks(self)
+        staffsystems.show_barlines(self)
         staffboundary.show_boundaries(self)

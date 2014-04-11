@@ -26,31 +26,16 @@ def staff_center_lines(page):
 
 def staves(page):
     lines = staff_center_lines(page)
-    # Lines should all correspond to a center line of a staff.
-    # Try to cluster with lines within 1 staff_dist and if a line could belong
-    # to multiple clusters, something has gone horribly wrong.
-    # Each cluster should then be one staff, so assign the longest segment
-    # from each cluster as a staff.
+    page.staves = hough.hough_paths(lines)
+    return page.staves
 
-    # Staff center line ys should be separated by a clear margin
-    # Using SciPy's hierarchical clustering for this is overkill
-    staff_ids = scipy.cluster.hierarchy.fclusterdata(
-                    np.mean(lines[:, 2:4], 1)[:, None],
-                    page.staff_dist,
-                    criterion="distance", method="complete")
-    num_staves = np.amax(staff_ids)
-    staves = []
-    for s in xrange(1, num_staves + 1):
-        staff_candidates = lines[staff_ids == s]
-        staff_width = staff_candidates[:, 1] - staff_candidates[:, 0]
-        staff = staff_candidates[np.argmax(staff_width)]
-        if staff[1] - staff[0] > page.img.shape[1] * 8 / 2:
-            staves.append(staff)
-    staves = np.array(staves)
-    staves = staves[np.argsort(staves[:, 2])]
-    page.staves = staves
-    return staves
-
+def show_staff_segments(page):
+    import pylab as p
+    staff_filt = np.unpackbits(page.staff_filt.get()).reshape((4096, -1))
+    staff_line_mask = np.ma.masked_where(staff_filt == 0, staff_filt)
+    p.imshow(staff_line_mask, cmap='Greens')
+    for x0, x1, y0, y1 in page.staff_center_lines:
+        p.plot([x0, x1], [y0, y1], 'g')
 def show_staff_centers(page):
     import pylab as p
     # Overlay staff line points
