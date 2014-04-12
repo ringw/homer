@@ -1,5 +1,5 @@
 from .opencl import *
-from . import hough, bitimage
+from . import hough, bitimage, filter
 import numpy as np
 import logging
 logger = logging.getLogger('systems')
@@ -17,14 +17,17 @@ def build_staff_system(page, staff0):
     rhores = page.staff_thick * 2
     # Round y0 down to nearest multiple of 8
     staff0min = min(page.staves[staff0, 2:4])
-    y0 = staff0min & -8
+    staff0min = max(0, staff0min - page.staff_dist * 2)
+    y0 = max(0, staff0min - page.staff_dist) & -8
     prev_measures = None
     staff1 = staff0 + 1 # start with single staff
     for staff1 in xrange(staff0 + 1, len(page.staves)):
         # Round y1 up to nearest multiple of 8
         staff1max = max(page.staves[staff1, 2:4])
-        y1 = -(-staff1max.astype(np.int32) & -8)
-        img_slice = page.staff_filt[y0:y1].copy()
+        staff1max = min(page.img.shape[0], staff1max + page.staff_dist * 2)
+        y1 = -(-min(page.img.shape[0], staff1max + page.staff_dist)
+                    .astype(np.int32) & -8)
+        img_slice = page.barline_filt[y0:y1].copy()
         # hough_line assumes almost horizontal lines so we need the transpose
         slice_T = bitimage.transpose(img_slice)
         slice_bins = hough_line_kernel(slice_T, rhores=rhores,
@@ -38,11 +41,11 @@ def build_staff_system(page, staff0):
         measure_rho = measure_peaks[:, 1]
         lines = hough_lineseg_kernel(slice_T, measure_rho, measure_theta,
                                      rhores=rhores,
-                                     max_gap=page.staff_space-page.staff_thick).get()
+                                     max_gap=page.staff_dist).get()
         is_barline = ((np.abs(lines[:, 0].astype(int) - (staff0min - y0))
-                            < page.staff_dist)
+                            < page.staff_dist // 2)
                       & (np.abs(lines[:, 1].astype(int) - (staff1max - y0))
-                            < page.staff_dist))
+                            < page.staff_dist // 2))
         new_barlines = lines[is_barline]
         if len(new_barlines):
             actual_barlines = hough.hough_paths(new_barlines)
@@ -61,6 +64,7 @@ def build_staff_system(page, staff0):
 
 def staff_systems(page):
     staff0 = 0
+    page.barline_filt = filter.barline_filter(page)
     page.barlines = []
     while staff0 < len(page.staves):
         staff0, staff1, barlines = build_staff_system(page, staff0)
