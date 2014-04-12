@@ -9,12 +9,12 @@ logger = logging.getLogger('systems')
 # and they start and end at the staff centers.
 # Start at the first two staff centers and find vertical lines, then try
 # to add more staves below until some of the lines don't span that far.
-HOUGH_THETAS = np.linspace(-np.pi/500, np.pi/500, 11)
+HOUGH_THETAS = np.linspace(-np.pi/100, np.pi/100, 11)
 def build_staff_system(page, staff0):
     barlines = np.zeros((0, 4))
     if staff0 + 1 == len(page.staves):
         return (staff0, staff0 + 1, barlines)
-    rhores = page.staff_thick * 2
+    rhores = page.staff_thick
     # Round y0 down to nearest multiple of 8
     staff0min = min(page.staves[staff0, 2:4])
     staff0min = max(0, staff0min - page.staff_dist * 2)
@@ -35,8 +35,7 @@ def build_staff_system(page, staff0):
                                        thetas=HOUGH_THETAS)
         max_bins = maximum_filter_kernel(slice_bins)
         measure_peaks = hough.houghpeaks(max_bins,
-                                         thresh=max_kernel(max_bins)/8.0,
-                                         invalidate=(page.staff_space // rhores, 3))
+                                         thresh=max_kernel(max_bins)/8.0)
         measure_theta = HOUGH_THETAS[measure_peaks[:, 0]]
         measure_rho = measure_peaks[:, 1]
         lines = hough_lineseg_kernel(slice_T, measure_rho, measure_theta,

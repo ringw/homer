@@ -17,7 +17,7 @@ def houghpeaks(H, npeaks=2000, thresh=1.0, invalidate=(1, 1)):
         tmin = max(0, t - (invalidate[1] // 2))
         tmax = min(H.shape[1], t - (-invalidate[1] // 2))
         Hmax[rmin:rmax, tmin:tmax] = 0
-    if npeaks is None:
+    if len(peaks) < npeaks:
         logging.info("houghpeaks returned %d peaks", len(peaks))
     return np.array(peaks).reshape((-1, 2))
 
