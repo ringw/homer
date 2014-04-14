@@ -64,7 +64,6 @@ def get_measure(page, staff, measure):
     y0 = page.boundaries[staff][:, 1].min() & -8
     # Round down staff end y
     y1 = -(-page.boundaries[staff+1][:, 1].max() & -8)
-    print x0,x1,y0,y1
 
     measure_pixel_size = (y1 - y0, (x1 - x0) // 8)
     measure_size = tuple(-(-i & -16) for i in measure_pixel_size)
