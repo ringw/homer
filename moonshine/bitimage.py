@@ -152,7 +152,7 @@ sum_byte_count = ReductionKernel(cx, np.uint32, neutral="0",
                     arguments="__global unsigned char *bytes",
                     preamble=strLUT)
 def count_bits(img):
-    return sum_byte_count(img).get()
+    return sum_byte_count(img).get().item()
 
 pixel_inds = GenericScanKernel(cx, np.uint32,
                     arguments="__global unsigned char *bytes, "
@@ -177,7 +177,7 @@ pixel_inds = GenericScanKernel(cx, np.uint32,
                     """,
                     preamble=strLUT)
 def pixel_where(img):
-    num_on = count_bits(img)
+    num_on = int(count_bits(img))
     inds = cla.empty(q, (num_on, 2), np.uint32)
     pixel_inds(img.reshape((img.shape[0] * img.shape[1],)),
                np.uint32(img.shape[1]),
