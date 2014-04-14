@@ -1,4 +1,7 @@
 from .opencl import *
+from pyopencl.elementwise import ElementwiseKernel
+from pyopencl.reduction import ReductionKernel
+from pyopencl.scan import GenericScanKernel
 
 prg = cl.Program(cx, """
 __kernel void transpose(__global const uchar *image,
@@ -74,6 +77,34 @@ __kernel void dilate(__global const uchar *image,
     
     output_image[x + w * y] = output_byte;
 }
+
+__kernel void border(__global const uchar *image,
+                     __global uchar *output_image) {
+    uint x = get_global_id(0);
+    uint y = get_global_id(1);
+    uint w = get_global_size(0);
+    uint h = get_global_size(1);
+
+    uchar input_byte = image[x + w * y];
+    uchar erosion = input_byte;
+    // Erode inner bits from left and right
+    erosion &= 0x80 | (input_byte >> 1);
+    erosion &= 0x01 | (input_byte << 1);
+
+    // Erode MSB from left and LSB from right
+    if (x > 0)
+        erosion &= 0x7F | (image[x-1 + w * y] << 7);
+    if (x < w - 1)
+        erosion &= 0xFE | (image[x+1 + w * y] >> 7);
+
+    // Erode from above and below
+    if (y > 0)
+        erosion &= image[x + w * (y-1)];
+    if (y < h - 1)
+        erosion &= image[x + w * (y+1)];
+    
+    output_image[x + w * y] = input_byte & ~erosion;
+}
 """).build()
 
 def transpose(img):
@@ -108,3 +139,47 @@ def opening(img, numiter=1):
     return dilate(erode(img, numiter), numiter)
 def closing(img, numiter=1):
     return erode(dilate(img, numiter), numiter)
+def border(img):
+    return repeat_kernel(img, prg.border, 1)
+
+# Create LUT and stringify into preamble of map kernel
+LUT = np.zeros(256, np.uint32)
+for b in xrange(8):
+    LUT[(np.arange(256) & (1 << b)) != 0] += 1
+strLUT = "constant uint LUT[256] = {" + ",".join(map(str, LUT)) + "};\n"
+sum_byte_count = ReductionKernel(cx, np.uint32, neutral="0",
+                    reduce_expr="a+b", map_expr="LUT[bytes[i]]",
+                    arguments="__global unsigned char *bytes",
+                    preamble=strLUT)
+def count_bits(img):
+    return sum_byte_count(img).get()
+
+pixel_inds = GenericScanKernel(cx, np.uint32,
+                    arguments="__global unsigned char *bytes, "
+                              "unsigned int image_w, "
+                              "__global unsigned int *pixels",
+                    # Keep count of pixels we have stored so far
+                    input_expr="LUT[bytes[i]]",
+                    scan_expr="a+b", neutral="0",
+                    output_statement="""
+                        uint pix_ind = prev_item;
+                        uchar byte = bytes[i];
+                        uchar mask = 0x80U;
+                        uint x = (i % image_w) * 8;
+                        uint y = i / image_w;
+                        for (int b = 7; b >= 0; b--) {
+                            if (byte & mask) {
+                                vstore2((uint2)(x, y), pix_ind++, pixels);
+                            }
+                            mask >>= 1;
+                            x++;
+                        }
+                    """,
+                    preamble=strLUT)
+def pixel_where(img):
+    num_on = count_bits(img)
+    inds = cla.empty(q, (num_on, 2), np.uint32)
+    pixel_inds(img.reshape((img.shape[0] * img.shape[1],)),
+               np.uint32(img.shape[1]),
+               inds)
+    return inds

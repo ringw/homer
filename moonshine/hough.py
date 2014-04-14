@@ -3,6 +3,7 @@ from pyopencl.algorithm import RadixSort
 from pyopencl.scan import GenericScanKernel
 import numpy as np
 import logging
+logger = logging.getLogger('hough')
 
 def houghpeaks(H, npeaks=2000, thresh=1.0, invalidate=(1, 1)):
     Hmax = maximum_filter_kernel(H).get()
@@ -18,7 +19,7 @@ def houghpeaks(H, npeaks=2000, thresh=1.0, invalidate=(1, 1)):
         tmax = min(H.shape[1], t - (-invalidate[1] // 2))
         Hmax[rmin:rmax, tmin:tmax] = 0
     if len(peaks) < npeaks:
-        logging.info("houghpeaks returned %d peaks", len(peaks))
+        logger.info("houghpeaks returned %d peaks", len(peaks))
     return np.array(peaks).reshape((-1, 2))
 
 uint4 = cl.tools.get_or_register_dtype('uint4')

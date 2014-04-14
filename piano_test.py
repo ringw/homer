@@ -3,6 +3,8 @@
 # This test can be used with any scores from IMSLP or other sources.
 
 import moonshine
+import moonshine.opencl
+import gc
 import sys
 
 PASS = 0
@@ -23,5 +25,9 @@ for path in sys.argv[1:]:
                     break
             else:
                 PASS += 1
+    moonshine.opencl.q.finish()
+    del score
+    del page
+    gc.collect()
 
 print PASS, "pages correct out of", TOTAL, str(float(PASS) / TOTAL * 100) + "%"
