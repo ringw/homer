@@ -160,7 +160,7 @@ __kernel void point2_random_choice(__global const int2 *points,
 }
 
 #define AXIS_MAX 64
-#define AXIS_THRESH 16
+#define AXIS_THRESH 128
 __kernel void hough_ellipse_center(__global const int4 *border_pairs,
                                    __global const int2 *border_points,
                                    uint num_points,
@@ -214,8 +214,11 @@ __kernel void hough_ellipse_center(__global const int4 *border_pairs,
         float2 p2f = convert_float2(p2);
         float dsquared = dot(center - p2f, center - p2f);
         float cosSquaredTau = pow(asquared + dsquared - d12, 2) / (4 * asquared * dsquared);
-        uint minor_axis = convert_uint_rtn(sqrt(asquared * dsquared * (1 - cosSquaredTau)
-                                        / (asquared - dsquared * cosSquaredTau)));
+        float bsquared = asquared * dsquared * (1 - cosSquaredTau)
+                                        / (asquared - dsquared * cosSquaredTau);
+        //if (asquared <= bsquared) // b must be minor axis
+        //    continue;
+        uint minor_axis = convert_uint_rtn(sqrt(bsquared));
         if (0 < minor_axis && minor_axis < AXIS_MAX)
             atomic_inc(&axis_acc[minor_axis]);
     }
@@ -253,7 +256,8 @@ seed = cla.to_device(q,
 def detect_ellipses(page, img=None):
     if img is None:
         img = page.img
-    img_nostaff = filter.remove_staff(page, img)
+    #img_nostaff = filter.remove_staff(page, img)
+    img_nostaff = bitimage.opening(img, 2)
     pixels = bitimage.pixel_where(bitimage.border(img_nostaff))
     pairs = cla.empty(q, (NUMPAIRS, 4), np.uint32)
     e=prg.point1_random_choice(q, (NUMPAIRS,), (16,),
@@ -267,9 +271,10 @@ def detect_ellipses(page, img=None):
     e=prg.point2_random_choice(q, (NUMPAIRS,), (16,),
                                 pixels.data, np.uint32(pixels.shape[0]),
                                 pairs.data,
-                                (np.array([page.staff_space,
-                                           -page.staff_space,
-                                           page.staff_space, page.staff_space/2],
+                                (np.array([page.staff_dist,
+                                           -page.staff_dist,
+                                           page.staff_dist,
+                                           page.staff_dist-1],
                                            np.int32)
                                    .view(int4)[0]),
                                 seed.data,
