@@ -54,6 +54,16 @@ def build_staff_system(page, staff0):
                 barlines = (actual_barlines[:, [2, 3, 0, 1]]
                                 + [0, 0, y0, y0])
 
+            # We should always have a barline at the start of the system
+            staff1max = max(page.staves[staff1-1, 2:4])
+            staff1max = min(page.img.shape[0], staff1max + page.staff_dist * 2)
+            staff_x0 = min(page.staves[staff0, [0,1]])
+            if (len(barlines)
+                and min(barlines[0, [0,1]]) - staff_x0 > page.staff_dist*4
+                and np.std(page.staves[staff0:staff1, 0]) < page.staff_thick*2):
+                barlines = np.concatenate([[[staff_x0, staff_x0,
+                                             staff0min, staff1max]],
+                                           barlines])
             staff1 += 1
         else:
             # Previously we only had one staff or else we had a staff system

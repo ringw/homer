@@ -21,6 +21,8 @@ def staffsize(page):
                             & (space_vals < 50)]
     if len(space_vals) == 0:
         logging.warn("No staves detected")
+        staff_space = None
+        staff_dist = None
     elif len(space_vals) == 1:
         staff_space = space_vals[0]
         staff_dist = staff_space + staff_thick
