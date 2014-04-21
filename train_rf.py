@@ -3,6 +3,7 @@ from sklearn.ensemble import RandomForestClassifier
 import moonshine
 from moonshine import staffsize, rotate
 import scipy.misc
+import scipy.ndimage
 import glob
 import os.path
 import cPickle
@@ -39,22 +40,27 @@ for labels in labeled_data:
     for label_type, label_name in COLOR_LABELS.iteritems():
         our_patches = []
         is_label = label_img[:, :, :3] == np.array([[label_type]])
+        # When scaling down, need to ensure each label pixel maps to some
+        # new pixel and isn't overwritten by the background
         label_y, label_x = np.where(is_label.all(axis=-1))
-        for x, y in zip(label_x, label_y):
-            x = int(x * image_scale)
-            y = int(y * image_scale)
-            xmin = max(PATCH_SIZE / 2, x - LABEL_SIZE / 2)
-            xmax = min(image.shape[1] - PATCH_SIZE / 2 - 1, x + LABEL_SIZE / 2)
-            ymin = max(PATCH_SIZE / 2, y - LABEL_SIZE / 2)
-            ymax = min(image.shape[0] - PATCH_SIZE / 2 - 1, y + LABEL_SIZE / 2)
-            for x_ in xrange(xmin, xmax):
-                for y_ in xrange(ymin, ymax):
-                    patch = image[y_ - PATCH_SIZE / 2 : y_ + PATCH_SIZE / 2 + 1,
-                                  x_ - PATCH_SIZE / 2 : x_ + PATCH_SIZE / 2 + 1]
-                    our_patches.append(patch.ravel())
-        patches = np.concatenate([patches, our_patches])
-        patch_labels += [label_name for i in our_patches]
-        num_label_patches += len(our_patches)
+        if len(label_y):
+            label_y = (label_y * image_scale).astype(int)
+            label_x = (label_x * image_scale).astype(int)
+            scale_label = np.zeros_like(image)
+            scale_label[label_y, label_x] = 1
+            scale_label = scipy.ndimage.binary_dilation(scale_label,
+                                    iterations=LABEL_SIZE / 2)
+            scale_label[:PATCH_SIZE / 2, :] = 0
+            scale_label[-PATCH_SIZE / 2 - 1:, :] = 0
+            scale_label[:, :PATCH_SIZE / 2] = 0
+            scale_label[:, -PATCH_SIZE / 2 - 1:] = 0
+            for y, x in np.c_[np.where(scale_label)]:
+                patch = image[y - PATCH_SIZE / 2 : y + PATCH_SIZE / 2 + 1,
+                              x - PATCH_SIZE / 2 : x + PATCH_SIZE / 2 + 1]
+                our_patches.append(patch.ravel())
+            patches = np.concatenate([patches, our_patches])
+            patch_labels += [label_name for i in our_patches]
+            num_label_patches += len(our_patches)
 
     # Find equal number of background patches
     bg_patches = []
