@@ -76,6 +76,6 @@ for labels in labeled_data:
     patches = np.concatenate([patches, bg_patches])
     patch_labels += ["background" for patch in bg_patches]
 
-rf = RandomForestClassifier()
+rf = RandomForestClassifier(n_estimators=8)
 rf.fit(patches, patch_labels)
 cPickle.dump(rf, open('classifier.pkl', 'wb'))

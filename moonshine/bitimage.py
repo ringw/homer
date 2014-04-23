@@ -22,6 +22,29 @@ __kernel void transpose(__global const uchar *image,
     image_T[x + w * y] = output_byte;
 }
 
+__kernel void scale_image(__global const uchar *input,
+                          float scale,
+                          uint inputWidth, uint inputHeight,
+                          __global uchar *output) {
+    uint x = get_global_id(0);
+    uint y = get_global_id(1);
+    uint input_y = convert_uint_rtn(y / scale);
+
+    uchar result = 0;
+    for (uint bit = 0; bit < 8; bit++) {
+        uint bit_x = x * 8 + bit;
+
+        uint input_x = convert_uint_rtn(bit_x / scale);
+        if (input_x < inputWidth*8 && input_y < inputHeight) {
+            uchar input_byte = input[input_x/8 + input_y * inputWidth];
+            int input_bit = input_x % 8;
+            result |= (((input_byte >> (7 - input_bit)) & 1) << (7 - bit));
+        }
+    }
+
+    output[x + y * get_global_size(0)] = result;
+}
+
 __kernel void erode(__global const uchar *image,
                     __global uchar *output_image) {
     uint x = get_global_id(0);
@@ -107,11 +130,29 @@ __kernel void border(__global const uchar *image,
 }
 """).build()
 
+prg.scale_image.set_scalar_arg_dtypes([
+    None, np.float32, np.uint32, np.uint32, None
+])
+
 def transpose(img):
     assert img.shape[0] % 8 == 0
     img_T = cla.zeros(q, (img.shape[1] * 8, img.shape[0] // 8), np.uint8)
     prg.transpose(q, img_T.shape[::-1], (1, 8), img.data, img_T.data).wait()
     return img_T
+
+def scale(img, scale, align=8):
+    """ Scale and round output dimension up to alignment """
+    out_h = -(-int(img.shape[0] * scale) & -align)
+    out_w = -(-int(img.shape[1] * scale) & -align)
+    print img.shape, scale, out_h, out_w
+    out_img = cla.zeros(q, (out_h, out_w), np.uint8)
+    prg.scale_image(q, out_img.shape[::-1], (8, 8),
+                       img.data,
+                       np.float32(scale),
+                       np.uint32(img.shape[1]),
+                       np.uint32(img.shape[0]),
+                       out_img.data).wait()
+    return out_img
 
 def repeat_kernel(img, kernel, numiter=1):
     temp_1 = cla.zeros_like(img)
