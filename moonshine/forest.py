@@ -91,6 +91,7 @@ class Forest:
     num_trees = None
     features = None
     children = None
+    classes = None
 
 def load_forest(path):
     classifier = cPickle.load(open(path, 'rb'))
@@ -126,6 +127,7 @@ def load_forest(path):
     f.num_trees = num_trees
     f.features = features
     f.children = children
+    f.classes = classifier.classes_
     return f
 
 def predict(forest, bitimg):
