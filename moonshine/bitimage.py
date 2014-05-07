@@ -144,7 +144,6 @@ def scale(img, scale, align=8):
     """ Scale and round output dimension up to alignment """
     out_h = -(-int(img.shape[0] * scale) & -align)
     out_w = -(-int(img.shape[1] * scale) & -align)
-    print img.shape, scale, out_h, out_w
     out_img = cla.zeros(q, (out_h, out_w), np.uint8)
     prg.scale_image(q, out_img.shape[::-1], (8, 8),
                        img.data,

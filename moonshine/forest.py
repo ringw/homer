@@ -3,8 +3,8 @@ from . import bitimage
 import cPickle
 
 prg = cl.Program(cx, """
-#define BLOCK_SIZE 17
-#define NUM_CLASSES 8
+#define BLOCK_SIZE 35
+#define NUM_CLASSES 16
 
 __kernel void run_forest(__global const uchar *image,
                          __local char *local_patch,
@@ -129,31 +129,34 @@ def load_forest(path):
     f.children = children
     f.classes = classifier.classes_
     return f
+classifier = load_forest('classifier.pkl')
 
 def predict(forest, bitimg):
     img_classes = cla.zeros(q, (bitimg.shape[0], bitimg.shape[1] * 8),
                                np.uint8)
-    local_size=8
+    local_w=8
+    local_h=4
     e=prg.run_forest(q, img_classes.shape[::-1] + (forest.num_trees,),
-                      (local_size, local_size, forest.num_trees),
+                      (local_w, local_h, forest.num_trees),
                       bitimg.data,
-                      cl.LocalMemory((local_size + 17) * (local_size + 17)),
+                      cl.LocalMemory((local_w + 35) * (local_h + 35)),
                       forest.features.data,
                       forest.children.data,
-                      cl.LocalMemory(4 * local_size * local_size * 8),
+                      cl.LocalMemory(4 * local_w * local_h * 16),
                       img_classes.data)
     e.wait()
-    print (e.profile.end-e.profile.start) / 10.0 ** 9
     return img_classes
 
-def scale_img(page):
+def scale_img(page, img=None):
     assert page.staff_dist >= 8
+    if img is None:
+        img = page.img
     scale = 8.0 / page.staff_dist
-    scaled_img = bitimage.scale(page.img, scale, align=64)
+    scaled_img = bitimage.scale(img, scale, align=64)
     return scaled_img, scale
 
-def classify(forest, page):
-    scaled_img, scale = scale_img(page)
+def classify(forest, page, img=None):
+    scaled_img, scale = scale_img(page, img=img)
     return predict(forest, scaled_img)
 
 if __name__ == '__main__':
@@ -175,8 +178,15 @@ if __name__ == '__main__':
             recurse(children[i,0])
             recurse(children[i,1])
     #recurse(0)
-    classes = classify(f, page)
-    from pylab import *
-    imshow(classes.get())
-    colorbar()
-    show()
+    scaled_img, scale = scale_img(page)
+    classes = predict(f, scaled_img)
+#    from pylab import *
+#    bw = np.zeros((scaled_img.shape[0], scaled_img.shape[1]*8, 3), np.uint8)
+#    bw[:] = np.where(np.unpackbits(scaled_img.get())
+#                       .reshape((scaled_img.shape[0], -1)), 0, 255)[:,:,None]
+#    imshow(bw)
+#    C = classes.get()
+#    imshow(C, alpha=0.5)
+#    show()
+    import moonshine.components
+    c,b,s = moonshine.components.get_components(classes)

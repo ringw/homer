@@ -1,6 +1,6 @@
 import numpy as np
 from .opencl import *
-from . import image, rotate, staffsize, staves, staffsystems, staffboundary
+from . import image, rotate, staffsize, staves, staffsystems, staffboundary, measure
 
 PAGE_SIZE = 4096
 
@@ -20,6 +20,7 @@ class Page:
         logging.info("detected %d staves", len(staves.staves(self)))
         logging.info("detected %d systems", len(staffsystems.staff_systems(self)))
         staffboundary.boundaries(self)
+        measure.build_bars(self)
 
     def show(self):
         import pylab as p
