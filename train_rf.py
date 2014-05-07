@@ -19,8 +19,15 @@ COLOR_LABELS = {
     (255, 0, 255): "natural",
     (0, 255, 255): "sharp"
 }
-PATCH_SIZE = 17
-LABEL_SIZE = 3
+PATCH_SIZE = 35
+LABEL_SIZE = 5
+SURROUND_SIZE = 5 # background around labeled pixels
+object_size = {
+    "treble_clef": 7,
+    "bass_clef": 7,
+    "small_treble_clef": 5,
+    "small_bass_clef": 5
+}
 
 labeled_data = glob.glob('labels/*.png')
 patches = np.zeros((0, PATCH_SIZE * PATCH_SIZE), np.bool)
@@ -48,8 +55,12 @@ for labels in labeled_data:
             label_x = (label_x * image_scale).astype(int)
             scale_label = np.zeros_like(image)
             scale_label[label_y, label_x] = 1
-            scale_label = scipy.ndimage.binary_dilation(scale_label,
-                                    iterations=LABEL_SIZE / 2)
+            size = LABEL_SIZE
+            if label_name in object_size:
+                size = object_size[label_name]
+            if size > 1:
+                scale_label = scipy.ndimage.binary_dilation(scale_label,
+                                        iterations=size / 2)
             scale_label[:PATCH_SIZE / 2, :] = 0
             scale_label[-PATCH_SIZE / 2 - 1:, :] = 0
             scale_label[:, :PATCH_SIZE / 2] = 0
@@ -58,9 +69,26 @@ for labels in labeled_data:
                 patch = image[y - PATCH_SIZE / 2 : y + PATCH_SIZE / 2 + 1,
                               x - PATCH_SIZE / 2 : x + PATCH_SIZE / 2 + 1]
                 our_patches.append(patch.ravel())
-            patches = np.concatenate([patches, our_patches])
-            patch_labels += [label_name for i in our_patches]
+                patch_labels.append(label_name)
             num_label_patches += len(our_patches)
+
+            if SURROUND_SIZE <= 1:
+                continue
+            surround_label = scipy.ndimage.binary_dilation(scale_label,
+                                        iterations=SURROUND_SIZE / 2)
+            surround_label &= ~ scale_label
+            surround_label[:PATCH_SIZE / 2, :] = 0
+            surround_label[-PATCH_SIZE / 2 - 1:, :] = 0
+            surround_label[:, :PATCH_SIZE / 2] = 0
+            surround_label[:, -PATCH_SIZE / 2 - 1:] = 0
+            for y, x in np.c_[np.where(surround_label)]:
+                patch = image[y - PATCH_SIZE / 2 : y + PATCH_SIZE / 2 + 1,
+                              x - PATCH_SIZE / 2 : x + PATCH_SIZE / 2 + 1]
+                our_patches.append(patch.ravel())
+                patch_labels.append('background')
+            num_label_patches += len(our_patches)
+
+            patches = np.concatenate([patches, our_patches])
 
     # Find equal number of background patches
     bg_patches = []
@@ -75,7 +103,9 @@ for labels in labeled_data:
             bg_patches.append(patch.ravel())
     patches = np.concatenate([patches, bg_patches])
     patch_labels += ["background" for patch in bg_patches]
+print len(patches), "patches"
 
-rf = RandomForestClassifier(n_estimators=8)
+rf = RandomForestClassifier(n_estimators=32, min_samples_split=64,
+                            min_samples_leaf=8)
 rf.fit(patches, patch_labels)
 cPickle.dump(rf, open('classifier.pkl', 'wb'))

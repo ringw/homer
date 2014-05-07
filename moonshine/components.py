@@ -7,7 +7,6 @@ prg = cl.Program(cx, """
 
 inline void uf_union(global volatile int *tree,
                      int n1, int n2) {
-    //int path1 = 0, path2 = 0;
     int parent, child; // child is root of tree being merged with parent
     do {
         int p1 = n1, p2 = n2; // Parent of current node
@@ -16,12 +15,10 @@ inline void uf_union(global volatile int *tree,
             n2 = p2;
             p1 = tree[n1];
             p2 = tree[n2];
-            //if (p1 != n1) path1++;
-            //if (p2 != n2) path2++;
         } while (! ((p1 == n1) && (p2 == n2)));
 
         // Make the parent always have the lower pixel position
-        // This may devolve into a linked list
+        // The tree is probably very unbalanced but it's fast enough
         parent = n1 < n2 ? n1 : n2;
         child  = n1 < n2 ? n2 : n1;
     } while (atomic_cmpxchg(&tree[child], child, parent) != child);
@@ -85,7 +82,10 @@ kernel void init_component_bounds(global int *component_bounds,
     component_bounds[component_num * 4 + 2] = image_size.y;
     component_bounds[component_num * 4 + 3] = 0;
 }
-kernel void component_info(global const int *pixel_tree,
+
+kernel void component_info(global const uchar *classes,
+                           global const int *pixel_tree,
+                           global uchar *component_classes,
                            global volatile int *component_bounds,
                            global volatile int *component_sums) {
     int x = get_global_id(0);
@@ -103,6 +103,11 @@ kernel void component_info(global const int *pixel_tree,
         parent = pixel_tree[root];
     } while (parent >= 0);
     int component_num = -1 - parent;
+
+    if (root == id) {
+        // We started at the root, so this worker updates the component class
+        component_classes[component_num] = classes[id];
+    }
 
     atomic_min(&component_bounds[component_num * 4 + 0], x);
     atomic_max(&component_bounds[component_num * 4 + 1], x);
@@ -124,13 +129,14 @@ def get_components(classes_img):
     prg.count_components(q, pixel_tree.shape[::-1], (8,8),
                          pixel_tree.data, num_components.data)
     num_components = int(num_components.get()[0])
-    print num_components, 'components'
     bounds = cla.empty(q, (num_components, 4), np.int32)
     prg.init_component_bounds(q, (num_components,), (1,),
                               bounds.data,
                               np.array(classes_img.shape[::-1],
                                        np.int32).view(int2)[0]).wait()
+    classes = cla.zeros(q, num_components, np.uint8)
     sums = cla.zeros(q, num_components, np.int32)
     prg.component_info(q, pixel_tree.shape[::-1], (8, 8),
-                       pixel_tree.data, bounds.data, sums.data)
-    return bounds, sums
+                       classes_img.data, pixel_tree.data,
+                       classes.data, bounds.data, sums.data)
+    return classes, bounds, sums

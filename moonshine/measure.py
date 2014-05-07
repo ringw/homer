@@ -81,4 +81,37 @@ def get_measure(page, staff, measure):
                         measure.data,
                         np.array([x0 // 8, y0] + list(measure_size[::-1]),
                                  np.uint32).view(uint4)[0]).wait()
-    return measure
+    return measure, (x0, x1, y0, y1)
+
+class Measure:
+    page = None
+    staff_num = None
+    measure_num = None
+    image = None
+    bounds = None
+    start_pitch = None # Set to clef and key signature of previous measure
+    pitch_elements = None
+    final_pitch = None # Final clef and key signature after this measure
+    def __init__(self, page, staff_num, measure_num):
+        self.page = page
+        self.staff_num = staff_num
+        self.measure_num = measure_num
+        self.page_staff_y = page.staves[staff_num, [2,3]].sum()/2.0
+
+    def get_image(self):
+        if self.image is None:
+            self.image, self.bounds = get_measure(self.page,
+                                            self.staff_num, self.measure_num)
+            self.staff_y = self.page_staff_y - self.bounds[2]
+        return self.image
+def build_bars(page):
+    bars = []
+    for start, end, barlines in page.barlines:
+        bar = []
+        for measure in xrange(len(barlines) - 1):
+            m = []
+            for staff in xrange(start, end):
+                m.append(Measure(page, staff, measure))
+            bar.append(m)
+        bars.append(bar)
+    page.bars = bars

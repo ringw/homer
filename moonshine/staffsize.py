@@ -12,9 +12,11 @@ def staffsize(page):
     staff_thick = np.argmax(dark_run)
     if staff_thick > 5:
         logging.warn("Unreasonable staff_thick value: " + str(staff_thick))
+        page.staff_thick = page.staff_space = page.staff_dist = None
+        #return None
 
     # Multiple staff space sizes are possible for different instruments
-    space = light_run > light_run.max() / 2.0
+    space = light_run > light_run.max() / 5.0
     space_label, num_spaces = util.label_1d(space)
     space_vals = np.rint(util.center_of_mass_1d(space_label)).astype(int)
     space_vals = space_vals[(staff_thick * 2 < space_vals)
