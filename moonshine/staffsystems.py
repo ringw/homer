@@ -43,8 +43,8 @@ def build_staff_system(page, staff0):
                                      max_gap=page.staff_dist).get()
         is_barline = ((np.abs(lines[:, 0].astype(int) - (staff0min - y0))
                             < page.staff_dist // 2)
-                      & (np.abs(lines[:, 1].astype(int) - (staff1max - y0))
-                            < page.staff_dist // 2))
+                      & ((lines[:, 1].astype(int) - (staff1max - y0))
+                            > -page.staff_dist // 2))
         new_barlines = lines[is_barline]
         if len(new_barlines):
             actual_barlines = hough.hough_paths(new_barlines)
