@@ -1,6 +1,7 @@
 from .opencl import *
 from moonshine import forest, components, music
 import copy
+import music21
 
 CMAJOR = dict((n + 'n', n + 'n') for n in list('abcdefg'))
 class PitchState:
@@ -16,6 +17,7 @@ class PitchState:
 
 def get_musical_elements(page, measure):
     classes = forest.classify(forest.classifier, page, measure.get_image())
+    measure.classes_img = classes
     comp_class, comp_bounds, comp_sum = components.get_components(classes)
     comp_class = comp_class.get()
     comp_bounds = comp_bounds.get()
@@ -31,7 +33,9 @@ def get_musical_elements(page, measure):
                     'treble_clef', 'bass_clef',
                     'small_treble_clef', 'small_bass_clef']:
         is_class = comp_class == list(forest.classifier.classes).index(element)
-        elements = is_class & is_blob & (comp_sum >= comp_rect_size*0.5)
+        elements = is_class & is_blob #& (#comp_sum >= comp_rect_size*0.25)
+            #np.abs(component_size[:,0] - component_size[:,1])
+                #< np.max(component_size,axis=1) / 2.0)
         for elem_ind in np.where(elements)[0]:
             x, y = component_center[elem_ind]
             x = np.rint(x).astype(int)
@@ -64,11 +68,11 @@ def parse_notepitches(page, measure, update_keysig=False):
                     raise Exception("Clef must be at start of staff")
                 if elem == 'treble_clef':
                     if line != -2:
-                        raise Exception("Treble clef is in an unusual place")
+                        print("Treble clef is in an unusual place")
                     measure.pitch.clef = PitchState.TREBLE
                 elif elem == 'bass_clef':
                     if line != 2:
-                        raise Exception("Bass clef is in an unusual place")
+                        print("Bass clef is in an unusual place")
                     measure.pitch.clef = PitchState.BASS
 
             note = music.clef_note(measure.pitch.clef, line)
@@ -124,7 +128,7 @@ def parse_notepitches(page, measure, update_keysig=False):
     measure.notepitches = pitches
     return pitches
 
-def get_notes(page):
+def get_notepitches(page):
     for bar in page.bars:
         # Get each measure from one staff in an array
         for staff in zip(*bar):
@@ -135,3 +139,27 @@ def get_notes(page):
                 parse_notepitches(page, measure, update_keysig=(m==0))
                 sig = copy.deepcopy(measure.pitch)
                 sig.measure_key = sig.piece_key
+
+def get_notepitch_score(page):
+    # Parts must be consistent for each system
+    assert (np.diff([end - start for (start, end, bars) in page.barlines]) == 0).all()
+
+    get_notepitches(page)
+
+    doc = music21.stream.Stream()
+    for part_num in xrange(page.barlines[0][1] - page.barlines[0][0]):
+        print part_num
+        part = music21.stream.Part()
+        for bar in page.bars:
+            staff = [measure[part_num] for measure in bar]
+            print staff
+            for m in staff:
+                print m
+                pitchMeasure = music21.stream.Measure()
+                if hasattr(m, 'notepitches'):
+                    for notePitch in m.notepitches:
+                        note = music21.note.Note(notePitch.pitch)
+                        pitchMeasure.append(note)
+                part.append(pitchMeasure)
+        doc.insert(0, part)
+    return doc

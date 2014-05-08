@@ -1,15 +1,19 @@
-# moonshine
+# Moonshine
 Fast, robust optical music recognition using OpenCL
 
 ## Example
     python -m moonshine samples/sonata.png
 
-There will eventually be an option to output MusicXML or other data extracted
-from the score. Currently, this just detects staves and measures and overlays
+Currently, this just detects staves and measures and overlays
 the result with the image using matplotlib.
+
+Work is in progress to output music using Music21. Currently, this does
+not include any timing information within each measure, since we aren't yet
+classifying note stems, beams, or dots.
 
 ## Features
 * Robust staff detection
+* Random forest classification
 
 ## Goals
 * Accurately detecting page layout (staves and measures) on noisy images
@@ -24,3 +28,4 @@ the result with the image using matplotlib.
 * PyOpenCL
 * Pillow, PyPDF, pylibtiff (PDF loading)
 * Pylab (drawing)
+* Music21
