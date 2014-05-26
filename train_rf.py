@@ -11,13 +11,17 @@ import cPickle
 COLOR_LABELS = {
     (255, 0, 0): "empty_note",
     (0, 0, 255): "filled_note",
+
     (1, 0, 0): "treble_clef",
     (2, 0, 0): "small_treble_clef",
     (3, 0, 0): "bass_clef",
     (4, 0, 0): "small_bass_clef",
+
     (255, 255, 0): "flat",
     (255, 0, 255): "natural",
-    (0, 255, 255): "sharp"
+    (0, 255, 255): "sharp",
+
+    (200, 200, 0): "beam",
 }
 PATCH_SIZE = 35
 LABEL_SIZE = 5
@@ -26,7 +30,8 @@ object_size = {
     "treble_clef": 7,
     "bass_clef": 7,
     "small_treble_clef": 5,
-    "small_bass_clef": 5
+    "small_bass_clef": 5,
+    "beam": 1
 }
 
 labeled_data = glob.glob('labels/*.png')
