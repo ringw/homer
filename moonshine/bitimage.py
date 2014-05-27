@@ -3,6 +3,11 @@ from pyopencl.elementwise import ElementwiseKernel
 from pyopencl.reduction import ReductionKernel
 from pyopencl.scan import GenericScanKernel
 
+def as_bitimage(img):
+    return cla.to_device(np.packbits(img).reshape((img.shape[0], -1)))
+def as_hostimage(img):
+    return np.unpackbits(img.get()).reshape((img.shape[0], -1))
+
 prg = cl.Program(cx, """
 __kernel void transpose(__global const uchar *image,
                         __global uchar *image_T) {
