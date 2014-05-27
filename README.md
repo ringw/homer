@@ -2,10 +2,11 @@
 Fast, robust optical music recognition using OpenCL
 
 ## Example
-    python -m moonshine samples/sonata.png
+    python test_structure.py samples/sonata.png
 
-Currently, this just detects staves and measures and overlays
-the result with the image using matplotlib.
+This detects structural information about the score
+(staves, measures, and staff systems)
+and overlays the result with the image using matplotlib.
 
 Work is in progress to output music using Music21. Currently, this does
 not include any timing information within each measure, since we aren't yet
@@ -27,5 +28,5 @@ classifying note stems, beams, or dots.
 * NumPy
 * PyOpenCL
 * Pillow, PyPDF, pylibtiff (PDF loading)
-* Pylab (drawing)
+* Pylab (displaying structure)
 * Music21
