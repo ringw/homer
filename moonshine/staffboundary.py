@@ -1,39 +1,41 @@
 from .opencl import *
 import numpy as np
 
-prg = cl.Program(cx, """
-#define X (0)
-#define Y (1)
-__kernel void scaled_bitmap_to_int_array(__global const uchar *input,
-                          float scale,
-                          uint inputWidth, uint inputHeight,
-                          uint zeroVal, uint oneVal,
-                          __global uint *output) {
-    uint x = get_global_id(X);
-    uint y = get_global_id(Y);
-
-    // Search a square area of the input, if any pixels are on set the
-    // output pixel to oneVal
-    uint input_x0 = convert_uint_rtn(x * scale),
-         input_x1 = convert_uint_rtn((x+1) * scale),
-         input_y0 = convert_uint_rtn(y * scale),
-         input_y1 = convert_uint_rtn((y+1) * scale);
-    uint output_val = zeroVal;
-    for (int input_x = input_x0; input_x < input_x1; input_x++)
-        for (int input_y = input_y0; input_y < input_y1; input_y++)
-            if (input_x < inputWidth*8 && input_y < inputHeight) {
-                uchar input_byte = input[input_x/8 + input_y * inputWidth];
-                int input_bit = input_x % 8;
-                if ((input_byte >> (7 - input_bit)) & 1)
-                    output_val = oneVal;
-            }
-
-    output[x + y * get_global_size(X)] = output_val;
-}
-""").build()
+prg = build_program(["boundary", "scaled_bitmap_to_int_array",
+                     "taxicab_distance"])
+prg.boundary_cost.set_scalar_arg_dtypes([
+    None, # float distance transform
+    np.uint32, # image width
+    np.uint32, np.uint32, np.uint32, # y0, ystep, numy
+    np.uint32, np.uint32, np.uint32, # x0, xstep, numx
+    None # output costs
+])
 prg.scaled_bitmap_to_int_array.set_scalar_arg_dtypes([
     None, np.float32, np.uint32, np.uint32, np.uint32, np.uint32, None
 ])
+
+def boundary_cost_kernel(dist, y0, ystep, y1, x0, xstep, x1):
+    numy = int(y1 - y0) // ystep
+    numx = int(x1 - x0) // xstep
+    costs = cla.zeros(q, (numx, numy, numy), np.float32)
+    prg.boundary_cost(q, (numx, numy, numy), (1, 1, 1),
+                                  dist.data,
+                                  np.uint32(dist.shape[0]),
+                                  np.uint32(y0),
+                                  np.uint32(ystep),
+                                  np.uint32(numy),
+                                  np.uint32(x0),
+                                  np.uint32(xstep),
+                                  np.uint32(numx),
+                                  costs.data).wait()
+    return costs
+
+def distance_transform_kernel(img, numiters=64):
+    for i in xrange(numiters):
+        e = prg.taxicab_distance_step(q, img.shape[::-1],
+                                                          (16, 32),
+                                                          img.data)
+    e.wait()
 
 DT_SCALE = 2.0
 def distance_transform(page):

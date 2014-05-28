@@ -1,4 +1,5 @@
 from .opencl import *
+from .cl_util import maximum_filter_kernel, max_kernel
 from . import hough, bitimage, filter
 import numpy as np
 import logging
@@ -30,7 +31,7 @@ def build_staff_system(page, staff0):
         img_slice = page.barline_filt[y0:y1].copy()
         # hough_line assumes almost horizontal lines so we need the transpose
         slice_T = bitimage.transpose(img_slice)
-        slice_bins = hough_line_kernel(slice_T, rhores=rhores,
+        slice_bins = hough.hough_line_kernel(slice_T, rhores=rhores,
                                        numrho=slice_T.shape[0] // rhores,
                                        thetas=HOUGH_THETAS)
         max_bins = maximum_filter_kernel(slice_bins)
@@ -38,7 +39,7 @@ def build_staff_system(page, staff0):
                                          thresh=max_kernel(max_bins)/8.0)
         measure_theta = HOUGH_THETAS[measure_peaks[:, 0]]
         measure_rho = measure_peaks[:, 1]
-        lines = hough_lineseg_kernel(slice_T, measure_rho, measure_theta,
+        lines = hough.hough_lineseg_kernel(slice_T, measure_rho, measure_theta,
                                      rhores=rhores,
                                      max_gap=page.staff_dist).get()
         is_barline = ((np.abs(lines[:, 0].astype(int) - (staff0min - y0))
