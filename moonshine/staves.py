@@ -1,13 +1,27 @@
 from .opencl import *
 from . import hough
+from .cl_util import max_kernel
 import numpy as np
+
+prg = build_program("staffpoints")
+prg.staffpoints.set_scalar_arg_dtypes([
+    None, # input image
+    np.uint32, # staff_dist
+    None # output image
+])
+
+def staffpoints_kernel(img, dist):
+    staff = cla.zeros_like(img)
+    prg.staffpoints(q, img.shape[::-1], (8, 8),
+                                img.data, np.uint32(dist), staff.data).wait()
+    return staff
 
 def staff_center_lines(page):
     staff_filt = staffpoints_kernel(page.img, page.staff_dist)
     page.staff_filt = staff_filt
     thetas = np.linspace(-np.pi/500, np.pi/500, 51)
     rhores = page.staff_thick*2
-    page.staff_bins = hough_line_kernel(staff_filt, rhores=rhores, numrho=page.img.shape[0] // rhores, thetas=thetas)
+    page.staff_bins = hough.hough_line_kernel(staff_filt, rhores=rhores, numrho=page.img.shape[0] // rhores, thetas=thetas)
     # Some staves may have multiple Hough peaks so we need to take many more
     # peaks than the number of staves. Also, the strongest Hough response
     # doesn't always correspond to the longest segment, so we need many peaks
@@ -17,7 +31,7 @@ def staff_center_lines(page):
     peaks = hough.houghpeaks(page.staff_bins, thresh=max_kernel(page.staff_bins)/4.0)
     page.staff_peak_theta = thetas[peaks[:, 0]]
     page.staff_peak_rho = peaks[:, 1]
-    lines = hough_lineseg_kernel(staff_filt,
+    lines = hough.hough_lineseg_kernel(staff_filt,
                                  page.staff_peak_rho, page.staff_peak_theta,
                                  rhores=rhores, max_gap=page.staff_dist*2).get()
     page.staff_center_lines = lines

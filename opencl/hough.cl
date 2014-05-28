@@ -150,3 +150,72 @@ __kernel void hough_lineseg(__global const uchar *image,
                                    y0 - sin_theta * max_end);
     }
 }
+
+#define MIN(a,b) (((a)<(b)) ? (a) : (b))
+#define MAX(a,b) (((a)>(b)) ? (a) : (b))
+
+// Sort hough line segments before using.
+// Set can_join to 1 if the segment should be considered part of the same
+// staff or barline as the previous segment. This is prefix summed
+// to get unique ids for each staff.
+__kernel void can_join_segments(__global const int4 *segments,
+                                __global int *can_join,
+                                int threshold) {
+    uint i = get_global_id(0);
+    if (i == 0)
+        can_join[i] = 0;
+    else
+        can_join[i] = abs(MIN(segments[i].s2, segments[i].s3)
+                            - MAX(segments[i-1].s2, segments[i-1].s3))
+                            > threshold
+                    ? 1 : 0;
+}
+
+#pragma OPENCL EXTENSION cl_khr_int64_base_atomics: enable
+// Assign longest segment for each label atomically.
+// Everything should be a ushort4 to allow atomic operations on long values.
+__kernel void assign_segments(__global const ushort4 *segments,
+                              __global const int *labels,
+                              __global volatile ushort4 *longest) {
+    uint i = get_global_id(0);
+    ushort4 seg = segments[i];
+    float4 segf = convert_float4(seg);
+    // Get length of segment from dot product
+    float dx = dot(segf, (float4)(-1, 1, 0, 0));
+    float dy = dot(segf, (float4)(0, 0, -1, 1));
+    float seg_length = dot((float2)(dx, dy), (float2)(dx, dy));
+    int label = labels[i];
+    union {
+        ushort4 s;
+        ulong l;
+    } seg_u, old_u;
+    seg_u.s = seg;
+    do {
+        ushort4 longest_seg = longest[label];
+        segf = convert_float4(longest_seg);
+        dx = dot(segf, (float4)(-1, 1, 0, 0));
+        dy = dot(segf, (float4)(0, 0, -1, 1));
+        float longest_length = dot((float2)(dx, dy), (float2)(dx, dy));
+        if (longest_length >= seg_length)
+            break;
+        old_u.s = longest_seg;
+    } while (atom_cmpxchg((__global volatile ulong *)&longest[label],
+                          old_u.l, seg_u.l) != old_u.l);
+}
+
+// See if we can extend each initial Hough segment with another
+// almost-parallel segment to increase its length.
+__kernel void extend_lines(__global const ushort4 *segments,
+                           __global const ushort4 *initial_segment,
+                           __global const int *labels,
+                           __global volatile ushort4 *extension) {
+    uint i = get_global_id(0);
+    union {
+        ushort4 s;
+        ulong l;
+    } seg_u, old_u;
+    seg_u.s = segments[i];
+    float4 seg = convert_float4(seg_u.s);
+    int label = labels[i];
+    old_u.s = initial_segment[i];
+}

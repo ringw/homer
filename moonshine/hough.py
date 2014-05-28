@@ -1,9 +1,72 @@
 from .opencl import *
+from .cl_util import maximum_filter_kernel
 from pyopencl.algorithm import RadixSort
 from pyopencl.scan import GenericScanKernel
 import numpy as np
 import logging
 logger = logging.getLogger('hough')
+
+prg = build_program("hough")
+prg.hough_line.set_scalar_arg_dtypes([
+    None, # input image
+    np.uint32, # image_w
+    np.uint32, # image_h
+    np.int32, # rhores
+    None, # cos(theta)
+    None, # sin(theta)
+    None, # LocalMemory of size 4*local_size
+    None, # output bins int32 of size (len(theta), numrho)
+])
+prg.hough_lineseg.set_scalar_arg_dtypes([
+    None, # input image
+    np.uint32, # image_w
+    np.uint32, # image_h
+    None, # rho values
+    np.uint32, # rhores
+    None, # cos(theta)
+    None, # sin(theta)
+    np.uint32, # max_gap
+    None, # LocalMemory of size >= 4 * sqrt((8*image_w)^2 + image_h^2)
+    None, # output line segments shape (numlines, 4)
+])
+prg.can_join_segments.set_scalar_arg_dtypes([
+    None, None, np.uint32
+])
+uint4 = cl.tools.get_or_register_dtype('uint4')
+
+def hough_line_kernel(img, rhores, numrho, thetas, num_workers=32):
+    cos_thetas = cla.to_device(q, np.cos(thetas).astype(np.float32))
+    sin_thetas = cla.to_device(q, np.sin(thetas).astype(np.float32))
+    bins = cla.zeros(q, (len(thetas), numrho), np.float32)
+    temp = cl.LocalMemory(4 * num_workers)
+    prg.hough_line(q, (int(numrho * num_workers), len(thetas)),
+                                 (num_workers, 1),
+                                 img.data,
+                                 np.uint32(img.shape[1]),
+                                 np.uint32(img.shape[0]),
+                                 np.uint32(rhores),
+                                 cos_thetas.data, sin_thetas.data,
+                                 temp,
+                                 bins.data).wait()
+    return bins
+
+def hough_lineseg_kernel(img, rhos, thetas, rhores=1, max_gap=0):
+    device_rhos = cla.to_device(q, rhos.astype(np.uint32))
+    cos_thetas = cla.to_device(q, np.cos(thetas).astype(np.float32))
+    sin_thetas = cla.to_device(q, np.sin(thetas).astype(np.float32))
+    segments = cla.zeros(q, (len(rhos), 4), np.uint32)
+    temp = cl.LocalMemory(img.shape[0]*8 + img.shape[1])
+    prg.hough_lineseg(q, (len(rhos),), (1,),
+                                    img.data,
+                                    np.uint32(img.shape[1]),
+                                    np.uint32(img.shape[0]),
+                                    device_rhos.data,
+                                    np.uint32(rhores),
+                                    cos_thetas.data, sin_thetas.data,
+                                    temp,
+                                    np.uint32(max_gap),
+                                    segments.data).wait()
+    return segments
 
 def houghpeaks(H, npeaks=2000, thresh=1.0, invalidate=(1, 1)):
     Hmax = maximum_filter_kernel(H).get()
@@ -22,7 +85,6 @@ def houghpeaks(H, npeaks=2000, thresh=1.0, invalidate=(1, 1)):
         logger.info("houghpeaks returned %d peaks", len(peaks))
     return np.array(peaks).reshape((-1, 2))
 
-uint4 = cl.tools.get_or_register_dtype('uint4')
 sort_segments = RadixSort(cx, "__global const uint4 *segments",
                               "segments[i].s2", # sort by y0
                               ["segments"],
@@ -35,79 +97,6 @@ cumsum = GenericScanKernel(cx, np.int32,
                                output_statement="""
                                     labels[i] = item;
                                """)
-prg = cl.Program(cx, """
-#define MIN(a,b) (((a)<(b)) ? (a) : (b))
-#define MAX(a,b) (((a)>(b)) ? (a) : (b))
-
-// Sort hough line segments before using.
-// Set can_join to 1 if the segment should be considered part of the same
-// staff or barline as the previous segment. This is prefix summed
-// to get unique ids for each staff.
-__kernel void can_join_segments(__global const int4 *segments,
-                                __global int *can_join,
-                                int threshold) {
-    uint i = get_global_id(0);
-    if (i == 0)
-        can_join[i] = 0;
-    else
-        can_join[i] = abs(MIN(segments[i].s2, segments[i].s3)
-                            - MAX(segments[i-1].s2, segments[i-1].s3))
-                            > threshold
-                    ? 1 : 0;
-}
-
-#pragma OPENCL EXTENSION cl_khr_int64_base_atomics: enable
-// Assign longest segment for each label atomically.
-// Everything should be a ushort4 to allow atomic operations on long values.
-__kernel void assign_segments(__global const ushort4 *segments,
-                              __global const int *labels,
-                              __global volatile ushort4 *longest) {
-    uint i = get_global_id(0);
-    ushort4 seg = segments[i];
-    float4 segf = convert_float4(seg);
-    // Get length of segment from dot product
-    float dx = dot(segf, (float4)(-1, 1, 0, 0));
-    float dy = dot(segf, (float4)(0, 0, -1, 1));
-    float seg_length = dot((float2)(dx, dy), (float2)(dx, dy));
-    int label = labels[i];
-    union {
-        ushort4 s;
-        ulong l;
-    } seg_u, old_u;
-    seg_u.s = seg;
-    do {
-        ushort4 longest_seg = longest[label];
-        segf = convert_float4(longest_seg);
-        dx = dot(segf, (float4)(-1, 1, 0, 0));
-        dy = dot(segf, (float4)(0, 0, -1, 1));
-        float longest_length = dot((float2)(dx, dy), (float2)(dx, dy));
-        if (longest_length >= seg_length)
-            break;
-        old_u.s = longest_seg;
-    } while (atom_cmpxchg((__global volatile ulong *)&longest[label],
-                          old_u.l, seg_u.l) != old_u.l);
-}
-
-// See if we can extend each initial Hough segment with another
-// almost-parallel segment to increase its length.
-__kernel void extend_lines(__global const ushort4 *segments,
-                           __global const ushort4 *initial_segment,
-                           __global const int *labels,
-                           __global volatile ushort4 *extension) {
-    uint i = get_global_id(0);
-    union {
-        ushort4 s;
-        ulong l;
-    } seg_u, old_u;
-    seg_u.s = segments[i];
-    float4 seg = convert_float4(seg_u.s);
-    int label = labels[i];
-    old_u.s = initial_segment[i];
-}
-""").build()
-prg.can_join_segments.set_scalar_arg_dtypes([
-    None, None, np.uint32
-])
 
 def hough_paths(segments, line_dist=40):
     # View segments as a 1D structured array
