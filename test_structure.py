@@ -1,9 +1,16 @@
 import moonshine
-
+import argparse
 import logging
 logging.basicConfig(level=logging.INFO)
 
-args = moonshine.parser.parse_args()
+parser = argparse.ArgumentParser()
+parser.add_argument("-p", "--page", type=int)
+parser.add_argument("-s", "--show", dest="show", action="store_true")
+parser.add_argument("-S", "--no-show", dest="show", action="store_false")
+parser.set_defaults(show=True)
+parser.add_argument("path", type=str, help="path to scanned music")
+
+args = parser.parse_args()
 score = moonshine.open(args.path)
 if args.page is None:
     for page in score:

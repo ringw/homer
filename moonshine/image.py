@@ -8,7 +8,7 @@ import numpy as np
 try:
   from .pdfimage import pdf_to_images
 except ImportError:
-  print "PDF import disabled; please install pylibtiff"
+  print("PDF import disabled; please install pylibtiff")
   pdf_to_images = None
 
 IMAGE_MAX_SIZE = 4096
