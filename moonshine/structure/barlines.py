@@ -34,3 +34,8 @@ def staff_barlines(page, staff_num):
     labels, num_labels = util.label_1d(is_barline)
     barlines = np.rint(util.center_of_mass_1d(labels)).astype(int)
     return barlines
+
+def get_barlines(page):
+    page.barlines = [staff_barlines(page, i)
+                     for i in xrange(len(page.staves))]
+    return page.barlines

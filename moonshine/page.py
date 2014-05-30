@@ -1,6 +1,6 @@
 import numpy as np
 from .opencl import *
-from . import image, rotate, staffsize, staves, staffsystems, staffboundary, measure
+from . import image, preprocessing, structure, measure
 
 PAGE_SIZE = 4096
 
@@ -15,15 +15,13 @@ class Page:
         self.img = cla.to_device(q, self.bitimg)
 
     def process(self):
-        logging.info("rotate by %f", rotate.rotate(self))
-        logging.info("staffsize %s", str(staffsize.staffsize(self)))
-        logging.info("detected %d staves", len(staves.staves(self)))
-        logging.info("detected %d systems", len(staffsystems.staff_systems(self)))
-        staffboundary.boundaries(self)
+        preprocessing.process(self)
+        structure.process(self)
         measure.build_bars(self)
 
     def show(self):
         import pylab as p
+        from structure import staves, staffsystems, staffboundary
         p.figure()
         p.imshow(np.unpackbits(self.img.get()).reshape((PAGE_SIZE, PAGE_SIZE)))
         staves.show_staff_centers(self)

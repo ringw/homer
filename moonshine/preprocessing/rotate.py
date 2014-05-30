@@ -1,6 +1,6 @@
 import numpy as np
-from .opencl import *
-from . import hough
+from ..opencl import *
+from .. import hough
 
 prg = build_program("rotate")
 prg.rotate_image.set_scalar_arg_dtypes([

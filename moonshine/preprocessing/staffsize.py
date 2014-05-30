@@ -1,5 +1,5 @@
-from .opencl import *
-from . import util
+from ..opencl import *
+from .. import util
 import numpy as np
 import logging
 
