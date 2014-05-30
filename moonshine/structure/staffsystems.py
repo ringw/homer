@@ -1,6 +1,6 @@
-from .opencl import *
-from .cl_util import maximum_filter_kernel, max_kernel
-from . import hough, bitimage, filter
+from ..opencl import *
+from ..cl_util import maximum_filter_kernel, max_kernel
+from .. import hough, bitimage, filter
 import numpy as np
 import logging
 logger = logging.getLogger('systems')

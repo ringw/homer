@@ -1,4 +1,4 @@
-from .opencl import *
+from ..opencl import *
 import numpy as np
 
 prg = build_program(["boundary", "scaled_bitmap_to_int_array",

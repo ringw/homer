@@ -1,6 +1,6 @@
-from .opencl import *
-from . import hough
-from .cl_util import max_kernel
+from ..opencl import *
+from .. import hough
+from ..cl_util import max_kernel
 import numpy as np
 
 prg = build_program("staffpoints")

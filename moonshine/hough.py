@@ -82,7 +82,7 @@ def houghpeaks(H, npeaks=2000, thresh=1.0, invalidate=(1, 1)):
         tmax = min(H.shape[1], t - (-invalidate[1] // 2))
         Hmax[rmin:rmax, tmin:tmax] = 0
     if len(peaks) < npeaks:
-        logger.info("houghpeaks returned %d peaks", len(peaks))
+        logger.debug("houghpeaks returned %d peaks", len(peaks))
     return np.array(peaks).reshape((-1, 2))
 
 sort_segments = RadixSort(cx, "__global const uint4 *segments",
