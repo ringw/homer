@@ -20,10 +20,13 @@ class Page:
         measure.build_bars(self)
 
     def show(self):
-        import pylab as p
+        import pylab
+        from . import bitimage
         from structure import staves, staffsystems, staffboundary
-        p.figure()
-        p.imshow(np.unpackbits(self.img.get()).reshape((PAGE_SIZE, PAGE_SIZE)))
+        pylab.figure()
+        pylab.imshow(bitimage.as_hostimage(self.img))
+        pylab.ylim([self.orig_size[0], 0])
+        pylab.xlim([0, self.orig_size[1]])
         staves.show_staff_centers(self)
         staffsystems.show_barlines(self)
         staffboundary.show_boundaries(self)
