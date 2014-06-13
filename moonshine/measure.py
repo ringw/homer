@@ -8,7 +8,8 @@ prg.copy_measure.set_scalar_arg_dtypes([
     None, uint2, None, None, np.uint32, None, uint4
 ])
 def get_measure(page, staff, measure):
-    for bar_start, bar_stop, barlines in page.barlines:
+    for system in page.systems:
+        barlines = system['barlines']
         if bar_start <= staff and staff < bar_stop:
             break
     else:
@@ -66,11 +67,11 @@ class Measure:
         return self.image
 def build_bars(page):
     bars = []
-    for start, end, barlines in page.barlines:
+    for system in page.systems:
         bar = []
-        for measure in xrange(len(barlines) - 1):
+        for measure in xrange(len(system['barlines']) - 1):
             m = []
-            for staff in xrange(start, end):
+            for staff in xrange(system['start'], system['stop']):
                 m.append(Measure(page, staff, measure))
             bar.append(m)
         bars.append(bar)

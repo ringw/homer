@@ -1,6 +1,7 @@
-from . import staves, staffsystems, staffboundary
+from . import staves, barlines, systems, staffboundary
 
 def process(page):
     staves.staves(page)
-    staffsystems.staff_systems(page)
+    barlines.get_barlines(page)
+    systems.build_systems(page)
     staffboundary.boundaries(page)

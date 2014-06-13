@@ -1,7 +1,7 @@
 # Detect barlines for each single staff from the horizontal projection of the
 # slice of the image containing the staff.
 # Next, barlines close to each other on adjacent staves need to be checked
-# to see if they are joined, in which case we join the staves into one part.
+# to see if they are joined, in which case we join the staves into one system.
 from ..opencl import *
 from .. import bitimage, filter, util
 
@@ -21,7 +21,7 @@ def staff_barlines(page, staff_num):
     near_background_right = is_background.copy()
     for i in range(page.staff_thick, page.staff_dist):
         near_background_left[i:] |= is_background[:-i]
-    for i in range(page.staff_thick, page.staff_dist/2):
+    for i in range(page.staff_thick, page.staff_dist):
         near_background_right[:-i] |= is_background[i:]
     is_barline &= near_background_left & near_background_right
     from moonshine import util
