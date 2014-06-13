@@ -22,11 +22,12 @@ class Page:
     def show(self):
         import pylab
         from . import bitimage
-        from structure import staves, staffsystems, staffboundary
+        from structure import staves, barlines, systems, staffboundary
         pylab.figure()
         pylab.imshow(bitimage.as_hostimage(self.img))
         pylab.ylim([self.orig_size[0], 0])
         pylab.xlim([0, self.orig_size[1]])
         staves.show_staff_centers(self)
-        staffsystems.show_barlines(self)
+        barlines.show_barlines(self)
+        systems.show_system_barlines(self)
         staffboundary.show_boundaries(self)
