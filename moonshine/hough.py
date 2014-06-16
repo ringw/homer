@@ -55,7 +55,7 @@ def hough_lineseg_kernel(img, rhos, thetas, rhores=1, max_gap=0):
     cos_thetas = cla.to_device(q, np.cos(thetas).astype(np.float32))
     sin_thetas = cla.to_device(q, np.sin(thetas).astype(np.float32))
     segments = cla.zeros(q, (len(rhos), 4), np.uint32)
-    temp = cl.LocalMemory(img.shape[0]*8 + img.shape[1])
+    temp = cl.LocalMemory(img.shape[0] + img.shape[1]/8) # bit-packed
     prg.hough_lineseg(q, (len(rhos),), (1,),
                                     img.data,
                                     np.uint32(img.shape[1]),
@@ -85,10 +85,13 @@ def houghpeaks(H, npeaks=2000, thresh=1.0, invalidate=(1, 1)):
         logger.debug("houghpeaks returned %d peaks", len(peaks))
     return np.array(peaks).reshape((-1, 2))
 
-sort_segments = RadixSort(cx, "__global const uint4 *segments",
-                              "segments[i].s2", # sort by y0
-                              ["segments"],
-                              key_dtype=np.uint32)
+try:
+    sort_segments = RadixSort(cx, "__global const uint4 *segments",
+                                  "segments[i].s2", # sort by y0
+                                  ["segments"],
+                                  key_dtype=np.uint32)
+except cl.RuntimeError:
+    sort_segments = None
 cumsum = GenericScanKernel(cx, np.int32,
                                arguments="""__global const int *can_join,
                                             __global int *labels""",
@@ -109,8 +112,14 @@ def hough_paths(segments, line_dist=40):
                              np.uint32(line_dist))
     labels = cla.zeros(q, segments.shape[0], np.uint32)
     cumsum(can_join, labels)
-    first_segments = cla.zeros(q, (int(labels[labels.shape[0]-1].get().item() + 1), 4), np.uint16)
+    num_labels = int(labels[labels.shape[0]-1].get().item()) + 1
+    longest_seg_inds = cla.empty(q, num_labels, np.uint32)
     prg.assign_segments(q, (segments.shape[0],), (1,),
-                           segments.astype(np.uint16).data, labels.data,
-                           first_segments.data)
-    return first_segments.get()
+                           segments.data, labels.data,
+                           longest_seg_inds.data)
+    longest_segs = cla.empty(q, (num_labels, 4), np.uint32)
+    prg.copy_chosen_segments(q, (num_labels), (1,),
+                                segments.data,
+                                longest_seg_inds.data,
+                                longest_segs.data)
+    return longest_segs.get()
