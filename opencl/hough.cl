@@ -87,7 +87,6 @@ __kernel void hough_lineseg(__global const uchar *image,
     float sin_theta = sin_thetas[line_id];
 
     // Iterate over pixels comprising the line
-    // XXX this assumes rhores = 1
     float x = 0.f, x0 = x;
     float y = rho_bin * rhores / cos_theta, y0 = y;
     int num_pixels = 0;
@@ -106,7 +105,17 @@ __kernel void hough_lineseg(__global const uchar *image,
             xslice -= sin_theta;
             yslice += cos_theta;
         }
-        segment_pixels[num_pixels] = is_segment;
+
+        // segment_pixels is bit-packed
+        int seg_byte = num_pixels / 8;
+        int seg_bit  = num_pixels % 8;
+        uchar seg_char;
+        if (seg_bit == 0)
+            seg_char = 0; // initialize segment_pixels
+        else
+            seg_char = segment_pixels[seg_byte];
+        seg_char |= is_segment << (7 - seg_bit);
+        segment_pixels[seg_byte] = seg_char;
 
         x += cos_theta;
         y -= sin_theta;
@@ -120,7 +129,7 @@ __kernel void hough_lineseg(__global const uchar *image,
     int cur_skip = 0;
 
     for (int i = 1; i < num_pixels; i++) {
-        if (segment_pixels[i]) {
+        if (segment_pixels[i/8] & (0x80U >> (i%8))) {
             if (cur_skip < max_gap) {
                 // Add any skip to the length
                 cur_length += cur_skip;
@@ -171,51 +180,38 @@ __kernel void can_join_segments(__global const int4 *segments,
                     ? 1 : 0;
 }
 
-#pragma OPENCL EXTENSION cl_khr_int64_base_atomics: enable
 // Assign longest segment for each label atomically.
-// Everything should be a ushort4 to allow atomic operations on long values.
-__kernel void assign_segments(__global const ushort4 *segments,
+__kernel void assign_segments(__global const uint4 *segments,
                               __global const int *labels,
-                              __global volatile ushort4 *longest) {
+                              __global volatile uint *longest_inds) {
     uint i = get_global_id(0);
-    ushort4 seg = segments[i];
+    uint4 seg = segments[i];
     float4 segf = convert_float4(seg);
     // Get length of segment from dot product
     float dx = dot(segf, (float4)(-1, 1, 0, 0));
     float dy = dot(segf, (float4)(0, 0, -1, 1));
     float seg_length = dot((float2)(dx, dy), (float2)(dx, dy));
     int label = labels[i];
-    union {
-        ushort4 s;
-        ulong l;
-    } seg_u, old_u;
-    seg_u.s = seg;
+    uint longest_seg_ind;
     do {
-        ushort4 longest_seg = longest[label];
+        longest_seg_ind = longest_inds[label];
+        uint4 longest_seg = segments[longest_seg_ind];
         segf = convert_float4(longest_seg);
         dx = dot(segf, (float4)(-1, 1, 0, 0));
         dy = dot(segf, (float4)(0, 0, -1, 1));
         float longest_length = dot((float2)(dx, dy), (float2)(dx, dy));
         if (longest_length >= seg_length)
             break;
-        old_u.s = longest_seg;
-    } while (atom_cmpxchg((__global volatile ulong *)&longest[label],
-                          old_u.l, seg_u.l) != old_u.l);
+    } while (atomic_cmpxchg(&longest_inds[label],
+                            longest_seg_ind, i) != longest_seg_ind);
 }
 
-// See if we can extend each initial Hough segment with another
-// almost-parallel segment to increase its length.
-__kernel void extend_lines(__global const ushort4 *segments,
-                           __global const ushort4 *initial_segment,
-                           __global const int *labels,
-                           __global volatile ushort4 *extension) {
-    uint i = get_global_id(0);
-    union {
-        ushort4 s;
-        ulong l;
-    } seg_u, old_u;
-    seg_u.s = segments[i];
-    float4 seg = convert_float4(seg_u.s);
-    int label = labels[i];
-    old_u.s = initial_segment[i];
+__kernel void copy_chosen_segments(__global const uint4 *segments,
+                                   __global const uint *longest_inds,
+                                   __global uint4 *chosen_segs) {
+    uint label_ind = get_global_id(0);
+    chosen_segs[label_ind] = segments[longest_inds[label_ind]];
 }
+
+// TODO: To deal with some scores where the page is warped, we may need
+// to detect 2 distinct Hough peaks and then join them in a single path.
