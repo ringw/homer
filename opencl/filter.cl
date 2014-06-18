@@ -1,11 +1,11 @@
 __kernel void staff_removal_filter(__global const uchar *image,
-                                   uint staff_thick,
-                                   uint staff_dist,
+                                   int staff_thick,
+                                   int staff_dist,
                                    __global uchar *output_image) {
-    uint x = get_global_id(0);
-    uint y = get_global_id(1);
-    uint w = get_global_size(0);
-    uint h = get_global_size(1);
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+    int w = get_global_size(0);
+    int h = get_global_size(1);
 
     uchar byte = image[x + w * y];
     uchar is_staff = byte;
