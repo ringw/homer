@@ -15,8 +15,8 @@ prg.scaled_bitmap_to_int_array.set_scalar_arg_dtypes([
 ])
 
 def boundary_cost_kernel(dist, y0, ystep, y1, x0, xstep, x1):
-    numy = int(y1 - y0) // ystep
-    numx = int(x1 - x0) // xstep
+    numy = int(y1 - y0) // int(ystep)
+    numx = int(x1 - x0) // int(xstep)
     costs = cla.zeros(q, (numx, numy, numy), np.float32)
     prg.boundary_cost(q, (numx, numy, numy), (1, 1, 1),
                                   dist.data,
