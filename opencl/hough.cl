@@ -190,17 +190,25 @@ __kernel void assign_segments(__global const uint4 *segments,
                               __global const int *labels,
                               __global volatile uint *longest_inds) {
     uint i = get_global_id(0);
+    int label = labels[i];
+    // Initialize all longest indices to -1
+    longest_inds[label] = -1;
+    barrier(CLK_GLOBAL_MEM_FENCE);
+
     uint4 seg = segments[i];
     // Get length of segment from dot product
     int seg_length = CHEBYSHEV(seg);
-    int label = labels[i];
-    uint longest_seg_ind;
+    int longest_seg_ind;
     do {
         longest_seg_ind = longest_inds[label];
-        uint4 longest_seg = segments[longest_seg_ind];
-        int longest_length = CHEBYSHEV(longest_seg);
-        if (longest_length >= seg_length)
-            break;
+        // If someone else set the longest segment, we need to make sure
+        // ours is actually longer than theirs
+        if (longest_seg_ind >= 0) {
+            uint4 longest_seg = segments[longest_seg_ind];
+            int longest_length = CHEBYSHEV(longest_seg);
+            if (longest_length >= seg_length)
+                break;
+        }
     } while (atomic_cmpxchg(&longest_inds[label],
                             longest_seg_ind, i) != longest_seg_ind);
 }
