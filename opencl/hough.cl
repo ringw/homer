@@ -126,7 +126,7 @@ __kernel void hough_lineseg(__global const uchar *image,
     int max_length = 0;
     int max_end = -1;
     int cur_length = 0;
-    int cur_skip = 0;
+    int cur_skip = max_gap + 1; // can't start with a skip
 
     for (int i = 1; i < num_pixels; i++) {
         if (segment_pixels[i/8] & (0x80U >> (i%8))) {
@@ -174,32 +174,31 @@ __kernel void can_join_segments(__global const int4 *segments,
     if (i == 0)
         can_join[i] = 0;
     else
-        can_join[i] = abs(MIN(segments[i].s2, segments[i].s3)
-                            - MAX(segments[i-1].s2, segments[i-1].s3))
+        can_join[i] = MIN(abs(segments[i-1].s2 - segments[i].s2),
+                      MIN(abs(segments[i-1].s2 - segments[i].s3),
+                      MIN(abs(segments[i-1].s3 - segments[i].s2),
+                          abs(segments[i-1].s3 - segments[i].s3))))
                             > threshold
                     ? 1 : 0;
 }
 
 // Assign longest segment for each label atomically.
+// Best distance metric is Chebyshev distance (max(dx, dy))
+// to avoid favoring highly skewed lines
+#define CHEBYSHEV(v) MIN(abs(v.s1-v.s0), abs(v.s3-v.s2))
 __kernel void assign_segments(__global const uint4 *segments,
                               __global const int *labels,
                               __global volatile uint *longest_inds) {
     uint i = get_global_id(0);
     uint4 seg = segments[i];
-    float4 segf = convert_float4(seg);
     // Get length of segment from dot product
-    float dx = dot(segf, (float4)(-1, 1, 0, 0));
-    float dy = dot(segf, (float4)(0, 0, -1, 1));
-    float seg_length = dot((float2)(dx, dy), (float2)(dx, dy));
+    int seg_length = CHEBYSHEV(seg);
     int label = labels[i];
     uint longest_seg_ind;
     do {
         longest_seg_ind = longest_inds[label];
         uint4 longest_seg = segments[longest_seg_ind];
-        segf = convert_float4(longest_seg);
-        dx = dot(segf, (float4)(-1, 1, 0, 0));
-        dy = dot(segf, (float4)(0, 0, -1, 1));
-        float longest_length = dot((float2)(dx, dy), (float2)(dx, dy));
+        int longest_length = CHEBYSHEV(longest_seg);
         if (longest_length >= seg_length)
             break;
     } while (atomic_cmpxchg(&longest_inds[label],
