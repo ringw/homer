@@ -43,15 +43,24 @@ def verify_barlines(page, i, j, barlines):
     rho = barlines[:,0] * np.cos(t) + barlines[:,2] * np.sin(t)
     rhores = page.staff_thick * 2
     rhoval = (rho / rhores).astype(int) + 1
+
+    # Try a range of theta and rho values around each predicted line segment
+    T_RANGE = np.linspace(-np.pi/100, np.pi/100, 11)
+    RHO_RANGE = np.arange(-2, 3)
+    dt = np.tile(T_RANGE, len(RHO_RANGE))
+    drho = np.repeat(RHO_RANGE, len(T_RANGE))
+    t = (t[:, None] + dt[None, :]).ravel()
+    rhoval = (rhoval[:, None] + drho[None, :]).ravel()
     new_lines = hough.hough_lineseg_kernel(
                     slice_T, rhoval, t, rhores, max_gap=page.staff_dist).get()
-    new_lines = new_lines[:, [2,3, 0,1]]
-    new_lines[:, [2,3]] += y0
-    new_lines = new_lines[(new_lines[:,2] < page.staves[j,[0,1]].max()
+    best_lines = hough.hough_paths(new_lines)
+    best_lines = best_lines[:, [2,3, 0,1]]
+    best_lines[:, [2,3]] += y0
+    best_lines = best_lines[(best_lines[:,2] < page.staves[i,[2,3]].min()
                                                 - page.staff_dist)
-                          & (new_lines[:,3] > page.staves[j,[2,3]].max()
+                          & (best_lines[:,3] > page.staves[j,[2,3]].max()
                                                 + page.staff_dist)]
-    return new_lines
+    return best_lines
 def try_join_system(page, i):
     """ Try joining system i with the system below it.
         Update page.systems, returning True,
@@ -62,16 +71,23 @@ def try_join_system(page, i):
     matches = util.match(system0_x1, system1_x0)
     match1_x0 = page.systems[i+1]['barlines'][matches, 0]
     good_match = np.abs(system0_x1 - match1_x0) < page.staff_dist/2
+    if not any(good_match):
+        return False
     system0 = page.systems[i]['barlines'][good_match]
     system1 = page.systems[i+1]['barlines'][matches[good_match]]
     new_systems = np.c_[system0[:,0], system1[:,1], system0[:,2], system1[:,3]]
-    actual_systems = verify_barlines(page, i, i+1, new_systems)
+    actual_systems = verify_barlines(page,
+                       page.systems[i]['start'],
+                       page.systems[i+1]['stop'], new_systems)
     if len(actual_systems):
         # Combine systems i and i+1
         page.systems[i] = dict(barlines=actual_systems,
                                start=page.systems[i]['start'],
                                stop=page.systems[i+1]['stop'])
         del page.systems[i+1]
+        return True
+    else:
+        return False
 
 def build_systems(page):
     initialize_systems(page)

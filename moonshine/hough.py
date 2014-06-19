@@ -110,7 +110,7 @@ cumsum = GenericScanKernel(cx, np.int32,
 
 def hough_paths(segments, line_dist=40):
     # View segments as a 1D structured array
-    seg_struct = segments.view(uint4).reshape(-1)
+    seg_struct = segments.ravel().astype(np.uint32).view(uint4).reshape(-1)
     segments, _ = sort_segments(cla.to_device(q, seg_struct))
     segments = segments[0].view(np.uint32).reshape((seg_struct.shape[0], 4))
     can_join = cla.zeros(q, segments.shape[0], np.uint32)
