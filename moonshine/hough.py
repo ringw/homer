@@ -120,7 +120,8 @@ def hough_paths(segments, line_dist=40):
     labels = cla.zeros(q, segments.shape[0], np.uint32)
     cumsum(can_join, labels)
     num_labels = int(labels[labels.shape[0]-1].get().item()) + 1
-    longest_seg_inds = cla.empty(q, num_labels, np.uint32)
+    longest_seg_inds = cla.empty(q, num_labels, np.int32)
+    longest_seg_inds[:] = -1
     prg.assign_segments(q, (segments.shape[0],), (1,),
                            segments.data, labels.data,
                            longest_seg_inds.data)
