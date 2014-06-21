@@ -185,15 +185,13 @@ __kernel void can_join_segments(__global const int4 *segments,
 // Assign longest segment for each label atomically.
 // Best distance metric is Chebyshev distance (max(dx, dy))
 // to avoid favoring highly skewed lines
+// longest_inds must already be initialized to all -1s
 #define CHEBYSHEV(v) MIN(abs(v.s1-v.s0), abs(v.s3-v.s2))
 __kernel void assign_segments(__global const uint4 *segments,
                               __global const int *labels,
                               __global volatile uint *longest_inds) {
     uint i = get_global_id(0);
     int label = labels[i];
-    // Initialize all longest indices to -1
-    longest_inds[label] = -1;
-    barrier(CLK_GLOBAL_MEM_FENCE);
 
     uint4 seg = segments[i];
     // Get length of segment from dot product
