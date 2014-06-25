@@ -1,4 +1,5 @@
 from ..opencl import *
+from .. import util
 import numpy as np
 
 prg = build_program(["boundary", "scaled_bitmap_to_int_array",
@@ -37,7 +38,7 @@ def distance_transform_kernel(img, numiters=64):
                                                           img.data)
     e.wait()
 
-DT_SCALE = 2.0
+DT_SCALE = 5.0
 def distance_transform(page):
     dt = cla.zeros(q, (2048, 2048), np.uint32)
     prg.scaled_bitmap_to_int_array(q, dt.shape[::-1], (16, 16),
@@ -74,10 +75,20 @@ def boundary_cost(page, staff):
     else:
         y0 = max(0, np.amax(page.staves[staff-1, 2:4]) + page.staff_dist*2)
     if staff == len(page.staves):
-        y1 = page.img.shape[0]
+        y1 = page.orig_size[0]
     else:
-        y1 = min(page.img.shape[0] - 1,
+        y1 = min(page.orig_size[0],
                  np.amin(page.staves[staff, 2:4]) - page.staff_dist*2)
+
+    # Try to find a horizontal line that doesn't touch any dark pixels
+    proj = page.img[y0:y1].get().sum(axis=1)
+    slices, num_slices = util.label_1d(proj == 0)
+    if slices.any():
+        slice_size = np.bincount(slices)
+        slice_num = np.argmax(slice_size[1:]) + 1
+        slice_pixels, = np.where(slices == slice_num)
+        slice_y = y0 + int(np.mean(slice_pixels))
+        return np.array([[0, slice_y], [page.orig_size[1], slice_y]])
     y0 /= DT_SCALE
     y1 /= DT_SCALE
     xstep = ystep = page.staff_thick
