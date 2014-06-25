@@ -186,14 +186,14 @@ __kernel void can_join_segments(__global const int4 *segments,
 // Best distance metric is Chebyshev distance (max(dx, dy))
 // to avoid favoring highly skewed lines
 // longest_inds must already be initialized to all -1s
-#define CHEBYSHEV(v) MIN(abs(v.s1-v.s0), abs(v.s3-v.s2))
-__kernel void assign_segments(__global const uint4 *segments,
+#define CHEBYSHEV(v) MAX(abs(v.s1-v.s0), abs(v.s3-v.s2))
+__kernel void assign_segments(__global const int4 *segments,
                               __global const int *labels,
                               __global volatile uint *longest_inds) {
     uint i = get_global_id(0);
     int label = labels[i];
 
-    uint4 seg = segments[i];
+    int4 seg = segments[i];
     // Get length of segment from dot product
     int seg_length = CHEBYSHEV(seg);
     int longest_seg_ind;
@@ -202,7 +202,7 @@ __kernel void assign_segments(__global const uint4 *segments,
         // If someone else set the longest segment, we need to make sure
         // ours is actually longer than theirs
         if (longest_seg_ind >= 0) {
-            uint4 longest_seg = segments[longest_seg_ind];
+            int4 longest_seg = segments[longest_seg_ind];
             int longest_length = CHEBYSHEV(longest_seg);
             if (longest_length >= seg_length)
                 break;
