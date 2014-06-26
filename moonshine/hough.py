@@ -9,8 +9,8 @@ logger = logging.getLogger('hough')
 prg = build_program("hough")
 prg.hough_line.set_scalar_arg_dtypes([
     None, # input image
-    np.uint32, # image_w
-    np.uint32, # image_h
+    np.int32, # image_w
+    np.int32, # image_h
     np.int32, # rhores
     None, # cos(theta)
     None, # sin(theta)
@@ -19,20 +19,20 @@ prg.hough_line.set_scalar_arg_dtypes([
 ])
 prg.hough_lineseg.set_scalar_arg_dtypes([
     None, # input image
-    np.uint32, # image_w
-    np.uint32, # image_h
+    np.int32, # image_w
+    np.int32, # image_h
     None, # rho values
-    np.uint32, # rhores
+    np.int32, # rhores
     None, # cos(theta)
     None, # sin(theta)
-    np.uint32, # max_gap
+    np.int32, # max_gap
     None, # LocalMemory of size >= 4 * sqrt((8*image_w)^2 + image_h^2)
     None, # output line segments shape (numlines, 4)
 ])
 prg.can_join_segments.set_scalar_arg_dtypes([
-    None, None, np.uint32
+    None, None, np.int32
 ])
-uint4 = cl.tools.get_or_register_dtype('uint4')
+int4 = cl.tools.get_or_register_dtype('int4')
 
 def hough_line_kernel(img, rhores, numrho, thetas, num_workers=32):
     cos_thetas = cla.to_device(q, np.cos(thetas).astype(np.float32))
@@ -42,29 +42,29 @@ def hough_line_kernel(img, rhores, numrho, thetas, num_workers=32):
     prg.hough_line(q, (int(numrho * num_workers), len(thetas)),
                                  (num_workers, 1),
                                  img.data,
-                                 np.uint32(img.shape[1]),
-                                 np.uint32(img.shape[0]),
-                                 np.uint32(rhores),
+                                 np.int32(img.shape[1]),
+                                 np.int32(img.shape[0]),
+                                 np.int32(rhores),
                                  cos_thetas.data, sin_thetas.data,
                                  temp,
                                  bins.data).wait()
     return bins
 
 def hough_lineseg_kernel(img, rhos, thetas, rhores=1, max_gap=0):
-    device_rhos = cla.to_device(q, rhos.astype(np.uint32))
+    device_rhos = cla.to_device(q, rhos.astype(np.int32))
     cos_thetas = cla.to_device(q, np.cos(thetas).astype(np.float32))
     sin_thetas = cla.to_device(q, np.sin(thetas).astype(np.float32))
-    segments = cla.zeros(q, (len(rhos), 4), np.uint32)
+    segments = cla.zeros(q, (len(rhos), 4), np.int32)
     temp = cl.LocalMemory(img.shape[0] + img.shape[1]/8) # bit-packed
     prg.hough_lineseg(q, (len(rhos),), (1,),
                                     img.data,
-                                    np.uint32(img.shape[1]),
-                                    np.uint32(img.shape[0]),
+                                    np.int32(img.shape[1]),
+                                    np.int32(img.shape[0]),
                                     device_rhos.data,
-                                    np.uint32(rhores),
+                                    np.int32(rhores),
                                     cos_thetas.data, sin_thetas.data,
                                     temp,
-                                    np.uint32(max_gap),
+                                    np.int32(max_gap),
                                     segments.data).wait()
     return segments
 
@@ -88,14 +88,14 @@ def houghpeaks(H, npeaks=2000, thresh=1.0, invalidate=(1, 1)):
 # The PyOpenCL sort kernel fails compiling for my old GPU
 # (may be an OpenCL 1.0 compatibility issue)
 def host_sort_segments(segments):
-    segments = segments.get().view(np.uint32).reshape((-1, 4))
+    segments = segments.get().view(np.int32).reshape((-1, 4))
     segments = segments[np.argsort(segments[:,2])] # sort by y0
     return [cla.to_device(q, segments)], None
 try:
-    sort_segments = RadixSort(cx, "__global const uint4 *segments",
+    sort_segments = RadixSort(cx, "__global const int4 *segments",
                                   "segments[i].s2", # sort by y0
                                   ["segments"],
-                                  key_dtype=np.uint32)
+                                  key_dtype=np.int32)
 except cl.RuntimeError:
     sort_segments = host_sort_segments
 
@@ -110,14 +110,14 @@ cumsum = GenericScanKernel(cx, np.int32,
 
 def hough_paths(segments, line_dist=40):
     # View segments as a 1D structured array
-    seg_struct = segments.ravel().astype(np.uint32).view(uint4).reshape(-1)
+    seg_struct = segments.ravel().astype(np.int32).view(int4).reshape(-1)
     segments, _ = sort_segments(cla.to_device(q, seg_struct))
-    segments = segments[0].view(np.uint32).reshape((seg_struct.shape[0], 4))
-    can_join = cla.zeros(q, segments.shape[0], np.uint32)
+    segments = segments[0].view(np.int32).reshape((seg_struct.shape[0], 4))
+    can_join = cla.zeros(q, segments.shape[0], np.int32)
     prg.can_join_segments(q, segments.shape[:1], (1,),
                              segments.data, can_join.data,
-                             np.uint32(line_dist))
-    labels = cla.zeros(q, segments.shape[0], np.uint32)
+                             np.int32(line_dist))
+    labels = cla.zeros(q, segments.shape[0], np.int32)
     cumsum(can_join, labels)
     num_labels = int(labels[labels.shape[0]-1].get().item()) + 1
     longest_seg_inds = cla.empty(q, num_labels, np.int32)
@@ -125,7 +125,7 @@ def hough_paths(segments, line_dist=40):
     prg.assign_segments(q, (segments.shape[0],), (1,),
                            segments.data, labels.data,
                            longest_seg_inds.data)
-    longest_segs = cla.empty(q, (num_labels, 4), np.uint32)
+    longest_segs = cla.empty(q, (num_labels, 4), np.int32)
     prg.copy_chosen_segments(q, (num_labels,), (1,),
                                 segments.data,
                                 longest_seg_inds.data,

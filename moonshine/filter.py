@@ -3,7 +3,7 @@ from . import bitimage
 
 prg = build_program("filter")
 prg.staff_removal_filter.set_scalar_arg_dtypes([
-    None, np.uint32, np.uint32, None,
+    None, np.int32, np.int32, None,
 ])
 prg.barline_filter.set_scalar_arg_dtypes([
     None, np.int32, None,
@@ -15,8 +15,8 @@ def remove_staff(page, img=None):
     output = cla.zeros_like(img)
     prg.staff_removal_filter(q, img.shape[::-1], (16, 16),
                                 img.data,
-                                np.uint32(page.staff_thick+1),
-                                np.uint32(page.staff_dist),
+                                np.int32(page.staff_thick+1),
+                                np.int32(page.staff_dist),
                                 output.data).wait()
     return output
 

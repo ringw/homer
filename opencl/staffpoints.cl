@@ -2,7 +2,7 @@
 #define Y (1)
 
 __kernel void staffpoints(__global const uchar *image,
-                          uint staff_dist,
+                          int staff_dist,
                           __global uchar *staff) {
     // Ensure a given pixel has dark pixels above and below where we would
     // expect if it were the center of a staff, then update the center pixel.

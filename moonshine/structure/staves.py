@@ -6,14 +6,14 @@ import numpy as np
 prg = build_program("staffpoints")
 prg.staffpoints.set_scalar_arg_dtypes([
     None, # input image
-    np.uint32, # staff_dist
+    np.int32, # staff_dist
     None # output image
 ])
 
 def staffpoints_kernel(img, dist):
     staff = cla.zeros_like(img)
     prg.staffpoints(q, img.shape[::-1], (8, 8),
-                                img.data, np.uint32(dist), staff.data).wait()
+                                img.data, np.int32(dist), staff.data).wait()
     return staff
 
 def staff_center_lines(page):

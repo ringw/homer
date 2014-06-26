@@ -2,7 +2,7 @@
 #define L (1)
 #define R (2)
 
-__kernel void boundary_cost(__global const uint *dist,
+__kernel void boundary_cost(__global const int *dist,
                             int image_width,
                             int y0, int ystep, int numy,
                             int x0, int xstep, int numx,
@@ -21,7 +21,7 @@ __kernel void boundary_cost(__global const uint *dist,
     // by a large margin
     for (int x = xl; x < xr; x++) {
         int y = yl + (x - xl) * (yr - yl) / (xr - xl);
-        uint dt = dist[x + y * image_width];
+        int dt = dist[x + y * image_width];
         sum_dt += 1.f / (1.f + dt);
     }
     // Priortize avoiding dark pixels

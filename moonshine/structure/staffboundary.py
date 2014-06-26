@@ -6,13 +6,13 @@ prg = build_program(["boundary", "scaled_bitmap_to_int_array",
                      "taxicab_distance"])
 prg.boundary_cost.set_scalar_arg_dtypes([
     None, # float distance transform
-    np.uint32, # image width
-    np.uint32, np.uint32, np.uint32, # y0, ystep, numy
-    np.uint32, np.uint32, np.uint32, # x0, xstep, numx
+    np.int32, # image width
+    np.int32, np.int32, np.int32, # y0, ystep, numy
+    np.int32, np.int32, np.int32, # x0, xstep, numx
     None # output costs
 ])
 prg.scaled_bitmap_to_int_array.set_scalar_arg_dtypes([
-    None, np.float32, np.uint32, np.uint32, np.uint32, np.uint32, None
+    None, np.float32, np.int32, np.int32, np.int32, np.int32, None
 ])
 
 def boundary_cost_kernel(dist, y0, ystep, y1, x0, xstep, x1):
@@ -21,13 +21,13 @@ def boundary_cost_kernel(dist, y0, ystep, y1, x0, xstep, x1):
     costs = cla.zeros(q, (numx, numy, numy), np.float32)
     prg.boundary_cost(q, (numx, numy, numy), (1, 1, 1),
                                   dist.data,
-                                  np.uint32(dist.shape[0]),
-                                  np.uint32(y0),
-                                  np.uint32(ystep),
-                                  np.uint32(numy),
-                                  np.uint32(x0),
-                                  np.uint32(xstep),
-                                  np.uint32(numx),
+                                  np.int32(dist.shape[0]),
+                                  np.int32(y0),
+                                  np.int32(ystep),
+                                  np.int32(numy),
+                                  np.int32(x0),
+                                  np.int32(xstep),
+                                  np.int32(numx),
                                   costs.data).wait()
     return costs
 
@@ -40,13 +40,13 @@ def distance_transform_kernel(img, numiters=64):
 
 DT_SCALE = 5.0
 def distance_transform(page):
-    dt = cla.zeros(q, (2048, 2048), np.uint32)
+    dt = cla.zeros(q, (2048, 2048), np.int32)
     prg.scaled_bitmap_to_int_array(q, dt.shape[::-1], (16, 16),
                                    page.img.data,
                                    np.float32(DT_SCALE),
-                                   np.uint32(page.img.shape[1]),
-                                   np.uint32(page.img.shape[0]),
-                                   np.uint32(64), np.uint32(0),
+                                   np.int32(page.img.shape[1]),
+                                   np.int32(page.img.shape[0]),
+                                   np.int32(64), np.int32(0),
                                    dt.data).wait()
     distance_transform_kernel(dt, numiters=64)
     page.distance_transform = dt

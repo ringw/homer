@@ -1,16 +1,17 @@
 from .opencl import *
 import numpy as np
 
-uint2 = cl.tools.get_or_register_dtype("uint2")
-uint4 = cl.tools.get_or_register_dtype("uint4")
+int2 = cl.tools.get_or_register_dtype("int2")
+int4 = cl.tools.get_or_register_dtype("int4")
 prg = build_program("copy_measure")
 prg.copy_measure.set_scalar_arg_dtypes([
-    None, uint2, None, None, np.uint32, None, uint4
+    None, int2, None, None, np.int32, None, int4
 ])
 def get_measure(page, staff, measure):
     for system in page.systems:
         barlines = system['barlines']
-        if bar_start <= staff and staff < bar_stop:
+        bar_start, bar_stop = system['start'], system['stop']
+        if bar_start <= staff and staff <= bar_stop:
             break
     else:
         raise Exception("Staff not found in barlines")
@@ -29,19 +30,19 @@ def get_measure(page, staff, measure):
     measure_pixel_size = (y1 - y0, (x1 - x0) // 8)
     measure_size = tuple(-(-i & -16) for i in measure_pixel_size)
     measure = cla.zeros(q, measure_size, np.uint8)
-    device_b0 = cla.to_device(q, page.boundaries[staff][:, 1].astype(np.uint32))
+    device_b0 = cla.to_device(q, page.boundaries[staff][:, 1].astype(np.int32))
     device_b1 = cla.to_device(q, page.boundaries[staff + 1][:, 1]
-                                     .astype(np.uint32))
+                                     .astype(np.int32))
     prg.copy_measure(q, measure.shape[::-1], (1, 1),
                         page.img.data,
                         np.array(page.img.shape[::-1],
-                                 np.uint32).view(uint2)[0],
+                                 np.int32).view(int2)[0],
                         device_b0.data, device_b1.data,
-                        np.uint32(page.boundaries[staff][1, 0]
+                        np.int32(page.boundaries[staff][1, 0]
                                     - page.boundaries[staff][0, 0]),
                         measure.data,
                         np.array([x0 // 8, y0] + list(measure_size[::-1]),
-                                 np.uint32).view(uint4)[0]).wait()
+                                 np.int32).view(int4)[0]).wait()
     return measure, (x0, x1, y0, y1)
 
 class Measure:
@@ -71,7 +72,7 @@ def build_bars(page):
         bar = []
         for measure in xrange(len(system['barlines']) - 1):
             m = []
-            for staff in xrange(system['start'], system['stop']):
+            for staff in xrange(system['start'], system['stop']+1):
                 m.append(Measure(page, staff, measure))
             bar.append(m)
         bars.append(bar)

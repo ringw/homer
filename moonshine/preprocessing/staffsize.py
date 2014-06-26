@@ -6,8 +6,8 @@ import logging
 prg = build_program("runhist")
 
 def runhist_kernel(img):
-    light = cla.zeros(q, 64, np.uint32)
-    dark = cla.zeros(q, 64, np.uint32)
+    light = cla.zeros(q, 64, np.int32)
+    dark = cla.zeros(q, 64, np.int32)
     prg.runhist(q, (img.shape[0], img.shape[1]), (8, 8),
                            img.data, light.data, dark.data).wait()
     return light, dark

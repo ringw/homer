@@ -15,7 +15,7 @@ image = scipy.misc.imresize(image.byteimg[:image.orig_size[0],
                             image_scale,
                             interp='nearest')
 classifier = cPickle.load(open('classifier.pkl', 'rb'))
-display_image = zeros(image.shape + (3,), uint8)
+display_image = zeros(image.shape + (3,), int8)
 display_image[:] = np.where(image, 0, 255)[:, :, None]
 PATCH_SIZE = 17
 for y in xrange(PATCH_SIZE / 2, image.shape[0] - PATCH_SIZE/2 - 1):

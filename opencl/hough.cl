@@ -7,23 +7,23 @@
  * local size may be (num_workers, 1), multiple workers will sum pixels in parallel
  */
 __kernel void hough_line(__global const uchar *image,
-                         uint image_w, uint image_h,
-                         uint rhores,
+                         int image_w, int image_h,
+                         int rhores,
                          __global const float *cos_thetas,
                          __global const float *sin_thetas,
                          __local float *worker_sums,
                          __global float *bins) {
-    uint rho = get_group_id(0);
-    uint num_rho = get_num_groups(0);
-    uint theta = get_global_id(1);
+    int rho = get_group_id(0);
+    int num_rho = get_num_groups(0);
+    int theta = get_global_id(1);
 
     float rho_val = rho * rhores;
     float cos_theta = cos_thetas[theta];
     float sin_theta = sin_thetas[theta];
 
     // Multiple workers help sum up the same rho
-    uint worker_id = get_local_id(0);
-    uint num_workers = get_local_size(0);
+    int worker_id = get_local_id(0);
+    int num_workers = get_local_size(0);
 
     float worker_sum = 0.f;
     // Sum each x-byte position. As an approximation, assume if the left
@@ -35,9 +35,9 @@ __kernel void hough_line(__global const uchar *image,
 
         if (0 <= x && x < image_w && 0 <= y && y < image_h) {
             uchar byte = image[x + image_w * y];
-            uint8 bits = (uint8)byte;
-            bits >>= (uint8)(7, 6, 5, 4, 3, 2, 1, 0);
-            bits &= (uint8)(0x1);
+            int8 bits = (int8)byte;
+            bits >>= (int8)(7, 6, 5, 4, 3, 2, 1, 0);
+            bits &= (int8)(0x1);
             // Sum using float dot product (faster)
             float8 fbits = convert_float8(bits);
             float4 one = (float4)(1.f);
@@ -70,19 +70,19 @@ __kernel void hough_line(__global const uchar *image,
  */
 
 __kernel void hough_lineseg(__global const uchar *image,
-                            uint image_w, uint image_h,
-                            __global const uint *rho_bins,
-                            uint rhores,
+                            int image_w, int image_h,
+                            __global const int *rho_bins,
+                            int rhores,
                             __global const float *cos_thetas,
                             __global const float *sin_thetas,
                             __local uchar *segment_pixels,
-                            uint max_gap,
+                            int max_gap,
                             __global int4 *segments) {
-    uint line_id = get_group_id(0);
-    uint worker_id = get_local_id(0);
-    uint num_workers = get_local_size(0);
+    int line_id = get_group_id(0);
+    int worker_id = get_local_id(0);
+    int num_workers = get_local_size(0);
 
-    uint rho_bin = rho_bins[line_id];
+    int rho_bin = rho_bins[line_id];
     float cos_theta = cos_thetas[line_id];
     float sin_theta = sin_thetas[line_id];
 
@@ -170,7 +170,7 @@ __kernel void hough_lineseg(__global const uchar *image,
 __kernel void can_join_segments(__global const int4 *segments,
                                 __global int *can_join,
                                 int threshold) {
-    uint i = get_global_id(0);
+    int i = get_global_id(0);
     if (i == 0)
         can_join[i] = 0;
     else
@@ -189,8 +189,8 @@ __kernel void can_join_segments(__global const int4 *segments,
 #define CHEBYSHEV(v) MAX(abs(v.s1-v.s0), abs(v.s3-v.s2))
 __kernel void assign_segments(__global const int4 *segments,
                               __global const int *labels,
-                              __global volatile uint *longest_inds) {
-    uint i = get_global_id(0);
+                              __global volatile int *longest_inds) {
+    int i = get_global_id(0);
     int label = labels[i];
 
     int4 seg = segments[i];
@@ -211,10 +211,10 @@ __kernel void assign_segments(__global const int4 *segments,
                             longest_seg_ind, i) != longest_seg_ind);
 }
 
-__kernel void copy_chosen_segments(__global const uint4 *segments,
-                                   __global const uint *longest_inds,
-                                   __global uint4 *chosen_segs) {
-    uint label_ind = get_global_id(0);
+__kernel void copy_chosen_segments(__global const int4 *segments,
+                                   __global const int *longest_inds,
+                                   __global int4 *chosen_segs) {
+    int label_ind = get_global_id(0);
     chosen_segs[label_ind] = segments[longest_inds[label_ind]];
 }
 

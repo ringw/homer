@@ -1,7 +1,7 @@
 __kernel void copy_measure(__global const uchar *image,
                            int2 image_size,
-                           __global const uint *top_ys,
-                           __global const uint *bottom_ys,
+                           __global const int *top_ys,
+                           __global const int *bottom_ys,
                            int x_space,
                            __global uchar *measure,
                            int4 measure_bounds) {

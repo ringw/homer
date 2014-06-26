@@ -1,13 +1,13 @@
 __kernel void transpose(__global const uchar *image,
                         __global uchar *image_T) {
     // Get coordinates in output image
-    uint x = get_global_id(0);
-    uint y = get_global_id(1);
-    uint w = get_global_size(0);
-    uint h = get_global_size(1);
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+    int w = get_global_size(0);
+    int h = get_global_size(1);
 
     uchar output_byte = 0;
-    for (uint b = 0; b < 8; b++) {
+    for (int b = 0; b < 8; b++) {
         uchar input_byte = image[y/8 + h/8 * (x*8 + b)];
         input_byte >>= 7 - (y % 8);
         input_byte &= 0x1;
@@ -18,17 +18,17 @@ __kernel void transpose(__global const uchar *image,
 
 __kernel void scale_image(__global const uchar *input,
                           float scale,
-                          uint inputWidth, uint inputHeight,
+                          int inputWidth, int inputHeight,
                           __global uchar *output) {
-    uint x = get_global_id(0);
-    uint y = get_global_id(1);
-    uint input_y = convert_uint_rtn(y / scale);
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+    int input_y = convert_int_rtn(y / scale);
 
     uchar result = 0;
-    for (uint bit = 0; bit < 8; bit++) {
-        uint bit_x = x * 8 + bit;
+    for (int bit = 0; bit < 8; bit++) {
+        int bit_x = x * 8 + bit;
 
-        uint input_x = convert_uint_rtn(bit_x / scale);
+        int input_x = convert_int_rtn(bit_x / scale);
         if (input_x < inputWidth*8 && input_y < inputHeight) {
             uchar input_byte = input[input_x/8 + input_y * inputWidth];
             int input_bit = input_x % 8;
@@ -41,10 +41,10 @@ __kernel void scale_image(__global const uchar *input,
 
 __kernel void erode(__global const uchar *image,
                     __global uchar *output_image) {
-    uint x = get_global_id(0);
-    uint y = get_global_id(1);
-    uint w = get_global_size(0);
-    uint h = get_global_size(1);
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+    int w = get_global_size(0);
+    int h = get_global_size(1);
 
     uchar input_byte = image[x + w * y];
     uchar output_byte = input_byte;
@@ -69,10 +69,10 @@ __kernel void erode(__global const uchar *image,
 
 __kernel void dilate(__global const uchar *image,
                      __global uchar *output_image) {
-    uint x = get_global_id(0);
-    uint y = get_global_id(1);
-    uint w = get_global_size(0);
-    uint h = get_global_size(1);
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+    int w = get_global_size(0);
+    int h = get_global_size(1);
 
     uchar input_byte = image[x + w * y];
     uchar output_byte = input_byte;
@@ -97,10 +97,10 @@ __kernel void dilate(__global const uchar *image,
 
 __kernel void border(__global const uchar *image,
                      __global uchar *output_image) {
-    uint x = get_global_id(0);
-    uint y = get_global_id(1);
-    uint w = get_global_size(0);
-    uint h = get_global_size(1);
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+    int w = get_global_size(0);
+    int h = get_global_size(1);
 
     uchar input_byte = image[x + w * y];
     uchar erosion = input_byte;

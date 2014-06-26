@@ -11,7 +11,7 @@ def as_hostimage(img):
 prg = build_program("bitimage")
 
 prg.scale_image.set_scalar_arg_dtypes([
-    None, np.float32, np.uint32, np.uint32, None
+    None, np.float32, np.int32, np.int32, None
 ])
 
 def transpose(img):
@@ -28,8 +28,8 @@ def scale(img, scale, align=8):
     prg.scale_image(q, out_img.shape[::-1], (8, 8),
                        img.data,
                        np.float32(scale),
-                       np.uint32(img.shape[1]),
-                       np.uint32(img.shape[0]),
+                       np.int32(img.shape[1]),
+                       np.int32(img.shape[0]),
                        out_img.data).wait()
     return out_img
 
@@ -63,33 +63,33 @@ def border(img):
     return repeat_kernel(img, prg.border, 1)
 
 # Create LUT and stringify into preamble of map kernel
-LUT = np.zeros(256, np.uint32)
+LUT = np.zeros(256, np.int32)
 for b in xrange(8):
     LUT[(np.arange(256) & (1 << b)) != 0] += 1
-strLUT = "constant uint LUT[256] = {" + ",".join(map(str, LUT)) + "};\n"
-sum_byte_count = ReductionKernel(cx, np.uint32, neutral="0",
+strLUT = "constant int LUT[256] = {" + ",".join(map(str, LUT)) + "};\n"
+sum_byte_count = ReductionKernel(cx, np.int32, neutral="0",
                     reduce_expr="a+b", map_expr="LUT[bytes[i]]",
                     arguments="__global unsigned char *bytes",
                     preamble=strLUT)
 def count_bits(img):
     return sum_byte_count(img).get().item()
 
-pixel_inds = GenericScanKernel(cx, np.uint32,
+pixel_inds = GenericScanKernel(cx, np.int32,
                     arguments="__global unsigned char *bytes, "
-                              "unsigned int image_w, "
-                              "__global unsigned int *pixels",
+                              "int image_w, "
+                              "__global int *pixels",
                     # Keep count of pixels we have stored so far
                     input_expr="LUT[bytes[i]]",
                     scan_expr="a+b", neutral="0",
                     output_statement="""
-                        uint pix_ind = prev_item;
+                        int pix_ind = prev_item;
                         uchar byte = bytes[i];
                         uchar mask = 0x80U;
-                        uint x = (i % image_w) * 8;
-                        uint y = i / image_w;
+                        int x = (i % image_w) * 8;
+                        int y = i / image_w;
                         for (int b = 7; b >= 0; b--) {
                             if (byte & mask) {
-                                vstore2((uint2)(x, y), pix_ind++, pixels);
+                                vstore2((int2)(x, y), pix_ind++, pixels);
                             }
                             mask >>= 1;
                             x++;
@@ -98,8 +98,8 @@ pixel_inds = GenericScanKernel(cx, np.uint32,
                     preamble=strLUT)
 def pixel_where(img):
     num_on = int(count_bits(img))
-    inds = cla.empty(q, (num_on, 2), np.uint32)
+    inds = cla.empty(q, (num_on, 2), np.int32)
     pixel_inds(img.reshape((img.shape[0] * img.shape[1],)),
-               np.uint32(img.shape[1]),
+               np.int32(img.shape[1]),
                inds)
     return inds

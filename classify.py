@@ -115,7 +115,7 @@ def main():
     right = min(page.im.shape[1], x_max + 100)
     top = max(0, y_min - 100)
     bottom = min(page.im.shape[0], y_max + 100)
-    total = np.zeros((bottom - top, right - left, 4), np.uint8)
+    total = np.zeros((bottom - top, right - left, 4), np.int8)
     total[..., 3] = 255
     im_surrounding = page.im[top:bottom, left:right]
     total[im_surrounding.nonzero() + (slice(0,3),)] = 255

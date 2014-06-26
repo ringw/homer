@@ -4,10 +4,10 @@
 #define MIN(a,b) (a < b ? a : b)
 
 __kernel void taxicab_distance_step(__global int *dists) {
-    uint x = get_global_id(X);
-    uint y = get_global_id(Y);
-    uint w = get_global_size(X);
-    uint h = get_global_size(Y);
+    int x = get_global_id(X);
+    int y = get_global_id(Y);
+    int w = get_global_size(X);
+    int h = get_global_size(Y);
 
     int dist = dists[x + w * y];
 
