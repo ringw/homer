@@ -142,19 +142,16 @@ def get_notepitches(page):
 
 def get_notepitch_score(page):
     # Parts must be consistent for each system
-    assert (np.diff([end - start for (start, end, bars) in page.barlines]) == 0).all()
+    assert (np.diff([s['stop'] - s['start'] for s in page.systems]) == 0).all()
 
     get_notepitches(page)
 
     doc = music21.stream.Stream()
-    for part_num in xrange(page.barlines[0][1] - page.barlines[0][0]):
-        print part_num
+    for part_num in xrange(page.systems[0]['stop']+1 - page.systems[0]['start']):
         part = music21.stream.Part()
         for bar in page.bars:
             staff = [measure[part_num] for measure in bar]
-            print staff
             for m in staff:
-                print m
                 pitchMeasure = music21.stream.Measure()
                 if hasattr(m, 'notepitches'):
                     for notePitch in m.notepitches:

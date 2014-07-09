@@ -1,6 +1,6 @@
 import numpy as np
 from .opencl import *
-from . import image, preprocessing, structure, measure
+from . import image, preprocessing, structure, measure, note
 
 PAGE_SIZE = 4096
 
@@ -18,6 +18,7 @@ class Page:
         preprocessing.process(self)
         structure.process(self)
         measure.build_bars(self)
+        self.notepitch_score = note.get_notepitch_score(self)
 
     def show(self):
         import pylab
