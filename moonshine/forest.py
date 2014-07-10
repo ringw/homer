@@ -59,7 +59,7 @@ def predict(forest, bitimg):
                       cl.LocalMemory((local_w + 35) * (local_h + 35)),
                       forest.features.data,
                       forest.children.data,
-                      cl.LocalMemory(4 * local_w * local_h * 16),
+                      cl.LocalMemory(4 * local_w * local_h * forest.num_trees),
                       img_classes.data)
     e.wait()
     return img_classes

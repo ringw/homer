@@ -1,5 +1,5 @@
 #define BLOCK_SIZE 35
-#define NUM_CLASSES 16
+#define NUM_CLASSES 32
 
 __kernel void run_forest(__global const uchar *image,
                          __local char *local_patch,
