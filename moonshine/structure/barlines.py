@@ -6,7 +6,8 @@ from ..opencl import *
 from .. import bitimage, filter, util
 
 def staff_barlines(page, staff_num):
-    staff_y = int(page.staves[staff_num, [2,3]].sum()/2.0)
+    staff = page.staves[staff_num]
+    staff_y = int(staff[[2,3]].sum()/2.0)
     y0 = max(0, staff_y - page.staff_dist * 4)
     y1 = min(page.img.shape[0], staff_y + page.staff_dist * 4)
     img = filter.remove_staff(page)
@@ -19,14 +20,21 @@ def staff_barlines(page, staff_num):
     is_background = proj < page.staff_dist/2
     near_background_left = is_background.copy()
     near_background_right = is_background.copy()
-    for i in range(page.staff_thick, page.staff_dist):
+    for i in range(page.staff_thick, page.staff_thick*2):
         near_background_left[i:] |= is_background[:-i]
-    for i in range(page.staff_thick, page.staff_dist):
+    for i in range(page.staff_thick, page.staff_thick*2):
         near_background_right[:-i] |= is_background[i:]
     is_barline &= near_background_left & near_background_right
     from moonshine import util
     labels, num_labels = util.label_1d(is_barline)
     barlines = np.rint(util.center_of_mass_1d(labels)).astype(int)
+
+    # Add a barline at the start and end of the staff if necessary
+    if len(barlines):
+        if barlines[0] - staff[0] > page.staff_dist*2:
+            barlines = np.concatenate([[staff[0]], barlines])
+        if staff[1] - barlines[-1] > page.staff_dist*2:
+            barlines = np.concatenate([barlines, [staff[1]]])
     return barlines
 
 def get_barlines(page):
