@@ -1,11 +1,12 @@
 from .opencl import *
 import numpy as np
+from fractions import gcd
 
 int2 = cl.tools.get_or_register_dtype("int2")
 int4 = cl.tools.get_or_register_dtype("int4")
 prg = build_program("copy_measure")
 prg.copy_measure.set_scalar_arg_dtypes([
-    None, int2, None, None, np.int32, None, int4
+    None, int2, None, np.int32, None, np.int32, None, int4
 ])
 def get_measure(page, staff, measure):
     for system in page.systems:
@@ -37,9 +38,12 @@ def get_measure(page, staff, measure):
                         page.img.data,
                         np.array(page.img.shape[::-1],
                                  np.int32).view(int2)[0],
-                        device_b0.data, device_b1.data,
+                        device_b0.data,
                         np.int32(page.boundaries[staff][1, 0]
                                     - page.boundaries[staff][0, 0]),
+                        device_b1.data,
+                        np.int32(page.boundaries[staff+1][1, 0]
+                                    - page.boundaries[staff+1][0, 0]),
                         measure.data,
                         np.array([x0 // 8, y0] + list(measure_size[::-1]),
                                  np.int32).view(int4)[0]).wait()
