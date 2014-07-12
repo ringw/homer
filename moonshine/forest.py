@@ -48,7 +48,7 @@ def load_forest(path):
     return f
 classifier = load_forest('classifier.pkl')
 
-def predict(forest, bitimg):
+def predict(forest, bitimg, get_classes=True):
     img_classes = cla.zeros(q, (bitimg.shape[0], bitimg.shape[1] * 8),
                                np.uint8)
     local_w=8
@@ -60,7 +60,8 @@ def predict(forest, bitimg):
                       forest.features.data,
                       forest.children.data,
                       cl.LocalMemory(4 * local_w * local_h * forest.num_trees),
-                      img_classes.data)
+                      img_classes.data,
+                      np.int32(get_classes))
     e.wait()
     return img_classes
 

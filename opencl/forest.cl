@@ -6,7 +6,8 @@ __kernel void run_forest(__global const uchar *image,
                          __global const int *node_feature,
                          __global const int *node_children,
                          __local volatile int *class_accumulator,
-                         __global uchar *pixel_class /* NOT bit-packed */) {
+                         __global uchar *pixel_class, /* NOT bit-packed */
+                         int return_class) {
     int pixel_x = get_global_id(0);
     int pixel_y = get_global_id(1);
     int image_w = get_global_size(0);
@@ -75,7 +76,7 @@ __kernel void run_forest(__global const uchar *image,
                 class_count = this_count;
             }
         }
-        pixel_class[pixel_x + image_w * pixel_y] = best_class;//class_accumulator[1 + NUM_CLASSES * (
-                    //get_local_id(0) + get_local_size(0) * get_local_id(1))];
+        pixel_class[pixel_x + image_w * pixel_y] = return_class ? best_class
+                                                    : class_count;
     }
 }

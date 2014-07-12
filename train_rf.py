@@ -8,21 +8,8 @@ import glob
 import os.path
 import cPickle
 
-COLOR_LABELS = {
-    (255, 0, 0): "empty_note",
-    (0, 0, 255): "filled_note",
+from forest_config import COLOR_LABELS
 
-    (1, 0, 0): "treble_clef",
-    (2, 0, 0): "small_treble_clef",
-    (3, 0, 0): "bass_clef",
-    (4, 0, 0): "small_bass_clef",
-
-    (255, 255, 0): "flat",
-    (255, 0, 255): "natural",
-    (0, 255, 255): "sharp",
-
-    (200, 200, 0): "beam",
-}
 PATCH_SIZE = 35
 LABEL_SIZE = 5
 SURROUND_SIZE = 5 # background around labeled pixels
@@ -131,7 +118,16 @@ for labels in labeled_data:
 patches = np.concatenate(all_patches)
 patch_labels = [label for patch in all_patch_labels for label in patch]
 
-rf = RandomForestClassifier(n_estimators=32, #min_samples_split=64,
-                            )#min_samples_leaf=8)
+# Load additional manually added patches
+patch_f = open('patches.csv')
+new_patches = []
+for line in patch_f.readlines():
+    patch, label = line.strip().split(',')
+    patch = np.array(list(patch), int)
+    new_patches.append(patch.astype(bool))
+    patch_labels.append(label)
+patches = np.concatenate([patches, new_patches])
+
+rf = RandomForestClassifier(n_estimators=32, max_depth=8)
 rf.fit(patches, patch_labels)
 cPickle.dump(rf, open('classifier.pkl', 'wb'))

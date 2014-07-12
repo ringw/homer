@@ -20,7 +20,7 @@ class Page:
         measure.build_bars(self)
         self.notepitch_score = note.get_notepitch_score(self)
 
-    def show(self):
+    def show(self, show_elements=False):
         import pylab
         from . import bitimage
         from structure import staves, barlines, systems, staffboundary
@@ -32,3 +32,8 @@ class Page:
         barlines.show_barlines(self)
         systems.show_system_barlines(self)
         staffboundary.show_boundaries(self)
+        if show_elements:
+            for barsystem in self.bars:
+                for system_measure in barsystem:
+                    for part in system_measure:
+                        part.show_elements(on_page=True)

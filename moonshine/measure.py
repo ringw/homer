@@ -70,6 +70,18 @@ class Measure:
                                             self.staff_num, self.measure_num)
             self.staff_y = self.page_staff_y - self.bounds[2]
         return self.image
+
+    def show_elements(self, x0=0, y0=0, on_page=False):
+        # on_page overrides x0 and y0 to draw in page coordinates
+        if on_page:
+            x0 = self.bounds[0]
+            y0 = self.bounds[2]
+        import pylab
+        for x, vert_slice in self.elements:
+            for label, y in vert_slice:
+                staff_y0 = y0 + self.page_staff_y - self.bounds[2]
+                pylab.plot(x0 + x * self.page.staff_dist / 8.0,
+                           staff_y0 - self.page.staff_dist * y / 2.0, 'r.')
 def build_bars(page):
     bars = []
     for system in page.systems:
