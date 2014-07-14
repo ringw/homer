@@ -1,8 +1,10 @@
 import numpy as np
 from .opencl import *
+
+# Need to define this now so that orientation can use it
+PAGE_SIZE = 4096
 from . import image, preprocessing, structure, measure, note
 
-PAGE_SIZE = 4096
 
 class Page:
     def __init__(self, image_data):
