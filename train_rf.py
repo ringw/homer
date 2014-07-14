@@ -128,6 +128,14 @@ for line in patch_f.readlines():
     patch_labels.append(label)
 patches = np.concatenate([patches, new_patches])
 
-rf = RandomForestClassifier(n_estimators=32, max_depth=8)
-rf.fit(patches, patch_labels)
+features = (patches != 0).astype(int)
+patches = features.reshape((-1, 35, 35))
+proj_patch = patches[:, (35-15)/2:(35+15)/2, (35-15)/2:(35+15)/2].astype(int)
+assert proj_patch.shape[1:] == (15,15)
+vert_proj = proj_patch.sum(1)
+horiz_proj = proj_patch.sum(2)
+features = np.c_[features, vert_proj, horiz_proj]
+
+rf = RandomForestClassifier(n_estimators=32)
+rf.fit(features, patch_labels)
 cPickle.dump(rf, open('classifier.pkl', 'wb'))

@@ -16,6 +16,7 @@ def load_forest(path):
     tree_size = [len(e.tree_.feature) for e in classifier.estimators_]
     forest_size = sum(tree_size)
     features = cla.empty(q, forest_size, np.int32)
+    threshold = cla.empty(q, forest_size, np.int32)
     children = cla.empty(q, (forest_size, 2), np.int32)
     # Map each root to the first n indices which each worker starts on,
     # then concatenate all remaining nodes from each tree
@@ -23,6 +24,7 @@ def load_forest(path):
         np.cumsum([0] + [s - 1 for s in tree_size[:-1]])
     for i, tree in enumerate(classifier.estimators_):
         features[i] = tree.tree_.feature[0]
+        threshold[i] = np.ceil(tree.tree_.threshold[0]).astype(np.int32)
         start_ind = nonroot_start_ind[i]
         children[i, 0] = (start_ind + tree.tree_.children_left[0] - 1
                           if tree.tree_.children_left[0] > 0
@@ -35,6 +37,8 @@ def load_forest(path):
         new_features[new_features < 0] = \
             -1 - np.argmax(tree.tree_.value[tree.tree_.feature < 0], axis=-1)
         features[start_ind : start_ind + tree_size[i]-1] = new_features
+        threshold[start_ind : start_ind + tree_size[i]-1] = \
+            np.ceil(tree.tree_.threshold[1:]).astype(np.int32)
         orig_children = np.c_[tree.tree_.children_left[1:],
                               tree.tree_.children_right[1:]]
         new_children = (start_ind - 1 + orig_children).astype(np.int32)
@@ -43,6 +47,7 @@ def load_forest(path):
     f = Forest()
     f.num_trees = num_trees
     f.features = features
+    f.threshold = threshold
     f.children = children
     f.classes = classifier.classes_
     return f
@@ -59,6 +64,7 @@ def predict(forest, bitimg, get_classes=True):
                       cl.LocalMemory((local_w + 35) * (local_h + 35)),
                       forest.features.data,
                       forest.children.data,
+                      forest.threshold.data,
                       cl.LocalMemory(4 * local_w * local_h * forest.num_trees),
                       img_classes.data,
                       np.int32(get_classes))

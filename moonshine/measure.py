@@ -72,6 +72,8 @@ class Measure:
         return self.image
 
     def show_elements(self, x0=0, y0=0, on_page=False):
+        if not hasattr(self, 'elements'):
+            return
         # on_page overrides x0 and y0 to draw in page coordinates
         if on_page:
             x0 = self.bounds[0]

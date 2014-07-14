@@ -7,14 +7,17 @@ import os
 import numpy
 
 IMSLP = '../IMSLP'
-all_imslp = list(numpy.random.choice(os.listdir(IMSLP), 25))
+all_imslp = list(numpy.random.choice(os.listdir(IMSLP), 100))
 CORPUS = [os.path.join(IMSLP,p) for p in all_imslp]
 
 images = []
 class_num = []
 
 for score in CORPUS:
-    score = moonshine.open(score)
+    try:
+        score = moonshine.open(score)
+    except Exception:
+        continue
     while len(score):
         page = score[0]
         preprocessing.process(page)
