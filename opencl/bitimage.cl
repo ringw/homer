@@ -122,3 +122,20 @@ __kernel void border(__global const uchar *image,
     
     output_image[x + w * y] = input_byte & ~erosion;
 }
+
+__kernel void copy_bits_complex64(global const uchar *bitimage,
+                                  int x0, int y0, int in_w,
+                                  global float2 *complex_image) {
+    int out_x = get_global_id(0);
+    int out_y = get_global_id(1);
+    int out_w = get_global_size(0);
+    int in_x = (x0 + out_x) / 8;
+    int in_bit = (x0 + out_x) % 8;
+    int in_y = y0 + out_y;
+
+    uchar in_byte = bitimage[in_x + in_w * in_y];
+    float2 out;
+    out.x = (in_byte >> (7 - in_bit)) & 0x01;
+    out.y = 0;
+    complex_image[out_x + out_w * out_y] = out;
+}
