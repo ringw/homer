@@ -4,68 +4,78 @@ import cPickle
 
 prg = build_program('forest')
 
-class Forest:
+class GPUForest:
     num_trees = None
     features = None
+    threshold = None
     children = None
     classes = None
+    def __init__(self, forest):
+        self.num_trees = forest['num_trees']
+        self.features = cla.to_device(q, forest['features'])
+        self.threshold = cla.to_device(q, forest['threshold'])
+        self.children = cla.to_device(q, forest['children'])
+        self.classes = forest['classes']
+cpu_classifier = cPickle.load(open('classifier.pkl'))
+classifier = GPUForest(cpu_classifier)
 
-def load_forest(path):
-    classifier = cPickle.load(open(path, 'rb'))
-    num_trees = len(classifier.estimators_)
-    tree_size = [len(e.tree_.feature) for e in classifier.estimators_]
-    forest_size = sum(tree_size)
-    features = cla.empty(q, forest_size, np.int32)
-    threshold = cla.empty(q, forest_size, np.int32)
-    children = cla.empty(q, (forest_size, 2), np.int32)
-    # Map each root to the first n indices which each worker starts on,
-    # then concatenate all remaining nodes from each tree
-    nonroot_start_ind = num_trees + \
-        np.cumsum([0] + [s - 1 for s in tree_size[:-1]])
-    for i, tree in enumerate(classifier.estimators_):
-        features[i] = tree.tree_.feature[0]
-        threshold[i] = np.ceil(tree.tree_.threshold[0]).astype(np.int32)
-        start_ind = nonroot_start_ind[i]
-        children[i, 0] = (start_ind + tree.tree_.children_left[0] - 1
-                          if tree.tree_.children_left[0] > 0
-                          else -1)
-        children[i, 1] = (start_ind + tree.tree_.children_right[0] - 1
-                          if tree.tree_.children_right[0] > 0
-                          else -1)
-        new_features = tree.tree_.feature[1:].astype(np.int32)
-        # Extract values from the leaves
-        new_features[new_features < 0] = \
-            -1 - np.argmax(tree.tree_.value[tree.tree_.feature < 0], axis=-1)
-        features[start_ind : start_ind + tree_size[i]-1] = new_features
-        threshold[start_ind : start_ind + tree_size[i]-1] = \
-            np.ceil(tree.tree_.threshold[1:]).astype(np.int32)
-        orig_children = np.c_[tree.tree_.children_left[1:],
-                              tree.tree_.children_right[1:]]
-        new_children = (start_ind - 1 + orig_children).astype(np.int32)
-        new_children[orig_children < 0] = -1
-        children[start_ind : start_ind + tree_size[i]-1, :] = new_children
-    f = Forest()
-    f.num_trees = num_trees
-    f.features = features
-    f.threshold = threshold
-    f.children = children
-    f.classes = classifier.classes_
-    return f
-classifier = load_forest('classifier.pkl')
+NUM_CLASSES = 32
+BLOCK_SIZE = 35
+PROJ_SIZE = 15
+def predict_cpu(forest, patch, num_results=1):
+    assert patch.shape == (BLOCK_SIZE, BLOCK_SIZE)
+    nodes = np.arange(forest['num_trees'])
+    predictions = np.zeros(NUM_CLASSES, int)
+    vproj = patch.sum(0)
+    hproj = patch.sum(1)
+    while len(nodes):
+        # Add leaves' class to hte accumulator and remove them from nodes
+        feats = forest['features'][nodes]
+        leaves = feats < 0
+        leaf_class = -feats[leaves] - 1
+        bins = np.bincount(leaf_class)
+        predictions[:len(bins)] += bins
+        nodes = nodes[~leaves]
 
-def predict(forest, bitimg, get_classes=True):
+        feats = forest['features'][nodes]
+        seen = np.zeros_like(feats, bool)
+        which_child = np.zeros_like(feats, bool)
+        pixel_feat = feats < BLOCK_SIZE * BLOCK_SIZE
+        which_child[pixel_feat] = patch.ravel()[feats[pixel_feat]]
+        seen |= pixel_feat
+
+        vproj_feat = (~seen) & (pixel_feat < BLOCK_SIZE*BLOCK_SIZE + PROJ_SIZE)
+        which_child[vproj_feat] = (vproj[feats[vproj_feat]-BLOCK_SIZE*BLOCK_SIZE]
+            >= forest['threshold'][nodes[vproj_feat]]).astype(int)
+        seen |= vproj_feat
+
+        hproj_feat = (~seen)&(pixel_feat < BLOCK_SIZE*BLOCK_SIZE + PROJ_SIZE*2)
+        which_child[hproj_feat] = (hproj[feats[hproj_feat]-BLOCK_SIZE*BLOCK_SIZE-PROJ_SIZE]
+            >= forest['threshold'][nodes[hproj_feat]]).astype(int)
+        seen |= hproj_feat
+
+        assert seen.all()
+        nodes = forest['children'][nodes, which_child.astype(int)]
+    if num_results == 1:
+        return np.argmax(predictions)
+    else:
+        top_results = np.argsort(-predictions)
+        return top_results[:num_results]
+
+def predict(forest, bitimg, get_classes=True, num_workers=32):
     img_classes = cla.zeros(q, (bitimg.shape[0], bitimg.shape[1] * 8),
                                np.uint8)
     local_w=8
     local_h=4
-    e=prg.run_forest(q, img_classes.shape[::-1] + (forest.num_trees,),
-                      (local_w, local_h, forest.num_trees),
+    e=prg.run_forest(q, img_classes.shape[::-1] + (num_workers,),
+                      (local_w, local_h, num_workers),
                       bitimg.data,
                       cl.LocalMemory((local_w + 35) * (local_h + 35)),
+                      np.int32(forest.num_trees),
                       forest.features.data,
                       forest.children.data,
                       forest.threshold.data,
-                      cl.LocalMemory(4 * local_w * local_h * forest.num_trees),
+                      cl.LocalMemory(4 * local_w * local_h * NUM_CLASSES),
                       img_classes.data,
                       np.int32(get_classes))
     e.wait()

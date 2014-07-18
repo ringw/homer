@@ -7,7 +7,7 @@ import os
 import numpy
 
 IMSLP = '../IMSLP'
-all_imslp = list(numpy.random.choice(os.listdir(IMSLP), 100))
+all_imslp = list(numpy.random.choice(os.listdir(IMSLP), 10))
 CORPUS = [os.path.join(IMSLP,p) for p in all_imslp]
 
 images = []
@@ -31,19 +31,22 @@ for score in CORPUS:
         del score[0]
         opencl.q.finish()
         gc.collect()
-        if len(images) > 1000:
+        if len(images) > 25:
             break
 
-from Tkinter import *
-import ImageTk
-from PIL import Image
+
 import numpy as np
 
-CUTOFF=10
-print 'cutoff', CUTOFF, 'num patches', sum([np.sum(c == CUTOFF) for c in class_num])
+nums=np.concatenate([c.ravel() for c in class_num])
+NUM_PATCHES = 100
+CUTOFF = np.percentile(nums, 100.0*NUM_PATCHES/len(nums))
+
+print 'cutoff', CUTOFF, 'num patches', sum([np.sum(c <= CUTOFF) for c in class_num])
+i=0
 def get_images():
+    global i
     for img, cls in zip(images, class_num):
-        y, x = np.where(cls == CUTOFF)
+        y, x = np.where(cls <= CUTOFF)
         img = np.pad(img, 35/2, 'constant', constant_values=0)
         y = y + 35/2
         x = x + 35/2
@@ -56,47 +59,11 @@ def get_images():
             patch[c,c-5:c+6,0] ^= 0xFF
             #patch[[c-1,c-1,c+1,c+1],[c-1,c+1]*2,0] ^= 0xFF
             patch[c-1:c+2, c-1:c+2, 1] ^= 0xFF
+            i += 1
             yield img_patch, patch
+            if i == NUM_PATCHES: return
 
-t=Tk()
-
-classes = ["background"] + sorted(COLOR_LABELS.values())
-patches_f = open('patches.csv', 'a')
-patch = None
-gen = get_images()
-label = Label(t)
-label.grid(row=0, column=0, rowspan=len(classes))
-def button(x):
-    global real_img, patch, img, imgTk
-    if x is not None:
-        print x
-        vals = map(str, (real_img != 0).ravel().astype(int))
-        print >> patches_f, "".join(vals) + "," + x
-    try:
-        real_img, patch = gen.next()
-    except StopIteration:
-        sys.exit(0)
-    img = Image.fromarray(patch)
-    imgTk = ImageTk.PhotoImage(img.resize((35*8,35*8)))
-    label.configure(image=imgTk)
-button(None)
-def makeCallback(class_name, narg=0):
-    # weird issue with scope when trying to make a lambda in a for loop
-    if narg == 0:
-        return lambda: button(class_name)
-    else:
-        assert narg == 1
-        return lambda x: button(class_name)
-# assign already mapped keys
-keypress = dict()
-for i,c in enumerate(classes):
-    for charnum,char in enumerate(c):
-        if char not in keypress and char in map(chr,range(ord('a'),ord('z'))):
-            keypress[char] = c
-            break
-    b = Button(t, text=c, width=50, command=makeCallback(c), underline=charnum)
-    t.bind('<Alt-%s>' % char, makeCallback(c, narg=1))
-    b.grid(column=1, row=i)
-
-t.focus()
-t.mainloop()
+outfile = open('unlabeled_patches', 'a')
+for img, p in get_images():
+    outfile.write(''.join(map(str, (img.ravel() != 0).astype(int))) + '\n')
+outfile.close()

@@ -10,6 +10,7 @@ COLOR_LABELS = {
     (255, 255, 0): "flat",
     (255, 0, 255): "natural",
     (0, 255, 255): "sharp",
+    (0, 254, 254): "double_sharp",
 
     (200, 200, 0): "beam",
 }

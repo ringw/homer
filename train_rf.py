@@ -117,6 +117,18 @@ for labels in labeled_data:
     all_patch_labels.append(patch_labels)
 patches = np.concatenate(all_patches)
 patch_labels = [label for patch in all_patch_labels for label in patch]
+bg = np.array([label == 'background' for label in patch_labels])
+num_bg = sum(bg)
+# Make background patches 75% of total
+max_num_bg = (len(patches) - num_bg) * 3
+if num_bg > max_num_bg:
+    print 'pruning', num_bg, 'background to', max_num_bg
+    choice = np.random.choice(num_bg, max_num_bg, replace=False)
+    bg_inds = np.where(bg)[0][choice]
+    non_bg_inds = np.where(~bg)[0]
+    keep = np.sort(np.concatenate([bg_inds, non_bg_inds]))
+    patches = patches[keep]
+    patch_labels = [l for i,l in enumerate(patch_labels) if i in keep]
 
 # Load additional manually added patches
 patch_f = open('patches.csv')
@@ -136,6 +148,46 @@ vert_proj = proj_patch.sum(1)
 horiz_proj = proj_patch.sum(2)
 features = np.c_[features, vert_proj, horiz_proj]
 
-rf = RandomForestClassifier(n_estimators=32)
+def convert_forest(classifier):
+    num_trees = len(classifier.estimators_)
+    tree_size = [len(e.tree_.feature) for e in classifier.estimators_]
+    forest_size = sum(tree_size)
+    features = np.empty(forest_size, np.int32)
+    threshold = np.empty(forest_size, np.int32)
+    children = np.empty((forest_size, 2), np.int32)
+    # Map each root to the first n indices which each worker starts on,
+    # then concatenate all remaining nodes from each tree
+    nonroot_start_ind = num_trees + \
+        np.cumsum([0] + [s - 1 for s in tree_size[:-1]])
+    for i, tree in enumerate(classifier.estimators_):
+        features[i] = tree.tree_.feature[0]
+        threshold[i] = np.ceil(tree.tree_.threshold[0]).astype(np.int32)
+        start_ind = nonroot_start_ind[i]
+        children[i, 0] = (start_ind + tree.tree_.children_left[0] - 1
+                          if tree.tree_.children_left[0] > 0
+                          else -1)
+        children[i, 1] = (start_ind + tree.tree_.children_right[0] - 1
+                          if tree.tree_.children_right[0] > 0
+                          else -1)
+        new_features = tree.tree_.feature[1:].astype(np.int32)
+        # Extract values from the leaves
+        new_features[new_features < 0] = \
+            -1 - np.argmax(tree.tree_.value[tree.tree_.feature < 0], axis=-1)
+        features[start_ind : start_ind + tree_size[i]-1] = new_features
+        threshold[start_ind : start_ind + tree_size[i]-1] = \
+            np.ceil(tree.tree_.threshold[1:]).astype(np.int32)
+        orig_children = np.c_[tree.tree_.children_left[1:],
+                              tree.tree_.children_right[1:]]
+        new_children = (start_ind - 1 + orig_children).astype(np.int32)
+        new_children[orig_children < 0] = -1
+        children[start_ind : start_ind + tree_size[i]-1, :] = new_children
+    return dict(num_trees=num_trees,
+                features=features,
+                threshold=threshold,
+                children=children,
+                classes=classifier.classes_)
+
+rf = RandomForestClassifier(n_estimators=512, min_samples_split=8, n_jobs=-1)
 rf.fit(features, patch_labels)
-cPickle.dump(rf, open('classifier.pkl', 'wb'))
+
+cPickle.dump(convert_forest(rf), open('classifier.pkl', 'wb'))
