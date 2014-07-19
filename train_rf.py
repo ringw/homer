@@ -119,8 +119,8 @@ patches = np.concatenate(all_patches)
 patch_labels = [label for patch in all_patch_labels for label in patch]
 bg = np.array([label == 'background' for label in patch_labels])
 num_bg = sum(bg)
-# Make background patches 75% of total
-max_num_bg = (len(patches) - num_bg) * 3
+# Make background patches 90% of total
+max_num_bg = (len(patches) - num_bg) * 9
 if num_bg > max_num_bg:
     print 'pruning', num_bg, 'background to', max_num_bg
     choice = np.random.choice(num_bg, max_num_bg, replace=False)
@@ -187,7 +187,7 @@ def convert_forest(classifier):
                 children=children,
                 classes=classifier.classes_)
 
-rf = RandomForestClassifier(n_estimators=512, min_samples_split=8, n_jobs=-1)
+rf = RandomForestClassifier(n_estimators=512, max_depth=8, n_jobs=-1)
 rf.fit(features, patch_labels)
 
 cPickle.dump(convert_forest(rf), open('classifier.pkl', 'wb'))
