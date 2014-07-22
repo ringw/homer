@@ -7,6 +7,9 @@ def as_bitimage(img):
     return cla.to_device(q, np.packbits(img).reshape((img.shape[0], -1)))
 def as_hostimage(img):
     return np.unpackbits(img.get()).reshape((img.shape[0], -1))
+def imshow(img):
+    import pylab
+    pylab.imshow(as_hostimage(img))
 
 prg = build_program("bitimage")
 

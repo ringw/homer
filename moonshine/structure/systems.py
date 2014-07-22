@@ -15,8 +15,8 @@ def initialize_systems(page):
             system_bars.append([barline_x, barline_x,
                                 staff_y - page.staff_dist*2,
                                 staff_y + page.staff_dist*2])
-        page.systems.append(dict(barlines=np.array(system_bars, int),
-                                 start=i, stop=i))
+        barlines = np.array(system_bars, int).reshape((-1, 4))
+        page.systems.append(dict(barlines=barlines, start=i, stop=i))
         i += 1
 
 def verify_barlines(page, i, j, barlines):
@@ -41,7 +41,7 @@ def verify_barlines(page, i, j, barlines):
     t = np.arctan(-(barlines[:,1] - barlines[:,0]).astype(float)
                    / (barlines[:,3] - barlines[:,2]))
     rho = barlines[:,0] * np.cos(t) + barlines[:,2] * np.sin(t)
-    rhores = page.staff_thick * 2
+    rhores = page.staff_thick * 3
     rhoval = (rho / rhores).astype(int) + 1
 
     # Try a range of theta and rho values around each predicted line segment
@@ -65,6 +65,9 @@ def try_join_system(page, i):
     """ Try joining system i with the system below it.
         Update page.systems, returning True,
         or return False if no barlines connect. """
+    if (len(page.systems[i]['barlines']) == 0
+        or len(page.systems[i+1]['barlines']) == 0):
+        return False
     # Match each barline x1 in the top system to x0 in the bottom system
     system0_x1 = page.systems[i]['barlines'][:,1]
     system1_x0 = page.systems[i+1]['barlines'][:,0]

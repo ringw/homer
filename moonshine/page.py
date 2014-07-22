@@ -20,7 +20,7 @@ class Page:
         preprocessing.process(self)
         structure.process(self)
         measure.build_bars(self)
-        self.notepitch_score = note.get_notepitch_score(self)
+        #self.notepitch_score = note.get_notepitch_score(self)
 
     def show(self, show_elements=False):
         import pylab
