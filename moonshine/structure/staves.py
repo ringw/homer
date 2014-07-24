@@ -1,42 +1,23 @@
 from ..opencl import *
-from .. import hough, bitimage
+from .. import filter, hough, bitimage
 from ..cl_util import max_kernel
 import numpy as np
 
-prg = build_program(["defs", "staff_run_filter", "staffpoints"])
-prg.staffpoints.set_scalar_arg_dtypes([
-    None, # input image
-    np.int32, # staff_dist
-    None # output image
-])
-
-def staffpoints_kernel(img, dist):
-    staff = cla.zeros_like(img)
-    prg.staffpoints(q, img.shape[::-1], (8, 8),
-                                img.data, np.int32(dist), staff.data).wait()
-    return staff
-
-def staff_center_filter(img, dist):
-    NUM_WORKERS = 32
-    img_T = bitimage.transpose(img)
-    prg.staff_run_filter(q, (NUM_WORKERS, img_T.shape[0]),
-                            (32, 1),
-                         img_T.data, np.int32(img_T.shape[1]), np.int32(dist))
-    return bitimage.transpose(img_T)
-
 def staff_center_lines(page):
-    staff_filt = staffpoints_kernel(page.img, page.staff_dist)
+    staff_filt = filter.staff_center(page)
     page.staff_filt = staff_filt
     thetas = np.linspace(-np.pi/500, np.pi/500, 51)
     rhores = page.staff_thick*3
-    page.staff_bins = hough.hough_line_kernel(staff_filt, rhores=rhores, numrho=page.img.shape[0] // rhores, thetas=thetas)
+    page.staff_bins = hough.hough_line_kernel(staff_filt, rhores=rhores,
+                              numrho=page.img.shape[0] // rhores, thetas=thetas)
     # Some staves may have multiple Hough peaks so we need to take many more
     # peaks than the number of staves. Also, the strongest Hough response
     # doesn't always correspond to the longest segment, so we need many peaks
     # to find the longest segment, corresponding to the complete staff.
     # Most images shouldn't need this many peaks, but performance doesn't
     # seem to be an issue.
-    peaks = hough.houghpeaks(page.staff_bins, thresh=max_kernel(page.staff_bins)/4.0)
+    peaks = hough.houghpeaks(page.staff_bins,
+                             thresh=max_kernel(page.staff_bins)/4.0)
     page.staff_peak_theta = thetas[peaks[:, 0]]
     page.staff_peak_rho = peaks[:, 1]
     lines = hough.hough_lineseg_kernel(staff_filt,

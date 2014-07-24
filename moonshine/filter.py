@@ -9,11 +9,24 @@ prg.barline_filter.set_scalar_arg_dtypes([
     None, np.int32, None,
 ])
 
+LOCAL_SIZE = (16, 16)
+
+def staff_center(page, img=None):
+    if img is None:
+        img = page.img
+    output = cla.zeros_like(img)
+    prg.staff_center_filter(q, img.shape[::-1], LOCAL_SIZE,
+                            img.data,
+                            #np.int32(page.staff_thick+1),
+                            np.int32(page.staff_dist),
+                            output.data).wait()
+    return output
+
 def remove_staff(page, img=None):
     if img is None:
         img = page.img
     output = cla.zeros_like(img)
-    prg.staff_removal_filter(q, img.shape[::-1], (16, 16),
+    prg.staff_removal_filter(q, img.shape[::-1], LOCAL_SIZE,
                                 img.data,
                                 np.int32(page.staff_thick+1),
                                 np.int32(page.staff_dist),
@@ -27,7 +40,7 @@ def barline_filter(page, img=None):
     no_staff_T = bitimage.transpose(no_staff)
     output = cla.zeros_like(no_staff_T)
     prg.barline_filter(q, (img.shape[0] // 8, img.shape[1] * 8), # W,H
-                          (16, 16),
+                          LOCAL_SIZE,
                           no_staff_T.data,
                           np.int32(page.staff_thick+1),
                           output.data).wait()
