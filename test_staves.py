@@ -15,11 +15,13 @@ for doc in sys.argv[1:]:
             print 'Odd # staves at %s p.%d' % (doc, i)
         elif not all([s['stop'] - s['start'] == 1 for s in page.systems]):
             print 'System with != 2 staves at %s p.%d' % (doc, i)
+        elif not all([len(s['barlines']) > 2 for s in page.systems]):
+            print 'Only 2 barlines at %s p.%d' % (doc, i)
         else:
             good_pages += 1
         total_pages += 1
+        opencl.q.finish()
     del pages
-    opencl.q.finish()
     gc.collect()
 
 print 'accuracy %0.02d (%d/%d)' % (float(good_pages) * 100 / total_pages,

@@ -10,8 +10,7 @@ def staff_barlines(page, staff_num):
     staff_y = int(staff[[2,3]].sum()/2.0)
     y0 = max(0, staff_y - page.staff_dist * 4)
     y1 = min(page.img.shape[0], staff_y + page.staff_dist * 4)
-    img = filter.remove_staff(page)
-    img_slice = bitimage.as_hostimage(img[y0:y1, :])
+    img_slice = bitimage.as_hostimage(page.barline_filter[y0:y1, :])
     proj = img_slice.sum(0)
 
     # Barline must take up at least 75% of the vertical space,
@@ -38,8 +37,10 @@ def staff_barlines(page, staff_num):
     return barlines
 
 def get_barlines(page):
+    page.barline_filter = filter.barline_filter(page)
     page.barlines = [staff_barlines(page, i)
                      for i in xrange(len(page.staves))]
+    del page.barline_filter
     return page.barlines
 
 def show_barlines(page):
