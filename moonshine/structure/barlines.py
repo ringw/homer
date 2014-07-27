@@ -13,8 +13,8 @@ def staff_barlines(page, staff_num):
     img_slice = bitimage.as_hostimage(page.barline_filter[y0:y1, :])
     proj = img_slice.sum(0)
 
-    # Barline must take up at least 75% of the vertical space,
-    # and there should be background (few active pixels) around it
+    # Barline must take up at least 90% of the vertical space,
+    # and there should be background (few black pixels) around it
     is_barline = proj > page.staff_dist * 4 * 0.9
     is_background = proj < page.staff_dist/2
     near_background_left = is_background.copy()
@@ -37,7 +37,7 @@ def staff_barlines(page, staff_num):
     return barlines
 
 def get_barlines(page):
-    page.barline_filter = filter.barline_filter(page)
+    page.barline_filter = filter.remove_staves(page)
     page.barlines = [staff_barlines(page, i)
                      for i in xrange(len(page.staves))]
     del page.barline_filter

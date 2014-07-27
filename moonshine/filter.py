@@ -22,7 +22,7 @@ def staff_center(page, img=None):
                             output.data).wait()
     return output
 
-def remove_staff(page, img=None):
+def remove_staves(page, img=None):
     if img is None:
         img = page.img
     output = cla.zeros_like(img)
