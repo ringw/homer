@@ -2,7 +2,7 @@
 Fast, robust optical music recognition using OpenCL
 
 ## Example
-    python test_structure.py samples/sonata.png
+    python show_structure.py samples/sonata.png
 
 This detects structural information about the score
 (staves, measures, and staff systems)
@@ -13,13 +13,10 @@ not include any timing information within each measure, since we aren't yet
 classifying note stems, beams, or dots.
 
 ## Features
-* Robust staff detection
-* Random forest classification
+* Robust structure (staves, systems, and measures) detection
+* Random forest glyph classification
 
 ## Goals
-* Accurately detecting page layout (staves and measures) on noisy images
-* Heuristic for quickly guessing notes so that the output can then be refined
-  using online learning
 * Glyph classification using semi-supervised learning on unlabeled scanned
   sheet music available from IMSLP
 
@@ -27,6 +24,7 @@ classifying note stems, beams, or dots.
 * Python 2.7+
 * NumPy
 * PyOpenCL
+* PyFFT
 * Pillow, PyPDF, pylibtiff (PDF loading)
 * Pylab (displaying structure)
 * Music21
