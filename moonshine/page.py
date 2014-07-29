@@ -3,7 +3,7 @@ from .opencl import *
 
 # Need to define this now so that orientation can use it
 PAGE_SIZE = 4096
-from . import image, preprocessing, structure, measure, note
+from . import image, structure, measure, note
 
 
 class Page:
@@ -17,7 +17,6 @@ class Page:
         self.img = cla.to_device(q, self.bitimg)
 
     def process(self):
-        preprocessing.process(self)
         structure.process(self)
         measure.build_bars(self)
         #self.notepitch_score = note.get_notepitch_score(self)
