@@ -34,4 +34,15 @@ def stable_paths(page):
                                     xrange(page.paths.shape[0]),
                                     page.paths[:,-1]['cost']):
         starting_points[start_y].append((cost, end_y))
-    return starting_points
+    stable_paths = []
+    for from_y0 in starting_points:
+        if not from_y0:
+            continue
+        cost_to_path = dict(from_y0)
+        path_y = cost_to_path[min(cost_to_path)] # end y of min cost path
+        path = []
+        for x in xrange(page.paths.shape[1]-1, -1, -1):
+            path.append(path_y)
+            path_y = page.paths[path_y, x]['prev']
+        stable_paths.append(list(reversed(path)))
+    return stable_paths

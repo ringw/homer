@@ -1,6 +1,6 @@
-from ..opencl import *
-from .. import filter, hough, bitimage
-from ..cl_util import max_kernel
+from ...opencl import *
+from ... import filter, hough, bitimage
+from ...cl_util import max_kernel
 import numpy as np
 
 def staff_center_lines(page):
@@ -34,18 +34,14 @@ def staves(page):
     page.staves = staves[good_staves].astype(np.int32)
     return page.staves
 
-def show_staff_segments(page):
-    import pylab as p
-    staff_filt = np.unpackbits(page.staff_filt.get()).reshape((4096, -1))
-    staff_line_mask = np.ma.masked_where(staff_filt == 0, staff_filt)
-    p.imshow(staff_line_mask, cmap='Greens')
-    for x0, x1, y0, y1 in page.staff_center_lines:
-        p.plot([x0, x1], [y0, y1], 'g')
-def show_staff_centers(page):
+def show_staff_filter(page):
     import pylab as p
     # Overlay staff line points
     staff_filt = np.unpackbits(page.staff_filt.get()).reshape((4096, -1))
     staff_line_mask = np.ma.masked_where(staff_filt == 0, staff_filt)
     p.imshow(staff_line_mask, cmap='Greens')
-    for x0, x1, y0, y1 in page.staves:
+def show_staff_segments(page):
+    self.show_staff_filter()
+    import pylab as p
+    for x0, x1, y0, y1 in page.staff_center_lines:
         p.plot([x0, x1], [y0, y1], 'g')

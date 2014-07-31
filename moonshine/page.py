@@ -29,7 +29,7 @@ class Page:
         pylab.imshow(bitimage.as_hostimage(self.img))
         pylab.ylim([self.orig_size[0], 0])
         pylab.xlim([0, self.orig_size[1]])
-        staves.show_staff_centers(self)
+        staves.show_staves(self)
         barlines.show_barlines(self)
         systems.show_system_barlines(self)
         staffboundary.show_boundaries(self)
