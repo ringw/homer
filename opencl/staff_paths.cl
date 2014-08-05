@@ -70,3 +70,70 @@ kernel void staff_paths(global const uchar *image,
         barrier(CLK_GLOBAL_MEM_FENCE);
     }
 }
+
+kernel void find_stable_paths(global const struct path_point *paths,
+                              int w,
+                              global volatile int *stable_path_end) {
+    int y1 = get_global_id(0);
+    // Initialize stable_path_end
+    stable_path_end[y1] = -1;
+    barrier(CLK_GLOBAL_MEM_FENCE);
+
+    // Trace back shortest path from (x1, y1)
+    int y = y1;
+    for (int x = w-1; x > 0; x--)
+        y = paths[x + w * y].prev;
+
+    // Update stable_path_end[y] with y1 as long as the path is shorter
+    // than the one currently stored there
+    float our_cost = paths[w-1 + w * y1].cost;
+    int cur_y1;
+    do {
+        cur_y1 = stable_path_end[y];
+        if (cur_y1 >= 0 && paths[w-1 + w * cur_y1].cost >= our_cost)
+            break;
+    } while (atomic_cmpxchg(&stable_path_end[y], cur_y1, y1) != cur_y1);
+}
+
+// stable_path_end must be packed by removing invalid y < 0
+kernel void extract_stable_paths(global const struct path_point *paths,
+                                 int w,
+                                 global const int *stable_path_end,
+                                 global int *stable_paths) {
+    int path_ind = get_global_id(0);
+    int y = stable_path_end[path_ind];
+    for (int x = w-1; x >= 0; x--) {
+        stable_paths[x + w * path_ind] = y;
+        y = paths[x + w * y].prev;
+    }
+}
+
+kernel void remove_paths(global uchar *image,
+                         global const int *stable_paths,
+                         int path_num_points, int num_paths,
+                         int path_scale) {
+    if (path_scale != 2) return; // XXX
+
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+    int w = get_global_size(0);
+
+    // Check each path to see if it overlaps with this byte
+    uchar byte_mask = 0xFFU;
+    uchar cur_mask;
+    int path_point;
+    for (cur_mask = 0xC0U, path_point = x*8 / path_scale;
+         cur_mask != 0, path_point < path_num_points;
+         cur_mask >>= path_scale, path_point++) {
+        int in_path = 0;
+        for (int path = 0; path < num_paths; path++) {
+            int path_y = stable_paths[path_point + path_num_points * path];
+            if (path_y == y / path_scale)
+                in_path = 1;
+        }
+        if (in_path)
+            byte_mask &= ~ cur_mask;
+    }
+
+    image[x + w * y] &= byte_mask;
+}
