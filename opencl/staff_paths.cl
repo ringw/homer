@@ -109,31 +109,29 @@ kernel void extract_stable_paths(global const struct path_point *paths,
 }
 
 kernel void remove_paths(global uchar *image,
+                         int w, int h,
                          global const int *stable_paths,
-                         int path_num_points, int num_paths,
-                         int path_scale) {
+                         int path_num_points,
+                         int path_scale,
+                         global int *pixel_sums) {
     if (path_scale != 2) return; // XXX
 
-    int x = get_global_id(0);
-    int y = get_global_id(1);
-    int w = get_global_size(0);
-
-    // Check each path to see if it overlaps with this byte
-    uchar byte_mask = 0xFFU;
-    uchar cur_mask;
-    int path_point;
-    for (cur_mask = 0xC0U, path_point = x*8 / path_scale;
-         cur_mask != 0, path_point < path_num_points;
-         cur_mask >>= path_scale, path_point++) {
-        int in_path = 0;
-        for (int path = 0; path < num_paths; path++) {
-            int path_y = stable_paths[path_point + path_num_points * path];
-            if (path_y == y / path_scale)
-                in_path = 1;
+    int path = get_global_id(0);
+    int our_sum = 0;
+    for (int x = 0; x*path_scale < w*8; x++) {
+        uchar byte_mask = 0xC0U >> ((x*path_scale) % 8);
+        int y_center = stable_paths[x + path_num_points * path]*path_scale;
+        int any_dark = 0;
+        for (int y = y_center - 5; y < y_center + 5 + path_scale; y++) {
+            if (0 <= y && y < h) {
+                if (image[(x*path_scale)/8 + w * y] & byte_mask)
+                    any_dark = 1;
+                image[(x*path_scale)/8 + w * y] &= ~ byte_mask;
+            }
         }
-        if (in_path)
-            byte_mask &= ~ cur_mask;
+
+        our_sum += any_dark;
     }
 
-    image[x + w * y] &= byte_mask;
+    pixel_sums[path] = our_sum;
 }

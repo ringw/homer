@@ -3,14 +3,16 @@ from ...opencl import *
 prg = build_program('staff_paths')
 
 path_point = np.dtype([('cost', np.float32), ('prev', np.int32)])
-def paths(page, num_workers=1024, scale=2.0):
-    page.paths = cla.zeros(q, (int(page.img.shape[0]/scale),
-                               int(page.img.shape[1]*8/scale), 2),
+def paths(page, img=None, num_workers=1024, scale=2.0):
+    if img is None:
+        img = page.img
+    page.paths = cla.zeros(q, (int(img.shape[0]/scale),
+                               int(img.shape[1]*8/scale), 2),
                               np.int32)
     prg.staff_paths(q, (num_workers,), (num_workers,),
-                    page.img.data,
-                    np.int32(page.img.shape[1]),
-                    np.int32(page.img.shape[0]),
+                    img.data,
+                    np.int32(img.shape[1]),
+                    np.int32(img.shape[0]),
                     np.int32(page.staff_thick),
                     np.float32(2.0),
                     page.paths.data,
@@ -18,9 +20,11 @@ def paths(page, num_workers=1024, scale=2.0):
                     np.int32(page.paths.shape[0]))
     return page.paths
 
-def stable_paths(page):
+def stable_paths(page, img=None):
+    if img is None:
+        img = page.img
     if not hasattr(page, 'paths'):
-        paths(page)
+        paths(page, img)
     h = page.paths.shape[0]
     w = page.paths.shape[1]
     path_end = cla.zeros(q, (h,), np.int32)
@@ -41,9 +45,11 @@ def stable_paths(page):
                              path_list.data).wait()
     return path_list
 
-def stable_paths_py(page):
+def stable_paths_py(page, img=None):
+    if img is None:
+        img = page.img
     if not hasattr(page, 'paths'):
-        paths(page)
+        paths(page, img)
     
     starting_points = [[] for i in xrange(page.paths.shape[1])]
     # Trace each endpoint back along its shortest path
@@ -70,11 +76,33 @@ def stable_paths_py(page):
         stable_paths.append(list(reversed(path)))
     return stable_paths
 
-def remove_paths(page, img, stable_paths):
-    prg.remove_paths(q, img.shape[::-1], (16, 16),
+def validate_and_remove_paths(page, img, stable_paths):
+    pixel_sum = cla.zeros(q, (len(stable_paths),), np.int32)
+    prg.remove_paths(q, (len(stable_paths),), (1,),
                         img.data,
+                        np.int32(img.shape[1]),
+                        np.int32(img.shape[0]),
                         stable_paths.data,
                         np.int32(stable_paths.shape[1]),
-                        np.int32(stable_paths.shape[0]),
-                        np.int32(2)) # XXX
-    return img
+                        np.int32(2), # XXX
+                        pixel_sum.data)
+    return pixel_sum
+
+def all_staff_paths(page):
+    img = page.img.copy()
+    all_paths = []
+    threshold = None
+    while True:
+        if hasattr(page, 'paths'):
+            del page.paths
+        paths = stable_paths(page, img)
+        sums = validate_and_remove_paths(page, img, paths).get()
+        if threshold is None:
+            threshold = int(np.median(sums) * 0.8)
+            all_paths.append(paths.get())
+        else:
+            valid = sums >= threshold
+            if not valid.any():
+                return np.concatenate(all_paths)
+            else:
+                all_paths.append(paths.get()[valid])
