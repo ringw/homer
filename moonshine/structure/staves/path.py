@@ -1,4 +1,5 @@
 from ...opencl import *
+import logging
 
 prg = build_program('staff_paths')
 
@@ -103,6 +104,39 @@ def all_staff_paths(page):
         else:
             valid = sums >= threshold
             if not valid.any():
-                return np.concatenate(all_paths)
+                return np.concatenate(all_paths) * 2 # XXX: path_scale
             else:
                 all_paths.append(paths.get()[valid])
+
+
+def staves(page):
+    staff_paths = all_staff_paths(page)
+    # Sort the path y's in each column, which prevents paths crossing
+    staff_paths = np.sort(staff_paths, axis=0)
+
+    staves = []
+    cur_staff = []
+    last_line_pos = None
+    for line in staff_paths:
+        line_pos = np.median(line)
+        print line_pos
+        if last_line_pos is None or line_pos - last_line_pos < page.staff_dist*2:
+            cur_staff.append(line)
+        elif cur_staff:
+            # end of staff
+            if len(cur_staff) != 5:
+                logging.warn('Throwing out staff with %d lines' % len(cur_staff))
+            else:
+                center_pos = np.median(cur_staff[2])
+                staves.append([0, page.orig_size[1], center_pos,center_pos])
+            cur_staff = [line]
+        last_line_pos = line_pos
+    if cur_staff:
+        # end of staff
+        if len(cur_staff) != 5:
+            logging.warn('Throwing out staff with %d lines' % len(cur_staff))
+        else:
+            center_pos = np.median(cur_staff[2])
+            staves.append([0, page.orig_size[1], center_pos,center_pos])
+    page.staves = np.array(staves, int)
+    return page.staves
