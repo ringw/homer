@@ -17,20 +17,13 @@ kernel void staff_center_filter(global const uchar *image,
         if (i == 0)
             continue;
         uchar found_point = 0x0;
-        // Search within 2 points of expected distance
+        // Search within 3 points of expected distance
         for (int d = -3; d <= 3; d++) {
             int point_y = y + i*staff_dist + d;
             if (0 <= point_y && point_y < h)
                 found_point |= image[x + point_y * w];
         }
-        uchar found_space = 0x0;
-        int space_y = y + i*staff_dist - 5;
-        if (0 <= space_y && space_y < h)
-            found_space |= ~ image[x + space_y * w];
-        space_y = y + i*staff_dist + 5;
-        if (0 <= space_y && space_y < h)
-            found_space |= ~ image[x + space_y * w];
-        staff_byte &= found_point & found_space;
+        staff_byte &= found_point;
     }
 
     staff[x + y * w] = staff_byte;
