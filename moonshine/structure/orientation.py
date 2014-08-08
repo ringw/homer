@@ -101,6 +101,8 @@ def patch_orientation(page, patch_size=512):
     return np.ma.masked_array(orientations, mask)
 
 def orientation(page):
+    assert type(page.staff_dist) is not tuple, \
+           "Multiple staff sizes not supported"
     patch_size = 512
     while page.staff_dist * 10 > patch_size:
         patch_size *= 2
