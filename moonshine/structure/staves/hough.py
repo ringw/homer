@@ -1,4 +1,4 @@
-from ...opencl import *
+from ...gpu import *
 from ... import filter, hough, bitimage
 from ...cl_util import max_kernel
 import numpy as np

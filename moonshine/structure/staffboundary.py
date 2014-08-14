@@ -1,19 +1,9 @@
-from ..opencl import *
+from ..gpu import *
 from .. import util
 import numpy as np
 
 prg = build_program(["boundary", "scaled_bitmap_to_int_array",
                      "taxicab_distance"])
-prg.boundary_cost.set_scalar_arg_dtypes([
-    None, # float distance transform
-    np.int32, # image width
-    np.int32, np.int32, np.int32, # y0, ystep, numy
-    np.int32, np.int32, np.int32, # x0, xstep, numx
-    None # output costs
-])
-prg.scaled_bitmap_to_int_array.set_scalar_arg_dtypes([
-    None, np.float32, np.int32, np.int32, np.int32, np.int32, None
-])
 
 def boundary_cost_kernel(dist, y0, ystep, y1, x0, xstep, x1):
     numy = int(y1 - y0) // int(ystep)

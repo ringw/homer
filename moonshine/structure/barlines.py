@@ -2,7 +2,7 @@
 # slice of the image containing the staff.
 # Next, barlines close to each other on adjacent staves need to be checked
 # to see if they are joined, in which case we join the staves into one system.
-from ..opencl import *
+from ..gpu import *
 from .. import bitimage, filter, util
 
 def staff_barlines(page, staff_num):

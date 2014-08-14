@@ -1,21 +1,11 @@
-from ..opencl import *
-import numpy as np
+from ..gpu import *
 from .. import hough
 from ..page import PAGE_SIZE
-import pyfft.cl
+import numpy as np
+from reikna.core import Type
+import reikna.fft
 
 prg = build_program(['rotate', 'bitimage'])
-prg.rotate_image.set_scalar_arg_dtypes([
-    None, # input image
-    np.float32, # cos(theta)
-    np.float32, # sin(theta)
-    None, # output image
-])
-prg.copy_bits_complex64.set_scalar_arg_dtypes([
-    None,
-    np.int32, np.int32, np.int32,
-    None
-])
 
 def rotate(page):
     orientation(page)
@@ -24,18 +14,18 @@ def rotate(page):
     return page.orientation
 
 def rotate_kernel(img, theta):
-    new_img = cla.zeros_like(img)
-    prg.rotate_image(q, (img.shape[1], img.shape[0]),
-                               (16, 8),
-                               img.data,
-                               np.cos(theta).astype(np.float32),
-                               np.sin(theta).astype(np.float32),
-                               new_img.data).wait()
+    new_img = thr.empty_like(img)
+    new_img[:] = 0
+    prg.rotate_image(img,
+                     np.cos(theta).astype(np.float32),
+                     np.sin(theta).astype(np.float32),
+                     new_img,
+                     global_size=(img.shape[1], img.shape[0]))
     return new_img
 
 def patch_orientation_numpy(page, patch_size=512):
     orientations = np.zeros((PAGE_SIZE / patch_size,
-                                      PAGE_SIZE / patch_size))
+                             PAGE_SIZE / patch_size))
     mask = np.zeros_like(orientations, bool)
 
     # Windowed FFT
@@ -65,29 +55,24 @@ def patch_orientation_numpy(page, patch_size=512):
                 mask[patch_y, patch_x] = True
     return np.ma.masked_array(orientations, mask)
 
-# Cache fft function for each patch_size we use
-fft_kernel = dict()
 def patch_orientation(page, patch_size=512):
     orientations = np.zeros((PAGE_SIZE / patch_size,
-                                      PAGE_SIZE / patch_size))
+                             PAGE_SIZE / patch_size))
     mask = np.zeros_like(orientations, bool)
 
-    patch = cla.zeros(q, (patch_size, patch_size), np.complex64)
-    if patch_size in fft_kernel:
-        our_fft = fft_kernel[patch_size]
-    else:
-        our_fft = fft_kernel[patch_size] = \
-            pyfft.cl.Plan((patch_size,patch_size), queue=q)
+    patch = thr.empty_like(Type(np.complex64, (patch_size, patch_size)))
+    our_fft = reikna.fft.FFT(patch).compile(thr)
+    patch_fft = thr.empty_like(patch)
     for patch_y in xrange(orientations.shape[0]):
         for patch_x in xrange(orientations.shape[1]):
-            prg.copy_bits_complex64(q, patch.shape[::-1], (32, 8),
-                page.img.data,
+            prg.copy_bits_complex64(
+                page.img,
                 np.int32(patch_x*patch_size),
                 np.int32(patch_y*patch_size),
                 np.int32(page.img.shape[1]),
-                patch.data).wait()
-            our_fft.execute(patch.data, wait_for_finish=True)
-            fft_top = np.abs(patch[:patch_size/2].get())
+                patch, global_size=patch.shape[::-1])
+            our_fft(patch_fft, patch)
+            fft_top = np.abs(patch_fft[:patch_size/2].get())
             fft_top[:int(page.staff_dist*2.5)] = 0
             fft_top[int(page.staff_dist*3.5):] = 0
             peak_y, peak_x = np.unravel_index(np.argmax(fft_top),

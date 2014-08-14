@@ -1,10 +1,9 @@
 # Connected component labelling using Union-Find
-from .opencl import *
+from .gpu import *
 import numpy as np
 
 prg = build_program('components')
-int2 = cl.tools.get_or_register_dtype('int2')
-prg.init_component_bounds.set_scalar_arg_dtypes([None, int2])
+int2 = np.dtype('i4,i4')
 
 def get_components(classes_img):
     pixel_tree = cla.zeros(q, classes_img.shape, np.int32)

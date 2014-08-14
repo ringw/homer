@@ -1,13 +1,10 @@
-from .opencl import *
+from .gpu import *
 import numpy as np
 from fractions import gcd
 
-int2 = cl.tools.get_or_register_dtype("int2")
-int4 = cl.tools.get_or_register_dtype("int4")
+int2 = np.dtype('i4,i4')
+int4 = np.dtype('i4,i4,i4,i4')
 prg = build_program("copy_measure")
-prg.copy_measure.set_scalar_arg_dtypes([
-    None, int2, None, np.int32, None, np.int32, None, int4
-])
 def get_measure(page, staff, measure):
     for system in page.systems:
         barlines = system['barlines']

@@ -1,4 +1,4 @@
-from .opencl import *
+from .gpu import *
 from moonshine import forest, components, music
 import copy
 import music21

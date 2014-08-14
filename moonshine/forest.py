@@ -1,4 +1,4 @@
-from .opencl import *
+from .gpu import *
 from . import bitimage
 import cPickle
 
@@ -12,9 +12,9 @@ class GPUForest:
     classes = None
     def __init__(self, forest):
         self.num_trees = forest['num_trees']
-        self.features = cla.to_device(q, forest['features'])
-        self.threshold = cla.to_device(q, forest['threshold'])
-        self.children = cla.to_device(q, forest['children'])
+        self.features = thr.to_device(forest['features'])
+        self.threshold = thr.to_device(forest['threshold'])
+        self.children = thr.to_device(forest['children'])
         self.classes = forest['classes']
 cpu_classifier = cPickle.load(open('classifier.pkl'))
 classifier = GPUForest(cpu_classifier)

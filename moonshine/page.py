@@ -1,10 +1,9 @@
 import numpy as np
-from .opencl import *
+from .gpu import *
 
 # Need to define this now so that orientation can use it
 PAGE_SIZE = 4096
-from . import image, structure, measure, note
-
+from . import image, structure, measure#, note
 
 class Page:
     def __init__(self, image_data):
@@ -14,7 +13,7 @@ class Page:
         self.byteimg = padded_img
         self.orig_size = img.shape
         self.bitimg = np.packbits(padded_img).reshape((PAGE_SIZE, -1))
-        self.img = cla.to_device(q, self.bitimg)
+        self.img = thr.to_device(self.bitimg)
 
     def process(self):
         structure.process(self)

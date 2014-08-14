@@ -1,10 +1,10 @@
-from ...opencl import *
+from ...gpu import *
 import logging
 
 prg = build_program('staff_paths')
 
 path_point = np.dtype([('cost', np.float32), ('prev', np.int32)])
-def paths(page, img=None, num_workers=1024, scale=2.0):
+def paths(page, img=None, num_workers=512, scale=2.0):
     if img is None:
         img = page.img
     page.paths = cla.zeros(q, (int(img.shape[0]/scale),

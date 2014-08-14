@@ -1,15 +1,15 @@
-from ..opencl import *
+from ..gpu import *
 from .. import util
+from reikna.core import Type
 import numpy as np
 import logging
 
 prg = build_program("runhist")
 
 def runhist_kernel(img):
-    light = cla.zeros(q, 64, np.int32)
-    dark = cla.zeros(q, 64, np.int32)
-    prg.runhist(q, (img.shape[0], img.shape[1]), (8, 8),
-                           img.data, light.data, dark.data).wait()
+    light = thr.to_device(np.zeros(64, np.int32))
+    dark = thr.to_device(np.zeros(64, np.int32))
+    prg.runhist(img, light, dark, global_size=(img.shape[0], img.shape[1]))
     return light, dark
 
 def staffsize(page):
