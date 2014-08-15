@@ -3,7 +3,7 @@
 
 #define MIN(a,b) (a < b ? a : b)
 
-__kernel void taxicab_distance_step(__global int *dists) {
+KERNEL void taxicab_distance_step(GLOBAL_MEM int *dists) {
     int x = get_global_id(X);
     int y = get_global_id(Y);
     int w = get_global_size(X);

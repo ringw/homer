@@ -6,9 +6,9 @@
 #define Y (0)
 #define NUM_COUNTS (64)
 
-__kernel void runhist(__global const uchar *image,
-                      __global volatile int *light_counts,
-                      __global volatile int *dark_counts) {
+KERNEL void runhist(GLOBAL_MEM const UCHAR *image,
+                      GLOBAL_MEM volatile int *light_counts,
+                      GLOBAL_MEM volatile int *dark_counts) {
     // If our pixel is the first in its run, iterate downwards to find the
     // length and atomically update the relevant count
     int x = get_global_id(X);
@@ -16,7 +16,7 @@ __kernel void runhist(__global const uchar *image,
     int w = get_global_size(X);
     int h = get_global_size(Y);
 
-    uchar byte = image[x + w * y];
+    UCHAR byte = image[x + w * y];
     int8 bits = (int8)byte;
     bits >>= (int8)(7, 6, 5, 4, 3, 2, 1, 0);
     bits &= (int8)0x1;

@@ -1,14 +1,14 @@
-__kernel void transpose(__global const uchar *image,
-                        __global uchar *image_T) {
+KERNEL void transpose(GLOBAL_MEM const UCHAR *image,
+                        GLOBAL_MEM UCHAR *image_T) {
     // Get coordinates in output image
     int x = get_global_id(0);
     int y = get_global_id(1);
     int w = get_global_size(0);
     int h = get_global_size(1);
 
-    uchar output_byte = 0;
+    UCHAR output_byte = 0;
     for (int b = 0; b < 8; b++) {
-        uchar input_byte = image[y/8 + h/8 * (x*8 + b)];
+        UCHAR input_byte = image[y/8 + h/8 * (x*8 + b)];
         input_byte >>= 7 - (y % 8);
         input_byte &= 0x1;
         output_byte |= input_byte << (7 - b);
@@ -16,21 +16,21 @@ __kernel void transpose(__global const uchar *image,
     image_T[x + w * y] = output_byte;
 }
 
-__kernel void scale_image(__global const uchar *input,
+KERNEL void scale_image(GLOBAL_MEM const UCHAR *input,
                           float scale,
                           int inputWidth, int inputHeight,
-                          __global uchar *output) {
+                          GLOBAL_MEM UCHAR *output) {
     int x = get_global_id(0);
     int y = get_global_id(1);
     int input_y = convert_int_rtn(y / scale);
 
-    uchar result = 0;
+    UCHAR result = 0;
     for (int bit = 0; bit < 8; bit++) {
         int bit_x = x * 8 + bit;
 
         int input_x = convert_int_rtn(bit_x / scale);
         if (input_x < inputWidth*8 && input_y < inputHeight) {
-            uchar input_byte = input[input_x/8 + input_y * inputWidth];
+            UCHAR input_byte = input[input_x/8 + input_y * inputWidth];
             int input_bit = input_x % 8;
             result |= (((input_byte >> (7 - input_bit)) & 1) << (7 - bit));
         }
@@ -39,15 +39,15 @@ __kernel void scale_image(__global const uchar *input,
     output[x + y * get_global_size(0)] = result;
 }
 
-__kernel void erode(__global const uchar *image,
-                    __global uchar *output_image) {
+KERNEL void erode(GLOBAL_MEM const UCHAR *image,
+                    GLOBAL_MEM UCHAR *output_image) {
     int x = get_global_id(0);
     int y = get_global_id(1);
     int w = get_global_size(0);
     int h = get_global_size(1);
 
-    uchar input_byte = image[x + w * y];
-    uchar output_byte = input_byte;
+    UCHAR input_byte = image[x + w * y];
+    UCHAR output_byte = input_byte;
     // Erode inner bits from left and right
     output_byte &= 0x80 | (input_byte >> 1);
     output_byte &= 0x01 | (input_byte << 1);
@@ -67,15 +67,15 @@ __kernel void erode(__global const uchar *image,
     output_image[x + w * y] = output_byte;
 }
 
-__kernel void dilate(__global const uchar *image,
-                     __global uchar *output_image) {
+KERNEL void dilate(GLOBAL_MEM const UCHAR *image,
+                     GLOBAL_MEM UCHAR *output_image) {
     int x = get_global_id(0);
     int y = get_global_id(1);
     int w = get_global_size(0);
     int h = get_global_size(1);
 
-    uchar input_byte = image[x + w * y];
-    uchar output_byte = input_byte;
+    UCHAR input_byte = image[x + w * y];
+    UCHAR output_byte = input_byte;
     // Dilate inner bits from left and right
     output_byte |= input_byte >> 1;
     output_byte |= input_byte << 1;
@@ -95,15 +95,15 @@ __kernel void dilate(__global const uchar *image,
     output_image[x + w * y] = output_byte;
 }
 
-__kernel void border(__global const uchar *image,
-                     __global uchar *output_image) {
+KERNEL void border(GLOBAL_MEM const UCHAR *image,
+                     GLOBAL_MEM UCHAR *output_image) {
     int x = get_global_id(0);
     int y = get_global_id(1);
     int w = get_global_size(0);
     int h = get_global_size(1);
 
-    uchar input_byte = image[x + w * y];
-    uchar erosion = input_byte;
+    UCHAR input_byte = image[x + w * y];
+    UCHAR erosion = input_byte;
     // Erode inner bits from left and right
     erosion &= 0x80 | (input_byte >> 1);
     erosion &= 0x01 | (input_byte << 1);
@@ -123,9 +123,9 @@ __kernel void border(__global const uchar *image,
     output_image[x + w * y] = input_byte & ~erosion;
 }
 
-__kernel void copy_bits_complex64(global const uchar *bitimage,
+KERNEL void copy_bits_complex64(GLOBAL_MEM const UCHAR *bitimage,
                                   int x0, int y0, int in_w,
-                                  global float2 *complex_image) {
+                                  GLOBAL_MEM float2 *complex_image) {
     int out_x = get_global_id(0);
     int out_y = get_global_id(1);
     int out_w = get_global_size(0);
@@ -133,7 +133,7 @@ __kernel void copy_bits_complex64(global const uchar *bitimage,
     int in_bit = (x0 + out_x) % 8;
     int in_y = y0 + out_y;
 
-    uchar in_byte = bitimage[in_x + in_w * in_y];
+    UCHAR in_byte = bitimage[in_x + in_w * in_y];
     float2 out;
     out.x = (in_byte >> (7 - in_bit)) & 0x01;
     out.y = 0;

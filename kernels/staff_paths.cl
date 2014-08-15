@@ -3,11 +3,11 @@ struct path_point {
     int prev;
 };
 
-kernel void staff_paths(global const uchar *image,
+KERNEL void staff_paths(GLOBAL_MEM const UCHAR *image,
                         int image_w, int image_h,
                         int staff_thick,
                         float scale,
-                        global struct path_point *paths,
+                        GLOBAL_MEM struct path_point *paths,
                         int paths_w, int paths_h) {
     int worker_id = get_local_id(0);
     int num_workers = get_local_size(0);
@@ -35,9 +35,9 @@ kernel void staff_paths(global const uchar *image,
                         continue;
                     int byte_x = image_x / 8;
                     int bit_x  = image_x % 8;
-                    uchar center = image[byte_x + image_w * image_y];
-                    uchar above  = image[byte_x + image_w * (image_y-staff_thick)];
-                    uchar below  = image[byte_x + image_w * (image_y+staff_thick)];
+                    UCHAR center = image[byte_x + image_w * image_y];
+                    UCHAR above  = image[byte_x + image_w * (image_y-staff_thick)];
+                    UCHAR below  = image[byte_x + image_w * (image_y+staff_thick)];
                     if ((center & ~(above | below)) & (0x80U >> bit_x)) {
                         looks_like_staff = 1;
                         goto LOOKS_LIKE_STAFF;
@@ -71,9 +71,9 @@ kernel void staff_paths(global const uchar *image,
     }
 }
 
-kernel void find_stable_paths(global const struct path_point *paths,
+KERNEL void find_stable_paths(GLOBAL_MEM const struct path_point *paths,
                               int w,
-                              global volatile int *stable_path_end) {
+                              GLOBAL_MEM volatile int *stable_path_end) {
     int y1 = get_global_id(0);
     // Initialize stable_path_end
     stable_path_end[y1] = -1;
@@ -96,10 +96,10 @@ kernel void find_stable_paths(global const struct path_point *paths,
 }
 
 // stable_path_end must be packed by removing invalid y < 0
-kernel void extract_stable_paths(global const struct path_point *paths,
+KERNEL void extract_stable_paths(GLOBAL_MEM const struct path_point *paths,
                                  int w,
-                                 global const int *stable_path_end,
-                                 global int *stable_paths) {
+                                 GLOBAL_MEM const int *stable_path_end,
+                                 GLOBAL_MEM int *stable_paths) {
     int path_ind = get_global_id(0);
     int y = stable_path_end[path_ind];
     for (int x = w-1; x >= 0; x--) {
@@ -108,18 +108,18 @@ kernel void extract_stable_paths(global const struct path_point *paths,
     }
 }
 
-kernel void remove_paths(global uchar *image,
+KERNEL void remove_paths(GLOBAL_MEM UCHAR *image,
                          int w, int h,
-                         global const int *stable_paths,
+                         GLOBAL_MEM const int *stable_paths,
                          int path_num_points,
                          int path_scale,
-                         global int *pixel_sums) {
+                         GLOBAL_MEM int *pixel_sums) {
     if (path_scale != 2) return; // XXX
 
     int path = get_global_id(0);
     int our_sum = 0;
     for (int x = 0; x*path_scale < w*8; x++) {
-        uchar byte_mask = 0xC0U >> ((x*path_scale) % 8);
+        UCHAR byte_mask = 0xC0U >> ((x*path_scale) % 8);
         int y_center = stable_paths[x + path_num_points * path]*path_scale;
         int any_dark = 0;
         for (int y = y_center - 5; y < y_center + 5 + path_scale; y++) {

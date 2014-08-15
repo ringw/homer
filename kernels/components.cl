@@ -1,6 +1,6 @@
 // Connected component analysis
 
-inline void uf_union(global volatile int *tree,
+inline void uf_union(GLOBAL_MEM volatile int *tree,
                      int n1, int n2) {
     int parent, child; // child is root of tree being merged with parent
     do {
@@ -22,28 +22,28 @@ inline void uf_union(global volatile int *tree,
 /* Create connected component trees for each connected component with a
  * distinct nonzero class.
  */
-kernel void init_component_tree(global const uchar *classes,
-                                global volatile int *pixel_tree) {
+KERNEL void init_component_tree(GLOBAL_MEM const UCHAR *classes,
+                                GLOBAL_MEM volatile int *pixel_tree) {
     // Initialize a nonzero pixel with its own id
     int x = get_global_id(0);
     int y = get_global_id(1);
     int w = get_global_size(0);
     int id = x + w * y;
-    uchar class = classes[id];
+    UCHAR class = classes[id];
     if (class == 0)
         pixel_tree[id] = 0;
     else
         pixel_tree[id] = id;
 }
 
-kernel void build_component_tree(global const uchar *classes,
-                                 global volatile int *pixel_tree) {
+KERNEL void build_component_tree(GLOBAL_MEM const UCHAR *classes,
+                                 GLOBAL_MEM volatile int *pixel_tree) {
     int x = get_global_id(0);
     int y = get_global_id(1);
     int w = get_global_size(0);
     int h = get_global_size(1);
     int id = x + w * y;
-    uchar class = classes[id];
+    UCHAR class = classes[id];
     if (class == 0)
         return;
     if (y > 0) {
@@ -58,8 +58,8 @@ kernel void build_component_tree(global const uchar *classes,
         uf_union(pixel_tree, (x-1) + w * y, id);
 }
 
-kernel void count_components(global int *pixel_tree,
-                             global volatile int *num_components) {
+KERNEL void count_components(GLOBAL_MEM int *pixel_tree,
+                             GLOBAL_MEM volatile int *num_components) {
     int id = get_global_id(0) + get_global_size(0) * get_global_id(1);
     // Replace root of a tree with negative unique ID for the tree
     // Root points to itself
@@ -69,7 +69,7 @@ kernel void count_components(global int *pixel_tree,
     }
 }
 
-kernel void init_component_bounds(global int *component_bounds,
+KERNEL void init_component_bounds(GLOBAL_MEM int *component_bounds,
                                   const int2 image_size) {
     int component_num = get_global_id(0);
     component_bounds[component_num * 4 + 0] = image_size.x;
@@ -78,11 +78,11 @@ kernel void init_component_bounds(global int *component_bounds,
     component_bounds[component_num * 4 + 3] = 0;
 }
 
-kernel void component_info(global const uchar *classes,
-                           global const int *pixel_tree,
-                           global uchar *component_classes,
-                           global volatile int *component_bounds,
-                           global volatile int *component_sums) {
+KERNEL void component_info(GLOBAL_MEM const UCHAR *classes,
+                           GLOBAL_MEM const int *pixel_tree,
+                           GLOBAL_MEM UCHAR *component_classes,
+                           GLOBAL_MEM volatile int *component_bounds,
+                           GLOBAL_MEM volatile int *component_sums) {
     int x = get_global_id(0);
     int y = get_global_id(1);
     int w = get_global_size(0);

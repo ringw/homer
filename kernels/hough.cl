@@ -6,13 +6,15 @@
  * global size should be (len(rho) * num_workers, len(theta))
  * local size may be (num_workers, 1), multiple workers will sum pixels in parallel
  */
-__kernel void hough_line(__global const uchar *image,
+KERNEL void hough_line(GLOBAL_MEM const UCHAR *image,
                          int image_w, int image_h,
                          int rhores,
-                         __global const float *cos_thetas,
-                         __global const float *sin_thetas,
-                         __local float *worker_sums,
-                         __global float *bins) {
+                         GLOBAL_MEM const float *cos_thetas,
+                         GLOBAL_MEM const float *sin_thetas,
+#ifdef OPENCL
+                         LOCAL_MEM float *worker_sums,
+#endif
+                         GLOBAL_MEM float *bins) {
     int rho = get_group_id(0);
     int num_rho = get_num_groups(0);
     int theta = get_global_id(1);
@@ -25,16 +27,20 @@ __kernel void hough_line(__global const uchar *image,
     int worker_id = get_local_id(0);
     int num_workers = get_local_size(0);
 
+#ifdef CUDA
+    extern LOCAL_MEM float worker_sums[];
+#endif
+
     float worker_sum = 0.f;
     // Sum each x-byte position. As an approximation, assume if the left
     // corner is parameterized as (rho, theta) then we can sum up the whole byte
     for (int x = 0; x < image_w; x += num_workers) {
         float x_left_val = x * 8;
         float y_val = (rho_val - x_left_val * sin_theta) / cos_theta;
-        int y = convert_int_rtn(y_val);
+        int y = FLOAT2INT_RD(y_val);
 
         if (0 <= x && x < image_w && 0 <= y && y < image_h) {
-            uchar byte = image[x + image_w * y];
+            UCHAR byte = image[x + image_w * y];
             int8 bits = (int8)byte;
             bits >>= (int8)(7, 6, 5, 4, 3, 2, 1, 0);
             bits &= (int8)(0x1);
@@ -50,7 +56,7 @@ __kernel void hough_line(__global const uchar *image,
         worker_sums[worker_id] = worker_sum;
         mem_fence(CLK_LOCAL_MEM_FENCE);
         if (worker_id == 0) {
-            // Sum all partial sums into global bin
+            // Sum all partial sums into GLOBAL_MEM bin
             float global_sum = 0.f;
             for (int i = 0; i < num_workers; i++)
                 global_sum += worker_sums[i];
@@ -65,19 +71,19 @@ __kernel void hough_line(__global const uchar *image,
 
 /*
  * hough_lineseg: extract longest line segment from each Hough peak
- * Index of rho and theta on 0th axis, local size of 1
+ * Index of rho and theta on 0th axis, LOCAL_MEM size of 1
  * For each line, output (x0, x1, y0, y1) in segments
  */
 
-__kernel void hough_lineseg(__global const uchar *image,
+KERNEL void hough_lineseg(GLOBAL_MEM const UCHAR *image,
                             int image_w, int image_h,
-                            __global const int *rho_bins,
+                            GLOBAL_MEM const int *rho_bins,
                             int rhores,
-                            __global const float *cos_thetas,
-                            __global const float *sin_thetas,
-                            __local uchar *segment_pixels,
+                            GLOBAL_MEM const float *cos_thetas,
+                            GLOBAL_MEM const float *sin_thetas,
+                            LOCAL_MEM UCHAR *segment_pixels,
                             int max_gap,
-                            __global int4 *segments) {
+                            GLOBAL_MEM int4 *segments) {
     int line_id = get_group_id(0);
     int worker_id = get_local_id(0);
     int num_workers = get_local_size(0);
@@ -94,11 +100,11 @@ __kernel void hough_lineseg(__global const uchar *image,
         // Iterate over xslice, yslice inside this slice with height rhores
         // perpendicular to actual line
         float xslice = x, yslice = y;
-        uchar is_segment = 0;
+        UCHAR is_segment = 0;
         for (int s = 0; s < rhores; s++) {
-            int xind = convert_int_rtn(xslice);
-            int yind = convert_int_rtn(yslice);
-            uchar byte = image[xind/8 + image_w * yind];
+            int xind = FLOAT2INT_RD(xslice);
+            int yind = FLOAT2INT_RD(yslice);
+            UCHAR byte = image[xind/8 + image_w * yind];
             is_segment |= (byte >> (7 - (xind % 8))) & 0x1;
 
             // Move along normal line
@@ -109,7 +115,7 @@ __kernel void hough_lineseg(__global const uchar *image,
         // segment_pixels is bit-packed
         int seg_byte = num_pixels / 8;
         int seg_bit  = num_pixels % 8;
-        uchar seg_char;
+        UCHAR seg_char;
         if (seg_bit == 0)
             seg_char = 0; // initialize segment_pixels
         else
@@ -167,8 +173,8 @@ __kernel void hough_lineseg(__global const uchar *image,
 // Set can_join to 1 if the segment should be considered part of the same
 // staff or barline as the previous segment. This is prefix summed
 // to get unique ids for each staff.
-__kernel void can_join_segments(__global const int4 *segments,
-                                __global int *can_join,
+KERNEL void can_join_segments(GLOBAL_MEM const int4 *segments,
+                                GLOBAL_MEM int *can_join,
                                 int threshold) {
     int i = get_global_id(0);
     if (i == 0)
@@ -187,9 +193,9 @@ __kernel void can_join_segments(__global const int4 *segments,
 // to avoid favoring highly skewed lines
 // longest_inds must already be initialized to all -1s
 #define CHEBYSHEV(v) MAX(abs(v.s1-v.s0), abs(v.s3-v.s2))
-__kernel void assign_segments(__global const int4 *segments,
-                              __global const int *labels,
-                              __global volatile int *longest_inds) {
+KERNEL void assign_segments(GLOBAL_MEM const int4 *segments,
+                              GLOBAL_MEM const int *labels,
+                              GLOBAL_MEM volatile int *longest_inds) {
     int i = get_global_id(0);
     int label = labels[i];
 
@@ -211,9 +217,9 @@ __kernel void assign_segments(__global const int4 *segments,
                             longest_seg_ind, i) != longest_seg_ind);
 }
 
-__kernel void copy_chosen_segments(__global const int4 *segments,
-                                   __global const int *longest_inds,
-                                   __global int4 *chosen_segs) {
+KERNEL void copy_chosen_segments(GLOBAL_MEM const int4 *segments,
+                                   GLOBAL_MEM const int *longest_inds,
+                                   GLOBAL_MEM int4 *chosen_segs) {
     int label_ind = get_global_id(0);
     chosen_segs[label_ind] = segments[longest_inds[label_ind]];
 }

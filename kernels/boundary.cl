@@ -2,11 +2,11 @@
 #define L (1)
 #define R (2)
 
-__kernel void boundary_cost(__global const int *dist,
+KERNEL void boundary_cost(GLOBAL_MEM const int *dist,
                             int image_width,
                             int y0, int ystep, int numy,
                             int x0, int xstep, int numx,
-                            __global float *costs) {
+                            GLOBAL_MEM float *costs) {
     int  x_ind = get_global_id(X);
     int yl_ind = get_global_id(L);
     int yr_ind = get_global_id(R);

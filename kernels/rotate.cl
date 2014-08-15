@@ -1,7 +1,7 @@
-__kernel void rotate_image(__global const uchar *input,
+KERNEL void rotate_image(GLOBAL_MEM const UCHAR *input,
                            float cos_theta, float sin_theta,
-                           __global uchar *output) {
-    uchar result = 0;
+                           GLOBAL_MEM UCHAR *output) {
+    UCHAR result = 0;
     int global_x = get_global_id(0);
     int global_y = get_global_id(1);
     for (int bit = 0; bit < 8; bit++) {
@@ -10,7 +10,7 @@ __kernel void rotate_image(__global const uchar *input,
         int input_y = convert_int_rtn(-bit_x * sin_theta + global_y * cos_theta);
         if (0 <= input_x && input_x < get_global_size(0)*8
             && 0 <= input_y && input_y < get_global_size(1)) {
-            uchar input_byte = input[input_x/8 + input_y * get_global_size(0)];
+            UCHAR input_byte = input[input_x/8 + input_y * get_global_size(0)];
             int input_bit = input_x % 8;
             result |= (((input_byte >> (7 - input_bit)) & 1) << (7 - bit));
         }

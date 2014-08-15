@@ -1,5 +1,5 @@
-__kernel void maximum_filter(const __global float *image,
-                             __global float *maximum) {
+KERNEL void maximum_filter(const GLOBAL_MEM float *image,
+                             GLOBAL_MEM float *maximum) {
     int x = get_global_id(0);
     int y = get_global_id(1);
     int w = get_global_size(0);

@@ -1,10 +1,10 @@
-__kernel void copy_measure(__global const uchar *image,
+KERNEL void copy_measure(GLOBAL_MEM const UCHAR *image,
                            int2 image_size,
-                           __global const uint *top_ys,
+                           GLOBAL_MEM const uint *top_ys,
                            int x_space_top,
-                           __global const uint *bottom_ys,
+                           GLOBAL_MEM const uint *bottom_ys,
                            int x_space_bottom,
-                           __global uchar *measure,
+                           GLOBAL_MEM UCHAR *measure,
                            int4 measure_bounds) {
     // top_boundary and bottom_boundary must have the same x-values
     // which are evenly spaced by x_space.
@@ -13,9 +13,9 @@ __kernel void copy_measure(__global const uchar *image,
     int image_byte_x = measure_bounds.s0 + byte_x;
     int image_y = measure_bounds.s1 + y;
 
-    uchar output = 0;
-    uchar mask = 0x01;
-    uchar image_byte = image[image_byte_x + image_size.x * image_y];
+    UCHAR output = 0;
+    UCHAR mask = 0x01;
+    UCHAR image_byte = image[image_byte_x + image_size.x * image_y];
     for (int b = 7; b >= 0; b--) {
         int x = byte_x * 8 + b;
         int image_x = image_byte_x * 8 + b;

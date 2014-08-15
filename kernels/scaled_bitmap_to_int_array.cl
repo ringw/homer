@@ -1,10 +1,10 @@
 #define X (0)
 #define Y (1)
-__kernel void scaled_bitmap_to_int_array(__global const uchar *input,
+KERNEL void scaled_bitmap_to_int_array(GLOBAL_MEM const UCHAR *input,
                           float scale,
                           int inputWidth, int inputHeight,
                           int zeroVal, int oneVal,
-                          __global int *output) {
+                          GLOBAL_MEM int *output) {
     int x = get_global_id(X);
     int y = get_global_id(Y);
 
@@ -18,7 +18,7 @@ __kernel void scaled_bitmap_to_int_array(__global const uchar *input,
     for (int input_x = input_x0; input_x < input_x1; input_x++)
         for (int input_y = input_y0; input_y < input_y1; input_y++)
             if (input_x < inputWidth*8 && input_y < inputHeight) {
-                uchar input_byte = input[input_x/8 + input_y * inputWidth];
+                UCHAR input_byte = input[input_x/8 + input_y * inputWidth];
                 int input_bit = input_x % 8;
                 if ((input_byte >> (7 - input_bit)) & 1)
                     output_val = oneVal;

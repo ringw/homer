@@ -2,14 +2,14 @@
 #define PROJ_SIZE 15
 #define NUM_CLASSES 32
 
-__kernel void run_forest(global const uchar *image,
-                         local char *local_patch,
+KERNEL void run_forest(GLOBAL_MEM const UCHAR *image,
+                         LOCAL_MEM char *local_patch,
                          int num_trees,
-                         global const int *node_feature,
-                         global const int *node_children,
-                         global const int *node_threshold,
-                         local volatile int *class_accumulator,
-                         global uchar *pixel_class, /* NOT bit-packed */
+                         GLOBAL_MEM const int *node_feature,
+                         GLOBAL_MEM const int *node_children,
+                         GLOBAL_MEM const int *node_threshold,
+                         LOCAL_MEM volatile int *class_accumulator,
+                         GLOBAL_MEM UCHAR *pixel_class, /* NOT bit-packed */
                          int return_class) {
     int pixel_x = get_global_id(0);
     int pixel_y = get_global_id(1);
@@ -30,7 +30,7 @@ __kernel void run_forest(global const uchar *image,
         int y = patch_y0 + i / patch_w;
         if (0 <= x && x < image_w && 0 <= y && y < image_h) {
             int byte_x = x / 8;
-            uchar byte = image[byte_x + image_w / 8 * y];
+            UCHAR byte = image[byte_x + image_w / 8 * y];
             local_patch[i] = (byte >> (7 - (x % 8))) & 0x1;
         }
         else {
@@ -125,7 +125,7 @@ __kernel void run_forest(global const uchar *image,
             best_class = 0;
             class_count = bg_votes;
         }
-        uchar tree_cutoff = (class_count <= 255) ? class_count : 255;
+        UCHAR tree_cutoff = (class_count <= 255) ? class_count : 255;
         pixel_class[pixel_x + image_w * pixel_y] = return_class ? best_class
                                                     : tree_cutoff;
     }
