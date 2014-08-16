@@ -11,7 +11,7 @@ KERNEL void hough_line(GLOBAL_MEM const UCHAR *image,
                          int rhores,
                          GLOBAL_MEM const float *cos_thetas,
                          GLOBAL_MEM const float *sin_thetas,
-#ifdef OPENCL
+#ifndef CUDA
                          LOCAL_MEM float *worker_sums,
 #endif
                          GLOBAL_MEM float *bins) {
@@ -37,24 +37,18 @@ KERNEL void hough_line(GLOBAL_MEM const UCHAR *image,
     for (int x = 0; x < image_w; x += num_workers) {
         float x_left_val = x * 8;
         float y_val = (rho_val - x_left_val * sin_theta) / cos_theta;
-        int y = FLOAT2INT_RD(y_val);
+        int y = convert_int_rtn(y_val);
 
         if (0 <= x && x < image_w && 0 <= y && y < image_h) {
             UCHAR byte = image[x + image_w * y];
-            int8 bits = (int8)byte;
-            bits >>= (int8)(7, 6, 5, 4, 3, 2, 1, 0);
-            bits &= (int8)(0x1);
-            // Sum using float dot product (faster)
-            float8 fbits = convert_float8(bits);
-            float4 one = (float4)(1.f);
-            worker_sum += dot(fbits.s0123, one);
-            worker_sum += dot(fbits.s4567, one);
+            for (UCHAR bit = 0x80U; bit != 0; bit >>= 1)
+                if (byte & bit) worker_sum++;
         }
     }
 
     if (num_workers > 1) {
         worker_sums[worker_id] = worker_sum;
-        mem_fence(CLK_LOCAL_MEM_FENCE);
+        barrier(CLK_LOCAL_MEM_FENCE);
         if (worker_id == 0) {
             // Sum all partial sums into GLOBAL_MEM bin
             float global_sum = 0.f;
@@ -81,9 +75,14 @@ KERNEL void hough_lineseg(GLOBAL_MEM const UCHAR *image,
                             int rhores,
                             GLOBAL_MEM const float *cos_thetas,
                             GLOBAL_MEM const float *sin_thetas,
+#ifndef CUDA
                             LOCAL_MEM UCHAR *segment_pixels,
+#endif
                             int max_gap,
                             GLOBAL_MEM int4 *segments) {
+#ifdef CUDA
+    extern LOCAL_MEM UCHAR segment_pixels[];
+#endif
     int line_id = get_group_id(0);
     int worker_id = get_local_id(0);
     int num_workers = get_local_size(0);
@@ -102,8 +101,8 @@ KERNEL void hough_lineseg(GLOBAL_MEM const UCHAR *image,
         float xslice = x, yslice = y;
         UCHAR is_segment = 0;
         for (int s = 0; s < rhores; s++) {
-            int xind = FLOAT2INT_RD(xslice);
-            int yind = FLOAT2INT_RD(yslice);
+            int xind = convert_int_rtn(xslice);
+            int yind = convert_int_rtn(yslice);
             UCHAR byte = image[xind/8 + image_w * yind];
             is_segment |= (byte >> (7 - (xind % 8))) & 0x1;
 
@@ -159,7 +158,7 @@ KERNEL void hough_lineseg(GLOBAL_MEM const UCHAR *image,
 
     if (max_length > 0) {
         int max_start = max_end - max_length + 1;
-        segments[line_id] = (int4)(x0 + cos_theta * max_start,
+        segments[line_id] = make_int4(x0 + cos_theta * max_start,
                                    x0 + cos_theta * max_end,
                                    y0 - sin_theta * max_start,
                                    y0 - sin_theta * max_end);
@@ -180,10 +179,10 @@ KERNEL void can_join_segments(GLOBAL_MEM const int4 *segments,
     if (i == 0)
         can_join[i] = 0;
     else
-        can_join[i] = MIN(abs(segments[i-1].s2 - segments[i].s2),
-                      MIN(abs(segments[i-1].s2 - segments[i].s3),
-                      MIN(abs(segments[i-1].s3 - segments[i].s2),
-                          abs(segments[i-1].s3 - segments[i].s3))))
+        can_join[i] = MIN(abs(segments[i-1].z - segments[i].z),
+                      MIN(abs(segments[i-1].z - segments[i].w),
+                      MIN(abs(segments[i-1].w - segments[i].z),
+                          abs(segments[i-1].w - segments[i].w))))
                             > threshold
                     ? 1 : 0;
 }
@@ -192,10 +191,10 @@ KERNEL void can_join_segments(GLOBAL_MEM const int4 *segments,
 // Best distance metric is Chebyshev distance (max(dx, dy))
 // to avoid favoring highly skewed lines
 // longest_inds must already be initialized to all -1s
-#define CHEBYSHEV(v) MAX(abs(v.s1-v.s0), abs(v.s3-v.s2))
+#define CHEBYSHEV(v) MAX(abs(v.y-v.x), abs(v.w-v.z))
 KERNEL void assign_segments(GLOBAL_MEM const int4 *segments,
                               GLOBAL_MEM const int *labels,
-                              GLOBAL_MEM volatile int *longest_inds) {
+                              GLOBAL_MEM ATOMIC int *longest_inds) {
     int i = get_global_id(0);
     int label = labels[i];
 

@@ -7,8 +7,8 @@ from reikna.algorithms.reduce import Reduce, Predicate
 prg = build_program(["maximum_filter", "taxicab_distance"])
 def maximum_filter_kernel(img):
     maximum = thr.empty_like(img)
-    maximum[:] = 0
-    prg.maximum_filter(img.data, maximum.data,
+    maximum.fill(0)
+    prg.maximum_filter(img, maximum,
                        global_size=map(int, img.shape[::-1]),
                        local_size=(1, 1))
     return maximum

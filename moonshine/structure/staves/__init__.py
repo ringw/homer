@@ -1,4 +1,4 @@
-from . import hough, path
+from . import hough
 
 # hough is default implementation
 staves = hough.staves

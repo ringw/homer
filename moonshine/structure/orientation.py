@@ -15,7 +15,7 @@ def rotate(page):
 
 def rotate_kernel(img, theta):
     new_img = thr.empty_like(img)
-    new_img[:] = 0
+    new_img.fill(0)
     prg.rotate_image(img,
                      np.cos(theta).astype(np.float32),
                      np.sin(theta).astype(np.float32),
