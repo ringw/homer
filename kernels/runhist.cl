@@ -24,23 +24,20 @@ KERNEL void runhist(GLOBAL_MEM const UCHAR *image,
 
     int run_lengths[8];
     for (int i = 0; i < 8; i++) run_lengths[i] = 0;
-    int some_run_inc;
-    int cur_y = y + 1;
+    int dy = 1;
     do {
-        if (! (cur_y < h)) break;
-        some_run_inc = 0;
-        UCHAR next_byte = image[x + w * cur_y];
+        if (! (y + dy < h) || dy > NUM_COUNTS) break;
+        UCHAR next_byte = image[x + w * (y + dy)];
         is_run &= ~(next_byte ^ byte);
         int i;
         UCHAR mask;
         for (i = 0, mask = 0x80U; mask != 0; i++, mask >>= 1) {
             if (is_run & mask) {
                 run_lengths[i]++;
-                some_run_inc = 1;
             }
         }
-        cur_y++;
-    } while (some_run_inc);
+        dy++;
+    } while (is_run);
 
     int i;
     UCHAR mask;
