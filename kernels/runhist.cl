@@ -7,8 +7,8 @@
 #define NUM_COUNTS (64)
 
 KERNEL void runhist(GLOBAL_MEM const UCHAR *image,
-                      GLOBAL_MEM ATOMIC int *light_counts,
-                      GLOBAL_MEM ATOMIC int *dark_counts) {
+                      GLOBAL_MEM ATOMIC unsigned int *light_counts,
+                      GLOBAL_MEM ATOMIC unsigned int *dark_counts) {
     // If our pixel is the first in its run, iterate downwards to find the
     // length and atomically update the relevant count
     int x = get_global_id(X);
