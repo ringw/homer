@@ -1,5 +1,5 @@
 from reikna import cluda
-api = cluda.ocl_api()
+api = cluda.cuda_api()
 thr = api.Thread.create()
 import numpy as np
 

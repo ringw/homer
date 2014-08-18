@@ -7,8 +7,8 @@
 #define NUM_COUNTS (64)
 
 KERNEL void runhist(GLOBAL_MEM const UCHAR *image,
-                    GLOBAL_MEM ATOMIC unsigned int *light_counts,
-                    GLOBAL_MEM ATOMIC unsigned int *dark_counts) {
+                      GLOBAL_MEM ATOMIC int *light_counts,
+                      GLOBAL_MEM ATOMIC int *dark_counts) {
     // If our pixel is the first in its run, iterate downwards to find the
     // length and atomically update the relevant count
     int x = get_global_id(X);
@@ -17,35 +17,43 @@ KERNEL void runhist(GLOBAL_MEM const UCHAR *image,
     int h = get_global_size(Y);
 
     UCHAR byte = image[x + w * y];
-    UCHAR is_run = 0xFF;
+    int8 bits = fill_int8(byte);
+    bits >>= make_int8(7, 6, 5, 4, 3, 2, 1, 0);
+    bits &= fill_int8(0x1);
+    int8 is_run = fill_int8(1);
     if (y > 0) {
-        is_run = image[x + w * (y-1)] ^ byte;
+        int8 above_bits = fill_int8(image[x + w * (y-1)]);
+        above_bits >>= make_int8(7, 6, 5, 4, 3, 2, 1, 0);
+        above_bits &= fill_int8(0x1);
+        is_run &= (above_bits ^ bits);
     }
 
-    int run_lengths[8];
-    for (int i = 0; i < 8; i++) run_lengths[i] = 0;
-    int dy = 1;
-    do {
-        if (! (y + dy < h) || dy > NUM_COUNTS) break;
-        UCHAR next_byte = image[x + w * (y + dy)];
-        is_run &= ~(next_byte ^ byte);
-        int i;
-        UCHAR mask;
-        for (i = 0, mask = 0x80U; mask != 0; i++, mask >>= 1) {
-            if (is_run & mask) {
-                run_lengths[i]++;
-            }
-        }
-        dy++;
-    } while (is_run);
+    int8 run_lengths = is_run;
+    float4 ones = make_float4(1.f,1.f,1.f,1.f);
+    int cur_y = y + 1;
+    while (dot(ones, convert_float4(is_run.s0123))
+            + dot(ones, convert_float4(is_run.s4567)) > 0
+           && cur_y < h) {
+        int8 next_bits = fill_int8(image[x + w * cur_y]);
+        next_bits >>= make_int8(7, 6, 5, 4, 3, 2, 1, 0);
+        next_bits &= fill_int8(0x1);
+        is_run &= ~(next_bits ^ bits);
+        run_lengths += is_run;
+        cur_y += 1;
+    }
 
-    int i;
-    UCHAR mask;
-    for (i = 0, mask = 0x80U; mask != 0; i++, mask >>= 1)
-        if (0 < run_lengths[i] && run_lengths[i] < NUM_COUNTS) {
-            if (byte & mask)
-                atomic_inc(& dark_counts[run_lengths[i]]);
+    union {
+        int8 v;
+        int a[8];
+    } rl_u, bit_u;
+    rl_u.v = run_lengths;
+    bit_u.v = bits;
+    
+    for (int i = 0; i < 8; i++)
+        if (0 < rl_u.a[i] && rl_u.a[i] < NUM_COUNTS) {
+            if (bit_u.a[i])
+                atomic_inc(& dark_counts[rl_u.a[i]]);
             else
-                atomic_inc(&light_counts[run_lengths[i]]);
+                atomic_inc(&light_counts[rl_u.a[i]]);
         }
 }
