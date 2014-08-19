@@ -82,5 +82,4 @@ inline __host__ __device__ float dot(float4 a, float4 b)
 #ifndef CUDA
 #define ATOMIC volatile
 #define fill_int8(x) ((int8)(x))
-#define make_int8(a,b,c,d,e,f,g,h) ((int8)(a,b,c,d,e,f,g,h))
 #endif

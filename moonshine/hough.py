@@ -24,7 +24,8 @@ def hough_line_kernel(img, rhores, numrho, thetas, num_workers=32):
                     [temp] * ('ocl' in api.__name__) +
                     [bins],
                    global_size=(int(numrho * num_workers), len(thetas)),
-                   local_size=(num_workers, 1))
+                   local_size=(num_workers, 1),
+                   local_mem=4 * num_workers)
     return bins
 
 def hough_lineseg_kernel(img, rhos, thetas, rhores=1, max_gap=0):
@@ -44,7 +45,8 @@ def hough_lineseg_kernel(img, rhos, thetas, rhores=1, max_gap=0):
                        [np.int32(max_gap),
                         segments],
                       global_size=(len(rhos),),
-                      local_size=(1,))
+                      local_size=(1,),
+                      local_mem=img.shape[0] + img.shape[1]/8)
     return segments
 
 def houghpeaks(H, npeaks=2000, thresh=1.0, invalidate=(1, 1)):
