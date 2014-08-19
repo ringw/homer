@@ -15,8 +15,11 @@ prg = build_program("bitimage")
 
 def transpose(img):
     assert img.shape[0] % 8 == 0
-    img_T = cla.zeros(q, (img.shape[1] * 8, img.shape[0] // 8), np.uint8)
-    prg.transpose(q, img_T.shape[::-1], (1, 8), img.data, img_T.data).wait()
+    img_T = thr.empty_like(Type(np.uint8, (img.shape[1] * 8, img.shape[0] // 8)))
+    img_T.fill(0)
+    prg.transpose(img, img_T,
+                  global_size=img_T.shape[::-1],
+                  local_size=(1, 8))
     return img_T
 
 def scale(img, scale, align=8):
@@ -24,30 +27,29 @@ def scale(img, scale, align=8):
     out_h = -(-int(img.shape[0] * scale) & -align)
     out_w = -(-int(img.shape[1] * scale) & -align)
     out_img = cla.zeros(q, (out_h, out_w), np.uint8)
-    prg.scale_image(q, out_img.shape[::-1], (8, 8),
-                       img.data,
-                       np.float32(scale),
-                       np.int32(img.shape[1]),
-                       np.int32(img.shape[0]),
-                       out_img.data).wait()
+    prg.scale_image(img,
+                    np.float32(scale),
+                    np.int32(img.shape[1]),
+                    np.int32(img.shape[0]),
+                    out_img,
+                    global_size=out_img.shape[::-1],
+                    local_size=(8, 8))
     return out_img
 
 def repeat_kernel(img, kernel, numiter=1):
-    temp_1 = cla.zeros_like(img)
+    temp_1 = thr.empty_like(img)
+    temp_1.fill(0)
     if numiter > 1:
-        temp_2 = cla.zeros_like(img)
-    kernel(q, img.shape[::-1], (16, 8),
-              img.data, temp_1.data).wait()
+        temp_2 = thr.empty_like(img)
+        temp_2.fill(0)
+    kernel(img, temp_1, global_size=img.shape[::-1], local_size=(16, 8))
     for i in xrange(1, numiter, 2):
-        kernel(q, img.shape[::-1], (16, 8),
-                  temp_1.data, temp_2.data).wait()
-        kernel(q, img.shape[::-1], (16, 8),
-                  temp_2.data, temp_1.data).wait()
+        kernel(temp_1, temp_2, global_size=img.shape[::-1], local_size=(16, 8))
+        kernel(temp_2, temp_1, global_size=img.shape[::-1], local_size=(16, 8))
     if numiter % 2 == 1:
         return temp_1
     else:
-        kernel(q, img.shape[::-1], (16, 8),
-                  temp_1.data, temp_2.data).wait()
+        kernel(temp_1, temp_2, global_size=img.shape[::-1], local_size=(16, 8))
         return temp_2
 
 def erode(img, numiter=1):

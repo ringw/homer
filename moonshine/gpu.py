@@ -1,5 +1,6 @@
 from reikna import cluda
-api = cluda.cuda_api()
+from reikna.core import Type
+api = cluda.ocl_api()
 thr = api.Thread.create()
 import numpy as np
 
