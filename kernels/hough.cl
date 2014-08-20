@@ -42,7 +42,7 @@ KERNEL void hough_line(GLOBAL_MEM const UCHAR *image,
         if (0 <= x && x < image_w && 0 <= y && y < image_h) {
             UCHAR byte = image[x + image_w * y];
             for (UCHAR bit = 0x80U; bit != 0; bit >>= 1)
-                if (byte & bit) worker_sum++;
+                if (byte & bit) worker_sum += 1;
         }
     }
 
@@ -159,9 +159,9 @@ KERNEL void hough_lineseg(GLOBAL_MEM const UCHAR *image,
     if (max_length > 0) {
         int max_start = max_end - max_length + 1;
         segments[line_id] = make_int4(x0 + cos_theta * max_start,
-                                   x0 + cos_theta * max_end,
-                                   y0 - sin_theta * max_start,
-                                   y0 - sin_theta * max_end);
+                                      x0 + cos_theta * max_end,
+                                      y0 - sin_theta * max_start,
+                                      y0 - sin_theta * max_end);
     }
 }
 

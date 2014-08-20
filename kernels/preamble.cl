@@ -82,4 +82,8 @@ inline __host__ __device__ float dot(float4 a, float4 b)
 #ifndef CUDA
 #define ATOMIC volatile
 #define fill_int8(x) ((int8)(x))
+// These seem to already be defined in Apple's API
+#define make_int4 (int4)
+#define make_int8 (int8)
+#define make_float4 (float4)
 #endif
