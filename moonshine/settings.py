@@ -1,0 +1,1 @@
+SINGLE_STAFF_SIZE = True

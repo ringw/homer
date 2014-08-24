@@ -1,5 +1,5 @@
 from ..gpu import *
-from .. import util
+from .. import util, settings
 import numpy as np
 import logging
 
@@ -42,6 +42,13 @@ def staffsize(page, img=None):
     thresh = light_run[1:-1] > (light_run.max() / 10)
     space_vals = np.where(is_max & thresh)[0] + 1
     space_vals = space_vals[staff_thick * 2 < space_vals]
+    # Sort by most dominant staves in piece
+    # We may detect a small staff with editor's notes, etc. which should be
+    # detected after the actual music staves
+    space_vals = space_vals[np.argsort(-light_run[space_vals])]
+    # If we assume uniform staff size, then only keep the most dominant size
+    if settings.SINGLE_STAFF_SIZE:
+        space_vals = space_vals[0:1]
     if len(space_vals) == 0:
         logging.warn("No staves detected")
         staff_space = None
