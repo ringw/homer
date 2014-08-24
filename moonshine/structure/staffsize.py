@@ -1,28 +1,29 @@
 from ..gpu import *
 from .. import util
-from reikna.core import Type
 import numpy as np
 import logging
 
 prg = build_program("runhist")
 
-def runhist_kernel(img):
-    light = thr.to_device(np.zeros(64, np.int32))
-    dark = thr.to_device(np.zeros(64, np.int32))
-    prg.runhist(img, light, dark, global_size=(img.shape[0], img.shape[1]))
-    return light, dark
-
 def staffsize(page):
-    light_run_device, dark_run_device = runhist_kernel(page.img)
-    light_run = light_run_device.get()
-    dark_run = dark_run_device.get()
+    dark_run = thr.empty_like(Type(np.int32, 64))
+    dark_run.fill(0)
+    prg.dark_hist(page.img, dark_run, global_size=page.img.shape)
+    dark_run = dark_run.get()
 
     # Assume uniform staff thickness
     staff_thick = np.argmax(dark_run)
-    if staff_thick > 5:
+    if staff_thick > 10:
         logging.warn("Unreasonable staff_thick value: " + str(staff_thick))
         page.staff_thick = page.staff_space = page.staff_dist = None
-        #return None
+        return None
+
+    # Find light run lengths, filtering using staff_thick
+    light_run = thr.empty_like(dark_run)
+    light_run.fill(0)
+    prg.light_hist(page.img, np.int32(staff_thick), light_run,
+                   global_size=page.img.shape)
+    light_run = light_run.get()
 
     # Multiple staff space sizes are possible for different instruments
     space = light_run > light_run.max() / 5.0
