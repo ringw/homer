@@ -7,18 +7,19 @@ path_point = np.dtype([('cost', np.float32), ('prev', np.int32)])
 def paths(page, img=None, num_workers=512, scale=2.0):
     if img is None:
         img = page.img
-    page.paths = cla.zeros(q, (int(img.shape[0]/scale),
-                               int(img.shape[1]*8/scale), 2),
-                              np.int32)
-    prg.staff_paths(q, (num_workers,), (num_workers,),
-                    img.data,
+    page.paths = thr.empty_like(Type(np.int32,
+                                     (int(img.shape[0]/scale),
+                                      int(img.shape[1]*8/scale), 2)))
+    page.paths.fill(0)
+    prg.staff_paths(img,
                     np.int32(img.shape[1]),
                     np.int32(img.shape[0]),
                     np.int32(page.staff_thick),
                     np.float32(2.0),
-                    page.paths.data,
+                    page.paths,
                     np.int32(page.paths.shape[1]),
-                    np.int32(page.paths.shape[0]))
+                    np.int32(page.paths.shape[0]),
+                    global_size=(num_workers,), local_size=(num_workers,))
     return page.paths
 
 def stable_paths(page, img=None):
@@ -28,22 +29,23 @@ def stable_paths(page, img=None):
         paths(page, img)
     h = page.paths.shape[0]
     w = page.paths.shape[1]
-    path_end = cla.zeros(q, (h,), np.int32)
-    prg.find_stable_paths(q, (h,), (512,),
-                          page.paths.data,
+    path_end = thr.empty_like(Type(np.int32, h))
+    prg.find_stable_paths(page.paths,
                           np.int32(w),
-                          path_end.data).wait()
+                          path_end,
+                          global_size=(h,), local_size=(512,))
     path_end = path_end.get()
     stable_path_end = path_end[path_end >= 0]
     if not len(stable_path_end):
         return np.zeros((0, w), int)
-    stable_path_end = cla.to_device(q, stable_path_end.astype(np.int32))
-    path_list = cla.empty(q, (len(stable_path_end), w), np.int32)
-    prg.extract_stable_paths(q, (len(stable_path_end),), (1,),
-                             page.paths.data,
+    stable_path_end = thr.to_device(stable_path_end.astype(np.int32))
+    path_list = thr.empty_like(Type(np.int32, (len(stable_path_end), w)))
+    prg.extract_stable_paths(page.paths,
                              np.int32(w),
-                             stable_path_end.data,
-                             path_list.data).wait()
+                             stable_path_end,
+                             path_list,
+                             global_size=(len(stable_path_end),),
+                             local_size=(1,))
     return path_list
 
 def stable_paths_py(page, img=None):
@@ -78,15 +80,16 @@ def stable_paths_py(page, img=None):
     return stable_paths
 
 def validate_and_remove_paths(page, img, stable_paths):
-    pixel_sum = cla.zeros(q, (len(stable_paths),), np.int32)
-    prg.remove_paths(q, (len(stable_paths),), (1,),
-                        img.data,
-                        np.int32(img.shape[1]),
-                        np.int32(img.shape[0]),
-                        stable_paths.data,
-                        np.int32(stable_paths.shape[1]),
-                        np.int32(2), # XXX
-                        pixel_sum.data)
+    pixel_sum = thr.empty_like(Type(np.int32, len(stable_paths)))
+    pixel_sum.fill(0)
+    prg.remove_paths(img,
+                     np.int32(img.shape[1]),
+                     np.int32(img.shape[0]),
+                     stable_paths,
+                     np.int32(stable_paths.shape[1]),
+                     np.int32(2), # XXX
+                     pixel_sum,
+                     global_size=(len(stable_paths),), local_size=(1,))
     return pixel_sum
 
 def all_staff_paths(page):
@@ -119,13 +122,12 @@ def staves(page):
     last_line_pos = None
     for line in staff_paths:
         line_pos = np.median(line)
-        print line_pos
         if last_line_pos is None or line_pos - last_line_pos < page.staff_dist*2:
             cur_staff.append(line)
         elif cur_staff:
             # end of staff
             if len(cur_staff) != 5:
-                logging.warn('Throwing out staff with %d lines' % len(cur_staff))
+                logging.info('Throwing out staff with %d lines' % len(cur_staff))
             else:
                 center_pos = np.median(cur_staff[2])
                 staves.append([0, page.orig_size[1], center_pos,center_pos])
@@ -134,7 +136,7 @@ def staves(page):
     if cur_staff:
         # end of staff
         if len(cur_staff) != 5:
-            logging.warn('Throwing out staff with %d lines' % len(cur_staff))
+            logging.info('Throwing out staff with %d lines' % len(cur_staff))
         else:
             center_pos = np.median(cur_staff[2])
             staves.append([0, page.orig_size[1], center_pos,center_pos])

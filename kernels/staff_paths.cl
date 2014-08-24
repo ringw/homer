@@ -73,7 +73,7 @@ KERNEL void staff_paths(GLOBAL_MEM const UCHAR *image,
 
 KERNEL void find_stable_paths(GLOBAL_MEM const struct path_point *paths,
                               int w,
-                              GLOBAL_MEM volatile int *stable_path_end) {
+                              GLOBAL_MEM ATOMIC int *stable_path_end) {
     int y1 = get_global_id(0);
     // Initialize stable_path_end
     stable_path_end[y1] = -1;
