@@ -50,7 +50,7 @@ def next_image(x):
 next_image(None)
 staves = []
 cur_staff = None
-last_line = None
+cur_lines = []
 staffspace_line = None
 staffspace = None
 def get_staffspace(x,y):
@@ -60,18 +60,20 @@ def get_staffspace(x,y):
             return y - staff_y
     return 0
 def click(e):
-    global staves, cur_staff, last_line, staffspace_line
+    global staves, cur_staff, cur_lines, staffspace_line
     img_point = [int(e.x / scale), int(e.y / scale)]
     if cur_staff is None:
         cur_staff = [img_point]
+        cur_lines = []
     elif staffspace_line:
-        staves.append(dict(center=cur_staff, staffspace=staffspace))
+        staves.append(dict(center=cur_staff, staffspace=int(abs(staffspace))))
         cur_staff = None
+        cur_lines = []
         staffspace_line = None
     else:
         x0 = int(cur_staff[-1][0] * scale)
         y0 = int(cur_staff[-1][1] * scale)
-        last_line = cv.create_line(x0, y0, e.x, e.y, fill='red')
+        cur_lines.append(cv.create_line(x0, y0, e.x, e.y, fill='red'))
         cur_staff.append(img_point)
 def motion(e):
     global cur_staff, staffspace_line, staffspace
@@ -84,11 +86,13 @@ def motion(e):
             cv.coords(spaceseg, x0*scale, (y0+staffspace)*scale,
                                 x1*scale, (y1+staffspace)*scale)
 def remove_line(e):
-    global cur_staff, last_line
-    if last_line:
-        cv.delete(last_line)
-        last_line = None
-        cur_staff = cur_staff[:-1]
+    global cur_staff, cur_lines, staffspace_line
+    if cur_lines and not staffspace_line:
+        cv.delete(cur_lines.pop())
+        cur_staff.pop()
+    elif cur_staff and not staffspace_line:
+        cur_staff = None
+        cur_lines = []
 def key(e):
     if e.char == ' ':
         global staves, cur_staff, staffspace_line
