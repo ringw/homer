@@ -16,9 +16,9 @@ def get_measure(page, staff, measure):
     if measure + 1 >= len(barlines):
         raise Exception("Measure out of bounds")
     # Round down measure start x
-    x0 = barlines[measure, [0,1]].min() & -8
+    x0 = barlines[measure, :, 0].min() & -8
     # Round up measure end x
-    x1 = -(-barlines[measure + 1, [0,1]].max() & -8)
+    x1 = -(-barlines[measure + 1, :, 0].max() & -8)
 
     # Round up staff start y
     y0 = page.boundaries[staff][:, 1].min() & -8
@@ -59,7 +59,7 @@ class Measure:
         self.page = page
         self.staff_num = staff_num
         self.measure_num = measure_num
-        self.page_staff_y = page.staves[staff_num, [2,3]].sum()/2.0
+        self.page_staff_y = page.staves[staff_num, :, 1].sum()/2.0
 
     def get_image(self):
         if self.image is None:

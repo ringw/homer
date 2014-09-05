@@ -159,8 +159,8 @@ KERNEL void hough_lineseg(GLOBAL_MEM const UCHAR *image,
     if (max_length > 0) {
         int max_start = max_end - max_length + 1;
         segments[line_id] = make_int4(x0 + cos_theta * max_start,
-                                      x0 + cos_theta * max_end,
                                       y0 - sin_theta * max_start,
+                                      x0 + cos_theta * max_end,
                                       y0 - sin_theta * max_end);
     }
 }
@@ -179,10 +179,10 @@ KERNEL void can_join_segments(GLOBAL_MEM const int4 *segments,
     if (i == 0)
         can_join[i] = 0;
     else
-        can_join[i] = MIN(abs(segments[i-1].z - segments[i].z),
-                      MIN(abs(segments[i-1].z - segments[i].w),
-                      MIN(abs(segments[i-1].w - segments[i].z),
-                          abs(segments[i-1].w - segments[i].w))))
+        can_join[i] = MIN(abs(segments[i-1].y - segments[i].y),
+                      MIN(abs(segments[i-1].w - segments[i].w),
+                      MIN(abs(segments[i-1].y - segments[i].w),
+                          abs(segments[i-1].w - segments[i].y))))
                             > threshold
                     ? 1 : 0;
 }
@@ -191,7 +191,7 @@ KERNEL void can_join_segments(GLOBAL_MEM const int4 *segments,
 // Best distance metric is Chebyshev distance (max(dx, dy))
 // to avoid favoring highly skewed lines
 // longest_inds must already be initialized to all -1s
-#define CHEBYSHEV(v) MAX(abs(v.y-v.x), abs(v.w-v.z))
+#define CHEBYSHEV(v) MAX(abs(v.z-v.x), abs(v.w-v.y))
 KERNEL void assign_segments(GLOBAL_MEM const int4 *segments,
                               GLOBAL_MEM const int *labels,
                               GLOBAL_MEM ATOMIC int *longest_inds) {

@@ -30,7 +30,7 @@ def staves(page):
     lines = staff_center_lines(page)
     staves = hough.hough_paths(lines)
     # Filter out staves which are too short
-    good_staves = (staves[:, 1] - staves[:, 0]) > page.orig_size[1] / 2.0
+    good_staves = (staves[:, 1, 0] - staves[:, 0, 0]) > page.orig_size[1] / 2.0
     page.staves = staves[good_staves].astype(np.int32)
     return page.staves
 
@@ -43,5 +43,5 @@ def show_staff_filter(page):
 def show_staff_segments(page):
     self.show_staff_filter()
     import pylab as p
-    for x0, x1, y0, y1 in page.staff_center_lines:
+    for (x0, y0), (x1, y1) in page.staff_center_lines:
         p.plot([x0, x1], [y0, y1], 'g')
