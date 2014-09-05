@@ -1,9 +1,12 @@
-from . import hough
+from . import hough, path
 
 # hough is default implementation
-staves = hough.staves
+staves = path.staves
 
 def show_staves(page):
     import pylab as p
-    for (x0, y0), (x1, y1) in page.staves:
-        p.plot([x0, x1], [y0, y1], 'g')
+    # Plot each segment of the staff center line
+    for staff in page.staves:
+        xs = staff[:, 0]
+        ys = staff[:, 1]
+        p.plot(xs, ys, 'g')
