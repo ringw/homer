@@ -24,13 +24,22 @@ def get_images():
     shutil.rmtree(tmpdir)
 
 t=Tk()
-t.geometry("600x800")
+W=900
+H=1200
+SH=800
+f=Frame(t,width=W,height=SH)
+f.grid(row=0,column=0)
 
 pages = []
 staves = None
 gen = get_images()
-cv = Canvas(t, width=600, height=800)
-cv.pack()
+cv = Canvas(f, width=W, height=SH, scrollregion=(0,0,W,H))
+
+vbar = Scrollbar(f,orient=VERTICAL)
+vbar.pack(side=RIGHT,fill=Y)
+vbar.config(command=cv.yview)
+cv.config(yscrollcommand=vbar.set)
+cv.pack(side=LEFT,expand=True,fill=BOTH)
 def next_image(x):
     global img, imgTk, scale, staves
     if staves is not None:
@@ -42,7 +51,7 @@ def next_image(x):
         json.dump(pages, open(jsonpath, 'wb'))
         sys.exit(0)
     imgsize = img.size
-    scale = min(600.0/imgsize[0], 800.0/imgsize[1])
+    scale = min(float(W)/imgsize[0], float(H)/imgsize[1])
     newsize = map(int, [imgsize[0]*scale, imgsize[1]*scale])
     imgTk = ImageTk.PhotoImage(img.convert('L').resize(newsize, Image.ANTIALIAS))
     cv.delete('all')
