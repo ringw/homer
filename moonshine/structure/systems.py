@@ -37,9 +37,9 @@ def verify_barlines(page, i, j, barlines):
     # rho = x cos t + y sin t
     # 0 = (x1 - x0) cos t + (y1 - y0) sin t
     # tan t = - (x1 - x0) / (y1 - y0)
-    t = np.arctan(-(slice_barlines[:,0,1] - slice_barlines[:,0,0]).astype(float)
-                   / (slice_barlines[:,1,1] - slice_barlines[:,1,0]))
-    rho = slice_barlines[:,0,0] * np.cos(t) + slice_barlines[:,1,0] * np.sin(t)
+    t = np.arctan(-(slice_barlines[:,1,0] - slice_barlines[:,0,0]).astype(float)
+                   / (slice_barlines[:,1,1] - slice_barlines[:,0,1]))
+    rho = slice_barlines[:,0,0] * np.cos(t) + slice_barlines[:,0,1] * np.sin(t)
     rhores = page.staff_thick * 3
     rhoval = (rho / rhores).astype(int) + 1
 
