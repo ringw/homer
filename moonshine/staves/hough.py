@@ -1,7 +1,7 @@
 from ..gpu import *
 from .. import filter, hough, bitimage
 from ..cl_util import max_kernel
-from ..staves import BaseStaves
+from .base import BaseStaves
 import numpy as np
 
 class FilteredHoughStaves(BaseStaves):

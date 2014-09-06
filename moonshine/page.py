@@ -4,7 +4,6 @@ from .gpu import *
 # Need to define this now so that orientation can use it
 PAGE_SIZE = 4096
 from . import image, staves, structure, measure#, note
-from .staves.hough import FilteredHoughStaves
 
 class Page:
     def __init__(self, image_data):
@@ -16,7 +15,7 @@ class Page:
         self.bitimg = np.packbits(padded_img).reshape((PAGE_SIZE, -1))
         self.img = thr.to_device(self.bitimg)
 
-        self.staves = FilteredHoughStaves(self)
+        self.staves = staves.Staves(self)
 
     def process(self):
         structure.process(self)

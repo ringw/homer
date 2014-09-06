@@ -7,7 +7,6 @@ from .. import bitimage, filter, util
 
 def staff_barlines(page, staff_num):
     staff = page.staves()[staff_num]
-    print staff
     staff_y = int(np.mean(staff[:, 1]))
     y0 = max(0, staff_y - page.staff_dist * 4)
     y1 = min(page.img.shape[0], staff_y + page.staff_dist * 4)
