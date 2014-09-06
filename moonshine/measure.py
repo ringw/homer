@@ -59,7 +59,7 @@ class Measure:
         self.page = page
         self.staff_num = staff_num
         self.measure_num = measure_num
-        self.page_staff_y = page.staves[staff_num, [2,3]].sum()/2.0
+        self.page_staff_y = page.staves()[staff_num, [2,3]].sum()/2.0
 
     def get_image(self):
         if self.image is None:

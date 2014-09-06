@@ -7,7 +7,7 @@ def initialize_systems(page):
         barlines are a vertical line through the staff """
     page.systems = []
     i = 0
-    for staff, barlines in zip(page.staves, page.barlines):
+    for staff, barlines in zip(page.staves(), page.barlines):
         x0, x1, y0, y1 = staff
         system_bars = []
         for barline_x in barlines:
@@ -24,9 +24,9 @@ def verify_barlines(page, i, j, barlines):
         a line exists using hough_lineseg. """
     # Get a slice of the image which includes systems i through j
     assert i <= j
-    y0 = max(0, page.staves[i,[2,3]].min() - page.staff_dist*3)
+    y0 = max(0, page.staves()[i,[2,3]].min() - page.staff_dist*3)
     y1 = min(page.img.shape[0],
-             page.staves[j,[2,3]].max() + page.staff_dist*3)
+             page.staves()[j,[2,3]].max() + page.staff_dist*3)
     # Gap between y0 and y1 must be a multiple of 8
     y1 += 8 - ((y1 - y0) & 0x7)
     img_slice = page.img[y0:y1].copy()
@@ -56,9 +56,9 @@ def verify_barlines(page, i, j, barlines):
     best_lines = hough.hough_paths(new_lines)
     best_lines = best_lines[:, [2,3, 0,1]]
     best_lines[:, [2,3]] += y0
-    best_lines = best_lines[(best_lines[:,2] < page.staves[i,[2,3]].min()
+    best_lines = best_lines[(best_lines[:,2] < page.staves()[i,[2,3]].min()
                                                 - page.staff_dist)
-                          & (best_lines[:,3] > page.staves[j,[2,3]].max()
+                          & (best_lines[:,3] > page.staves()[j,[2,3]].max()
                                                 + page.staff_dist)]
     return best_lines
 def try_join_system(page, i):

@@ -3,7 +3,8 @@ from .gpu import *
 
 # Need to define this now so that orientation can use it
 PAGE_SIZE = 4096
-from . import image, structure, measure#, note
+from . import image, staves, structure, measure#, note
+from .staves.hough import FilteredHoughStaves
 
 class Page:
     def __init__(self, image_data):
@@ -15,6 +16,8 @@ class Page:
         self.bitimg = np.packbits(padded_img).reshape((PAGE_SIZE, -1))
         self.img = thr.to_device(self.bitimg)
 
+        self.staves = FilteredHoughStaves(self)
+
     def process(self):
         structure.process(self)
         measure.build_bars(self)
@@ -22,13 +25,13 @@ class Page:
 
     def show(self, show_elements=False):
         import pylab
-        from . import bitimage
-        from structure import staves, barlines, systems, staffboundary
+        from . import bitimage, staves
+        from structure import barlines, systems, staffboundary
         pylab.figure()
         pylab.imshow(bitimage.as_hostimage(self.img))
         pylab.ylim([self.orig_size[0], 0])
         pylab.xlim([0, self.orig_size[1]])
-        staves.show_staves(self)
+        self.staves.show()
         barlines.show_barlines(self)
         systems.show_system_barlines(self)
         staffboundary.show_boundaries(self)

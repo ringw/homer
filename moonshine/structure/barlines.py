@@ -6,7 +6,7 @@ from ..gpu import *
 from .. import bitimage, filter, util
 
 def staff_barlines(page, staff_num):
-    staff = page.staves[staff_num]
+    staff = page.staves()[staff_num]
     staff_y = int(staff[[2,3]].sum()/2.0)
     y0 = max(0, staff_y - page.staff_dist * 4)
     y1 = min(page.img.shape[0], staff_y + page.staff_dist * 4)
@@ -37,15 +37,15 @@ def staff_barlines(page, staff_num):
     return barlines
 
 def get_barlines(page):
-    page.barline_filter = filter.remove_staves(page)
+    page.barline_filter = page.staves.nostaff()
     page.barlines = [staff_barlines(page, i)
-                     for i in xrange(len(page.staves))]
+                     for i in xrange(len(page.staves()))]
     del page.barline_filter
     return page.barlines
 
 def show_barlines(page):
     import pylab
-    for staff_line, barlines in zip(page.staves, page.barlines):
+    for staff_line, barlines in zip(page.staves(), page.barlines):
         staff_y = staff_line[[2,3]].sum() / 2.0
         for barline_x in barlines:
             pylab.plot([barline_x, barline_x],

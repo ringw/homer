@@ -1,4 +1,4 @@
-from . import orientation, staffsize, staves, barlines, systems, staffboundary
+from . import orientation, staffsize, barlines, systems, staffboundary
 
 def process(page):
     staffsize.staffsize(page)
@@ -7,7 +7,7 @@ def process(page):
     # may be slightly different
     staffsize.staffsize(page)
 
-    staves.staves(page)
+    page.staves()
     barlines.get_barlines(page)
     systems.build_systems(page)
     staffboundary.boundaries(page)

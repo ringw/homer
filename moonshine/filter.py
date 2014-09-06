@@ -3,8 +3,6 @@ from . import bitimage
 
 prg = build_program("filter")
 
-LOCAL_SIZE = (16, 16)
-
 def staff_center(page, img=None):
     if img is None:
         img = page.img
@@ -15,7 +13,7 @@ def staff_center(page, img=None):
                             global_size=img.shape[::-1])
     return output
 
-def remove_staves(page, img=None):
+def staff_removal_filter(page, img=None):
     if img is None:
         img = page.img
     output = thr.empty_like(img)
