@@ -7,7 +7,8 @@ from .. import bitimage, filter, util
 
 def staff_barlines(page, staff_num):
     staff = page.staves()[staff_num]
-    staff_y = int(staff[[2,3]].sum()/2.0)
+    print staff
+    staff_y = int(np.mean(staff[:, 1]))
     y0 = max(0, staff_y - page.staff_dist * 4)
     y1 = min(page.img.shape[0], staff_y + page.staff_dist * 4)
     img_slice = bitimage.as_hostimage(page.barline_filter[y0:y1, :])
@@ -30,10 +31,10 @@ def staff_barlines(page, staff_num):
 
     # Add a barline at the start and end of the staff if necessary
     if len(barlines):
-        if barlines[0] - staff[0] > page.staff_dist*2:
-            barlines = np.concatenate([[staff[0]], barlines])
-        if staff[1] - barlines[-1] > page.staff_dist*2:
-            barlines = np.concatenate([barlines, [staff[1]]])
+        if barlines[0] - staff[0,0] > page.staff_dist*2:
+            barlines = np.concatenate([[staff[0,0]], barlines])
+        if staff[1,0] - barlines[-1] > page.staff_dist*2:
+            barlines = np.concatenate([barlines, [staff[1,0]]])
     return barlines
 
 def get_barlines(page):
@@ -46,7 +47,7 @@ def get_barlines(page):
 def show_barlines(page):
     import pylab
     for staff_line, barlines in zip(page.staves(), page.barlines):
-        staff_y = staff_line[[2,3]].sum() / 2.0
+        staff_y = np.mean(staff_line[:, 1])
         for barline_x in barlines:
             pylab.plot([barline_x, barline_x],
                        [staff_y - page.staff_dist*2,

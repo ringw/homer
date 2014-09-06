@@ -117,28 +117,46 @@ def staves(page):
     # Sort the path y's in each column, which prevents paths crossing
     staff_paths = np.sort(staff_paths, axis=0)
 
-    staves = []
+    staff_lines = []
     cur_staff = []
     last_line_pos = None
     for line in staff_paths:
-        line_pos = np.median(line)
-        if last_line_pos is None or line_pos - last_line_pos < page.staff_dist*2:
-            cur_staff.append(line)
+        # TODO: determine actual extent of staff
+        x0 = 0
+        x1 = len(line)-1
+        xs = np.arange(x0*2, x1*2+1, 2) # XXX: path scale
+        staff_line = np.empty((len(xs), 2), int)
+        staff_line[:, 0] = xs
+        staff_line[:, 1] = line[x0:x1+1] # XXX: path scale
+        line_pos = np.median(staff_line[:, 1])
+        
+        if not cur_staff or line_pos - last_line_pos < page.staff_dist*2:
+            cur_staff.append(staff_line)
         elif cur_staff:
             # end of staff
             if len(cur_staff) != 5:
                 logging.info('Throwing out staff with %d lines' % len(cur_staff))
             else:
-                center_pos = np.median(cur_staff[2])
-                staves.append([0, page.orig_size[1], center_pos,center_pos])
-            cur_staff = [line]
+                staff_lines.append(cur_staff)
+            cur_staff = [staff_line]
         last_line_pos = line_pos
     if cur_staff:
         # end of staff
         if len(cur_staff) != 5:
             logging.info('Throwing out staff with %d lines' % len(cur_staff))
         else:
-            center_pos = np.median(cur_staff[2])
-            staves.append([0, page.orig_size[1], center_pos,center_pos])
-    page.staves = np.array(staves, int)
+            staff_lines.append(cur_staff)
+    if not staff_lines:
+        page.staves = np.empty((0, 2, 2), int)
+        return page.staves
+    width = max([len(line[2]) for line in staff_lines])
+    mask = map(lambda line:
+               np.vstack([np.zeros((len(line[2]), 2), bool),
+                          np.ones((width-len(line[2]), 2), bool)]),
+               staff_lines)
+    pad_centers = map(lambda line:
+                      np.vstack([line[2],
+                              -np.ones((width-len(line[2]), 2), int)]),
+                      staff_lines)
+    page.staves = np.ma.array(pad_centers, np.int32, mask=mask, fill_value=-1)
     return page.staves

@@ -32,7 +32,7 @@ def hough_lineseg_kernel(img, rhos, thetas, rhores=1, max_gap=0):
     device_rhos = thr.to_device(rhos.astype(np.int32))
     cos_thetas = thr.to_device(np.cos(thetas).astype(np.float32))
     sin_thetas = thr.to_device(np.sin(thetas).astype(np.float32))
-    segments = thr.empty_like(Type(np.int32, (len(rhos), 4)))
+    segments = thr.empty_like(Type(np.int32, (len(rhos), 2, 2)))
     segments.fill(0)
     temp = pyopencl.LocalMemory(img.shape[0] + img.shape[1]/8) # bit-packed
     prg.hough_lineseg(*[img,
@@ -69,7 +69,7 @@ def houghpeaks(H, npeaks=2000, thresh=1.0, invalidate=(1, 1)):
 # Reikna doesn't have a sort function?
 def sort_segments(segments):
     segments = segments.get().view(np.int32).reshape((-1, 4))
-    segments = segments[np.argsort(segments[:,2])] # sort by y0
+    segments = segments[np.argsort(segments[:,1])] # sort by y0
     return [thr.to_device(segments)], None
 
 #cumsum = GenericScanKernel(cx, np.int32,
@@ -88,7 +88,7 @@ def hough_paths(segments, line_dist=40):
     # View segments as a 1D structured array
     seg_struct = segments.ravel().astype(np.int32).view(int4).reshape(-1)
     segments, _ = sort_segments(thr.to_device(seg_struct))
-    segments = segments[0].view(np.int32).reshape((seg_struct.shape[0], 4))
+    segments = segments[0].view(np.int32).reshape((seg_struct.shape[0], 2, 2))
     can_join = thr.empty_like(Type(np.int32, segments.shape[0]))
     can_join.fill(0)
     prg.can_join_segments(segments, can_join,
@@ -103,7 +103,7 @@ def hough_paths(segments, line_dist=40):
                         longest_seg_inds,
                         global_size=(segments.shape[0],),
                         local_size=(1,))
-    longest_segs = thr.empty_like(Type(np.int32, (num_labels, 4)))
+    longest_segs = thr.empty_like(Type(np.int32, (num_labels, 2, 2)))
     prg.copy_chosen_segments(segments,
                              longest_seg_inds,
                              longest_segs,
