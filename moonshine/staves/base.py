@@ -35,6 +35,8 @@ class BaseStaves(object):
                           self.nostaff_img,
                           np.int32(self.nostaff_img.shape[1]),
                           np.int32(self.nostaff_img.shape[0]),
+                          thr.empty_like(Type(np.int32, 1)), # dummy new staves
+                          np.int32(0), # disable refined_staves
                           global_size=self.staves.shape[::-1])
 
     def show(self):

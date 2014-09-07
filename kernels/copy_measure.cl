@@ -10,8 +10,8 @@ KERNEL void copy_measure(GLOBAL_MEM const UCHAR *image,
     // which are evenly spaced by x_space.
     int byte_x = get_global_id(0);
     int y = get_global_id(1);
-    int image_byte_x = measure_bounds.s0 + byte_x;
-    int image_y = measure_bounds.s1 + y;
+    int image_byte_x = measure_bounds.x + byte_x;
+    int image_y = measure_bounds.y + y;
 
     UCHAR output = 0;
     UCHAR mask = 0x01;
@@ -38,5 +38,5 @@ KERNEL void copy_measure(GLOBAL_MEM const UCHAR *image,
         }
         mask <<= 1;
     }
-    measure[byte_x + measure_bounds.s2 * y] = output;
+    measure[byte_x + measure_bounds.z * y] = output;
 }
