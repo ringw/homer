@@ -8,7 +8,8 @@ def initialize_systems(page):
     page.systems = []
     i = 0
     for staff, barlines in zip(page.staves(), page.barlines):
-        (x0, y0), (x1, y1) = staff
+        x0, y0 = staff[0]
+        x1, y1 = staff[-1]
         system_bars = []
         for barline_x in barlines:
             staff_y = y0 + (y1 - y0) * (barline_x - x0) / (x1 - x0)

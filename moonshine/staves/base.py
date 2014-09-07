@@ -13,7 +13,7 @@ class BaseStaves(object):
 
     def __call__(self):
         if self.staves is None:
-            self.find_staves()
+            self.get_staves()
             if not isinstance(self.staves, np.ma.masked_array):
                 self.staves = np.ma.array(self.staves, fill_value=-1)
         return self.staves
@@ -23,7 +23,7 @@ class BaseStaves(object):
             self.remove_staves()
         return self.nostaff_img
 
-    def find_staves(self):
+    def get_staves(self):
         NotImplementedError("Use a concrete Staves subclass.")
     def remove_staves(self):
         """ Default staff removal implementation """

@@ -20,10 +20,10 @@ class StablePathStaves(BaseStaves):
                         np.int32(self.page.staff_thick),
                         np.float32(2.0),
                         self.weights,
-                        np.int32(self.page.paths.shape[1]),
-                        np.int32(self.page.paths.shape[0]),
+                        np.int32(self.weights.shape[1]),
+                        np.int32(self.weights.shape[0]),
                         global_size=(num_workers,), local_size=(num_workers,))
-        return page.paths
+        return self.weights
 
     def get_stable_paths(self, img=None):
         if img is None:
@@ -79,7 +79,7 @@ class StablePathStaves(BaseStaves):
             stable_paths.append(list(reversed(path)))
         return stable_paths
 
-    def validate_and_remove_paths(page, img, stable_paths):
+    def validate_and_remove_paths(self, img, stable_paths):
         pixel_sum = thr.empty_like(Type(np.int32, len(stable_paths)))
         pixel_sum.fill(0)
         prg.remove_paths(img,
@@ -92,15 +92,14 @@ class StablePathStaves(BaseStaves):
                          global_size=(len(stable_paths),), local_size=(1,))
         return pixel_sum
 
-    def all_staff_paths(page):
-        img = page.img.copy()
+    def all_staff_paths(self):
+        img = self.page.img.copy()
         all_paths = []
         threshold = None
         while True:
-            if self.weights:
-                self.weights = None
-            paths = stable_paths(page, img)
-            sums = validate_and_remove_paths(page, img, paths).get()
+            self.weights = None
+            paths = self.get_stable_paths(img)
+            sums = self.validate_and_remove_paths(img, paths).get()
             if threshold is None:
                 threshold = int(np.median(sums) * 0.8)
                 all_paths.append(paths.get())
@@ -111,9 +110,8 @@ class StablePathStaves(BaseStaves):
                 else:
                     all_paths.append(paths.get()[valid])
 
-
-    def staves(page):
-        staff_paths = all_staff_paths(page)
+    def get_staves(self):
+        staff_paths = self.all_staff_paths()
         # Sort the path y's in each column, which prevents paths crossing
         staff_paths = np.sort(staff_paths, axis=0)
 
@@ -130,7 +128,8 @@ class StablePathStaves(BaseStaves):
             staff_line[:, 1] = line[x0:x1+1] # XXX: path scale
             line_pos = np.median(staff_line[:, 1])
             
-            if not cur_staff or line_pos - last_line_pos < page.staff_dist*2:
+            if (not cur_staff
+                or line_pos - last_line_pos < self.page.staff_dist*2):
                 cur_staff.append(staff_line)
             elif cur_staff:
                 # end of staff
@@ -147,8 +146,8 @@ class StablePathStaves(BaseStaves):
             else:
                 staff_lines.append(cur_staff)
         if not staff_lines:
-            page.staves = np.empty((0, 2, 2), int)
-            return page.staves
+            self.staves = np.empty((0, 2, 2), int)
+            return self.staves
         width = max([len(line[2]) for line in staff_lines])
         mask = map(lambda line:
                    np.vstack([np.zeros((len(line[2]), 2), bool),
@@ -158,5 +157,6 @@ class StablePathStaves(BaseStaves):
                           np.vstack([line[2],
                                   -np.ones((width-len(line[2]), 2), int)]),
                           staff_lines)
-        page.staves = np.ma.array(pad_centers, np.int32, mask=mask, fill_value=-1)
-        return page.staves
+        self.staves = np.ma.array(pad_centers, np.int32, mask=mask, fill_value=-1)
+        self.weights = None
+        return self.staves

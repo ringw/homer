@@ -28,7 +28,7 @@ class FilteredHoughStaves(BaseStaves):
         page.staff_center_lines = lines
         return lines
 
-    def find_staves(self):
+    def get_staves(self):
         lines = self.staff_center_lines(self.page)
         staves = hough.hough_paths(lines)
         # Filter out staves which are too short

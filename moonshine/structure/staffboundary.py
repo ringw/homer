@@ -64,13 +64,23 @@ def boundary_cost(page, staff):
     if staff == 0:
         y0 = 0
     else:
-        y0 = max(0, np.amax(page.staves()[staff-1, :, 1]) + page.staff_dist*2)
+        staff_y_above = page.staves()[staff-1, :, 1]
+        y0 = max(0, np.amax(staff_y_above) + page.staff_dist*2)
     if staff == len(page.staves()):
         y1 = page.orig_size[0]
     else:
-        y1 = min(page.orig_size[0],
-                 np.amin(page.staves()[staff, :, 1]) - page.staff_dist*2)
+        staff_y_below = page.staves()[staff, :, 1]
+        y1 = min(page.orig_size[0], np.amin(staff_y_below) - page.staff_dist*2)
 
+    if y0 >= y1:
+        # Use staff medians instead of extrema, should have at least
+        # staff_dist*4 amount of space
+        if staff > 0:
+            y0 = max(0, np.median(staff_y_above).astype(int)
+                            + page.staff_dist*2)
+        if staff < len(page.staves()):
+            y1 = min(page.orig_size[0],
+                     np.median(staff_y_below).astype(int) - page.staff_dist*2)
     # Try to find a horizontal line that doesn't touch any dark pixels
     proj = page.img[y0:y1].get().sum(axis=1)
     slices, num_slices = util.label_1d(proj == 0)
