@@ -47,7 +47,16 @@ class BaseStaves(object):
                           refined_num_points,
                           global_size=self.staves.shape[::-1])
         if refine:
-            self.staves = refined_staves.get()
+            new_staves = refined_staves.get()
+            # Must move all (-1, -1) points to end of each staff
+            num_points = max([sum(staff[:, 0] >= 0) for staff in new_staves])
+            staves_copy = np.empty((num_points, 2), np.int32)
+            mask = np.ones((num_points, 2), bool)
+            for i, staff in enumerate(new_staves):
+                points = staff[staff[:, 0] >= 0]
+                staves_copy[i, :len(points)] = points
+                mask[i, :len(points)] = 0
+            self.staves = staves_copy
 
     def show(self):
         import pylab as p
