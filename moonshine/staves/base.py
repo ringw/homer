@@ -25,19 +25,29 @@ class BaseStaves(object):
 
     def get_staves(self):
         NotImplementedError("Use a concrete Staves subclass.")
-    def remove_staves(self):
-        """ Default staff removal implementation """
+    def remove_staves(self, refine=False):
+        """ Default staff removal implementation, with optional refinement """
         self() # must have staves
         self.nostaff_img = self.page.img.copy()
+        if refine:
+            refined_num_points = np.int32(self.page.orig_size[1] / 8)
+            refined_staves = thr.empty_like(Type(np.int32,
+                                (refined_num_points, self.staves.shape[0], 2)))
+            refined_staves.fill(-1)
+        else:
+            refined_num_points = np.int32(0) # disable refined_staves
+            refined_staves = thr.empty_like(Type(np.int32, 1)) # dummy array
         prg.staff_removal(thr.to_device(self.staves.filled().astype(np.int32)),
                           np.int32(self.page.staff_thick+1),
                           np.int32(self.page.staff_dist),
                           self.nostaff_img,
                           np.int32(self.nostaff_img.shape[1]),
                           np.int32(self.nostaff_img.shape[0]),
-                          thr.empty_like(Type(np.int32, 1)), # dummy new staves
-                          np.int32(0), # disable refined_staves
+                          refined_staves,
+                          refined_num_points,
                           global_size=self.staves.shape[::-1])
+        if refine:
+            self.staves = refined_staves.get()
 
     def show(self):
         import pylab as p

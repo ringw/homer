@@ -12,8 +12,7 @@ KERNEL void staff_removal(GLOBAL_MEM const int2 *staves,
     if (segment_num == 0) {
         // Mask refined_staves
         for (int i = 0; i < refined_num_points; i++) {
-            refined_staves[i + refined_num_points * staff_num]
-                = make_int2(-1,-1);
+            refined_staves[i + refined_num_points*staff_num] = make_int2(-1,-1);
         }
     }
     if (segment_num + 1 == num_points)
@@ -29,7 +28,7 @@ KERNEL void staff_removal(GLOBAL_MEM const int2 *staves,
 
         // Try to refine y-value by searching an area +-staff_dist/2
         UCHAR buf[64];
-        int dy = MAX(31, (staff_dist+1)/2);
+        int dy = MIN(31, (staff_dist+1)/2);
         int y0 = MAX(0, y - dy);
         int y1 = MIN(h, y + dy + 1);
         for (int y_ = y0, i = 0; y_ < y1; y_++, i++)
@@ -65,10 +64,26 @@ KERNEL void staff_removal(GLOBAL_MEM const int2 *staves,
 
         if (num_runs == 0)
             continue;
-        int y_refined = 0;
-        for (int i = 0; i < num_runs; i++)
-            y_refined += run_center_y[i];
-        y_refined /= num_runs;
+        // A really inefficient median finding algorithm
+        // Set the minimum element to -1 for enough iterations
+        int median_ind;
+        for (int count = 0; count <= num_runs/2; count++) {
+            median_ind = -1;
+            // Remove the last minimum
+            if (count)
+                run_center_y[median_ind] = -1;
+            for (int elem = 0; elem < num_runs; elem++) {
+                int value = run_center_y[elem];
+                if (value >= 0 && (median_ind == -1 || value < median_ind))
+                    median_ind = elem;
+            }
+        }
+
+        int y_refined = run_center_y[median_ind];
+
+        if (byte_x < refined_num_points)
+            refined_staves[byte_x + refined_num_points * staff_num] =
+                make_int2(byte_x * 8, y_refined);
 
         int lines[5] = {y_refined - staff_dist*2,
                         y_refined - staff_dist,
