@@ -32,7 +32,7 @@ class BaseStaves(object):
         if refine:
             refined_num_points = np.int32(self.page.orig_size[1] / 8)
             refined_staves = thr.empty_like(Type(np.int32,
-                                (refined_num_points, self.staves.shape[0], 2)))
+                                (self.staves.shape[0], refined_num_points, 2)))
             refined_staves.fill(-1)
         else:
             refined_num_points = np.int32(0) # disable refined_staves
@@ -50,13 +50,14 @@ class BaseStaves(object):
             new_staves = refined_staves.get()
             # Must move all (-1, -1) points to end of each staff
             num_points = max([sum(staff[:, 0] >= 0) for staff in new_staves])
-            staves_copy = np.empty((num_points, 2), np.int32)
-            mask = np.ones((num_points, 2), bool)
+            staves_copy = np.empty((self.staves.shape[0], num_points, 2),
+                                        np.int32)
+            mask = np.ones_like(staves_copy, bool)
             for i, staff in enumerate(new_staves):
                 points = staff[staff[:, 0] >= 0]
                 staves_copy[i, :len(points)] = points
                 mask[i, :len(points)] = 0
-            self.staves = staves_copy
+            self.staves = np.ma.array(staves_copy, mask=mask, fill_value=-1)
 
     def show(self):
         import pylab as p
