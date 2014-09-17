@@ -23,7 +23,7 @@ def rotate_kernel(img, theta):
                      global_size=(img.shape[1], img.shape[0]))
     return new_img
 
-def patch_orientation_numpy(page, patch_size=512):
+def patch_orientation_numpy(page, patch_size=256):
     orientations = np.zeros((PAGE_SIZE / patch_size,
                              PAGE_SIZE / patch_size))
     mask = np.zeros_like(orientations, bool)
@@ -55,9 +55,10 @@ def patch_orientation_numpy(page, patch_size=512):
                 mask[patch_y, patch_x] = True
     return np.ma.masked_array(orientations, mask)
 
-def patch_orientation(page, patch_size=512):
+def patch_orientation(page, patch_size=256):
     orientations = np.zeros((PAGE_SIZE / patch_size,
                              PAGE_SIZE / patch_size))
+    score = np.zeros_like(orientations)
     mask = np.zeros_like(orientations, bool)
 
     patch = thr.empty_like(Type(np.complex64, (patch_size, patch_size)))
@@ -77,21 +78,37 @@ def patch_orientation(page, patch_size=512):
             fft_top[int(page.staff_dist*3.5):] = 0
             peak_y, peak_x = np.unravel_index(np.argmax(fft_top),
                                               fft_top.shape)
+
+            maxval = np.amax(fft_top)
+            fft_top[max(0, peak_y-page.staff_thick*2)
+                        : min(fft_top.shape[0], peak_y+page.staff_thick*2),
+                    max(0, peak_x-page.staff_thick*2)
+                        : min(fft_top.shape[1], peak_x+page.staff_thick*2)] = 0
+            bgval = np.amax(fft_top)
+            if bgval > 0:
+                score[patch_y, patch_x] = maxval / bgval
+
             if peak_x > patch_size/2:
                 peak_x -= patch_size
             if peak_y:
                 orientations[patch_y, patch_x] = np.arctan2(peak_x, peak_y)
             else:
                 mask[patch_y, patch_x] = True
-    return np.ma.masked_array(orientations, mask)
+    return np.ma.masked_array(np.dstack([orientations, score]),
+                    np.repeat(mask[:,:,None], 2, axis=2))
 
 def orientation(page):
     assert type(page.staff_dist) is not tuple, \
            "Multiple staff sizes not supported"
-    patch_size = 512
+    patch_size = 128
     while page.staff_dist * 10 > patch_size:
         patch_size *= 2
-    assert patch_size <= PAGE_SIZE
+    assert patch_size <= 1024
     patches = patch_orientation(page)
-    page.orientation = np.ma.mean(patches)
+    orientations = patches[:,:,0]
+    scores = patches[:,:,1]
+    score_cutoff = min(1.5, np.ma.median(scores) * 2)
+    page.orientation = np.ma.mean(orientations[scores >= score_cutoff])
+    if np.isnan(page.orientation):
+        page.orientation = 0.0
     return page.orientation
