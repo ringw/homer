@@ -101,8 +101,11 @@ class StablePathStaves(BaseStaves):
             paths = self.get_stable_paths(img)
             sums = self.validate_and_remove_paths(img, paths).get()
             if threshold is None:
-                threshold = int(np.median(sums) * 0.8)
-                all_paths.append(paths.get())
+                try:
+                    threshold = int(np.median(sums[sums > 0]) * 0.8)
+                    all_paths.append(paths.get()[sums >= threshold])
+                except ValueError: # all paths have 0 dark pixels
+                    return np.empty((0, 2048), np.int32)
             else:
                 valid = sums >= threshold
                 if not valid.any():
