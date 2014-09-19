@@ -108,7 +108,7 @@ def orientation(page):
     orientations = patches[:,:,0]
     scores = patches[:,:,1]
     score_cutoff = min(1.5, np.ma.median(scores) * 2)
-    page.orientation = np.ma.mean(orientations[scores >= score_cutoff])
+    page.orientation = float(np.ma.mean(orientations[scores >= score_cutoff]))
     if np.isnan(page.orientation):
         page.orientation = 0.0
     return page.orientation
