@@ -1,5 +1,5 @@
 from ..gpu import *
-from .. import hough
+from .. import bitimage, hough
 from ..page import PAGE_SIZE
 import numpy as np
 from reikna.core import Type
@@ -11,6 +11,8 @@ def rotate(page):
     orientation(page)
     new_img = rotate_kernel(page.img, page.orientation)
     page.img = new_img
+    page.bitimg = new_img.get()
+    page.byteimg = bitimage.as_hostimage(new_img)
     return page.orientation
 
 def rotate_kernel(img, theta):

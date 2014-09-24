@@ -7,6 +7,7 @@ from . import image, staves, structure, measure#, note
 
 class Page(object):
     def __init__(self, image_data):
+        self.image_data = image_data
         img = image.image_array(image_data)
         padded_img = np.zeros((PAGE_SIZE, PAGE_SIZE), np.uint8)
         padded_img[:img.shape[0], :img.shape[1]] = img
