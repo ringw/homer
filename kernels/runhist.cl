@@ -87,6 +87,8 @@ KERNEL void light_hist(GLOBAL_MEM const UCHAR *image,
         above_bits &= fill_int8(0x1);
         is_run &= (above_bits ^ bits);
     }
+    else
+        is_run = 0; // assume not tracking runs on very top or bottom
 
     int8 run_lengths = is_run;
     float4 ones = make_float4(1.f,1.f,1.f,1.f);
@@ -119,6 +121,8 @@ KERNEL void light_hist(GLOBAL_MEM const UCHAR *image,
                 if (byte_below & (0x80U >> i))
                     light_below = 0;
             }
+            else // too close to bottom edge to track
+                light_below = 0;
             if (light_below)
                 atomic_inc(&light_counts[rl_u.a[i]]);
         }
