@@ -45,7 +45,7 @@ class BaseStaves(object):
                           np.int32(self.nostaff_img.shape[0]),
                           refined_staves,
                           refined_num_points,
-                          global_size=self.staves.shape[::-1])
+                          global_size=self.staves.shape[1::-1])
         if refine:
             new_staves = refined_staves.get()
             # Must move all (-1, -1) points to end of each staff
