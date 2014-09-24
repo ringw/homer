@@ -5,7 +5,7 @@ from .gpu import *
 PAGE_SIZE = 4096
 from . import image, staves, structure, measure#, note
 
-class Page:
+class Page(object):
     def __init__(self, image_data):
         img = image.image_array(image_data)
         padded_img = np.zeros((PAGE_SIZE, PAGE_SIZE), np.uint8)
