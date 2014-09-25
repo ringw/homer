@@ -32,7 +32,7 @@ class FilteredHoughStaves(BaseStaves):
         lines = self.staff_center_lines(self.page)
         staves = hough.hough_paths(lines)
         # Filter out staves which are too short
-        good_staves = (staves[:,-1,0] - staves[:,0,0]) > self.page.orig_size[1] / 2.0
+        good_staves = (staves[:,-1,0] - staves[:,0,0]) > self.page.orig_size[1] / 4.0
         self.staves = staves[good_staves].astype(np.int32)
         return self.staves
 

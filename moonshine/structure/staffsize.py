@@ -41,7 +41,7 @@ def staffsize(page, img=None):
     is_max = (diff[:-1] > 0) & (diff[1:] < 0)
     thresh = light_run[1:-1] > (light_run.max() / 10)
     space_vals = np.where(is_max & thresh)[0] + 1
-    space_vals = space_vals[staff_thick * 2 < space_vals]
+    space_vals = space_vals[staff_thick < space_vals]
     # Sort by most dominant staves in piece
     # We may detect a small staff with editor's notes, etc. which should be
     # detected after the actual music staves
