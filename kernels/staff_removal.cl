@@ -32,9 +32,9 @@ KERNEL void staff_removal(GLOBAL_MEM const int2 *staves,
     for (int byte_x = p0.x / 8; byte_x <= p1.x / 8 && byte_x < w; byte_x++) {
         int y = p0.y + (p1.y - p0.y) * (byte_x*8 - p0.x) / (p1.x - p0.x);
 
-        // Try to refine y-value by searching an area +-staff_dist/3
+        // Try to refine y-value by searching an small area
         UCHAR buf[64];
-        int dy = MIN(31, (staff_dist+1)/3);
+        int dy = MIN(31, (staff_thick+1)/2);
         int y0 = MAX(0, y - dy);
         int y1 = MIN(h, y + dy + 1);
         for (int y_ = y0, i = 0; y_ < y1; y_++, i++)
