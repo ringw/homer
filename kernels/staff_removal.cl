@@ -9,6 +9,12 @@ KERNEL void staff_removal(GLOBAL_MEM const int2 *staves,
     int segment_num = get_global_id(0);
     int staff_num = get_global_id(1);
 
+    int remove_staff = 1;
+    if (refined_num_points < 0) {
+        remove_staff = 0;
+        refined_num_points = -refined_num_points;
+    }
+
     if (segment_num == 0) {
         // Mask refined_staves
         for (int i = 0; i < refined_num_points; i++) {
@@ -26,9 +32,9 @@ KERNEL void staff_removal(GLOBAL_MEM const int2 *staves,
     for (int byte_x = p0.x / 8; byte_x <= p1.x / 8 && byte_x < w; byte_x++) {
         int y = p0.y + (p1.y - p0.y) * (byte_x*8 - p0.x) / (p1.x - p0.x);
 
-        // Try to refine y-value by searching an area +-staff_dist/2
+        // Try to refine y-value by searching an area +-staff_dist/3
         UCHAR buf[64];
-        int dy = MIN(31, (staff_dist+1)/2);
+        int dy = MIN(31, (staff_dist+1)/3);
         int y0 = MAX(0, y - dy);
         int y1 = MIN(h, y + dy + 1);
         for (int y_ = y0, i = 0; y_ < y1; y_++, i++)
@@ -81,10 +87,6 @@ KERNEL void staff_removal(GLOBAL_MEM const int2 *staves,
 
         int y_refined = run_center_y[median_ind];
 
-        if (byte_x < refined_num_points)
-            refined_staves[byte_x + refined_num_points * staff_num] =
-                make_int2(byte_x * 8, y_refined);
-
         int lines[5] = {y_refined - staff_dist*2,
                         y_refined - staff_dist,
                         y_refined,
@@ -92,22 +94,37 @@ KERNEL void staff_removal(GLOBAL_MEM const int2 *staves,
                         y_refined + staff_dist*2};
         if (! (0 <= lines[0] - staff_thick && lines[4] + staff_thick < h))
             continue;
+
         UCHAR is_staff = 0xFF;
+        UCHAR found_line[5];
         for (int i = 0; i < 5; i++) {
-            UCHAR found_line = 0;
+            found_line[i] = 0;
             for (int dy = -staff_thick; dy <= staff_thick; dy++)
-                found_line |= img[byte_x + w * (lines[i] + dy)];
-            is_staff &= found_line;
+                found_line[i] |= img[byte_x + w * (lines[i] + dy)];
+            is_staff &= found_line[i];
         }
 
+        UCHAR mask[5];
         for (int i = 0; i < 5; i++) {
-            UCHAR mask = ~ is_staff;
+            mask[i] = ~ is_staff;
             // Must have empty space +- staff_thick
-            mask |= img[byte_x + w * (lines[i] - staff_thick)];
-            mask |= img[byte_x + w * (lines[i] + staff_thick)];
+            mask[i] |= img[byte_x + w * (lines[i] - staff_thick)];
+            mask[i] |= img[byte_x + w * (lines[i] + staff_thick)];
+        }
+        UCHAR some_space = 0;
+        for (int i = 0; i < 5; i++)
+            some_space |= found_line[i] & mask[i];
+        is_staff &= some_space;
 
+        if (byte_x < refined_num_points && is_staff != 0)
+            refined_staves[byte_x + refined_num_points * staff_num] =
+                make_int2(byte_x * 8, y_refined);
+
+        if (! remove_staff)
+            continue;
+        for (int i = 0; i < 5; i++) {
             for (int dy = -staff_thick/2; dy <= staff_thick/2; dy++)
-                img[byte_x + w * (lines[i] + dy)] &= mask;
+                img[byte_x + w * (lines[i] + dy)] &= mask[i];
         }
     }
 }

@@ -29,6 +29,9 @@ for f in FILES:
     our_pages['doc'] = docname
     pages = pages.append(our_pages)
 
+pages['score'].fillna(0, inplace=True)
+staves['score'].fillna(0, inplace=True)
+
 # can't figure out how to use groupby object
 page_method = pages['id'].str.replace('P.+','')
 page_bymethod = dict(list(pages['score'].groupby(page_method)))

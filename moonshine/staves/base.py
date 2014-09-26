@@ -1,5 +1,9 @@
 from ..gpu import *
 import numpy as np
+try:
+    import scipy.signal as scipy_signal
+except ImportError:
+    scipy_signal = None
 
 prg = build_program("staff_removal")
 
@@ -25,39 +29,58 @@ class BaseStaves(object):
 
     def get_staves(self):
         NotImplementedError("Use a concrete Staves subclass.")
-    def remove_staves(self, refine=False):
-        """ Default staff removal implementation, with optional refinement """
-        self() # must have staves
-        self.nostaff_img = self.page.img.copy()
-        if refine:
-            refined_num_points = np.int32(self.page.orig_size[1] / 8)
+
+    def refine_and_remove_staves(self, refine_staves=False, remove_staves=True,
+                                 staves=None):
+        assert refine_staves or remove_staves, 'Need something to do'
+        if staves is None:
+            staves = self()
+        if refine_staves:
+            refined_num_points = np.int32(self.page.orig_size[1] // 8)
             refined_staves = thr.empty_like(Type(np.int32,
-                                (self.staves.shape[0], refined_num_points, 2)))
+                                (staves.shape[0], refined_num_points, 2)))
             refined_staves.fill(-1)
         else:
             refined_num_points = np.int32(0) # disable refined_staves
             refined_staves = thr.empty_like(Type(np.int32, 1)) # dummy array
-        prg.staff_removal(thr.to_device(self.staves.filled().astype(np.int32)),
+        if remove_staves:
+            nostaff_img = self.page.img.copy()
+        else:
+            nostaff_img = self.page.img
+            refined_num_points = np.int32(-refined_num_points)
+        prg.staff_removal(thr.to_device(staves.filled().astype(np.int32)),
                           np.int32(self.page.staff_thick+1),
                           np.int32(self.page.staff_dist),
-                          self.nostaff_img,
-                          np.int32(self.nostaff_img.shape[1]),
-                          np.int32(self.nostaff_img.shape[0]),
+                          nostaff_img,
+                          np.int32(nostaff_img.shape[1]),
+                          np.int32(nostaff_img.shape[0]),
                           refined_staves,
                           refined_num_points,
-                          global_size=self.staves.shape[1::-1])
-        if refine:
+                          global_size=staves.shape[1::-1])
+        if refine_staves:
             new_staves = refined_staves.get()
             # Must move all (-1, -1) points to end of each staff
             num_points = max([sum(staff[:, 0] >= 0) for staff in new_staves])
-            staves_copy = np.empty((self.staves.shape[0], num_points, 2),
-                                        np.int32)
+            staves_copy = np.empty((staves.shape[0], num_points, 2), np.int32)
             mask = np.ones_like(staves_copy, bool)
             for i, staff in enumerate(new_staves):
                 points = staff[staff[:, 0] >= 0]
+                # Clean up single spurious points (requires scipy)
+                if scipy_signal is not None:
+                    points[:, 1] = scipy_signal.medfilt(points[:, 1])
                 staves_copy[i, :len(points)] = points
                 mask[i, :len(points)] = 0
-            self.staves = np.ma.array(staves_copy, mask=mask, fill_value=-1)
+            order = np.argsort(staves_copy[:, 0, 1]) # sort by y0
+            staves_copy = staves_copy[order]
+            mask = mask[order]
+            staves = np.ma.array(staves_copy, mask=mask, fill_value=-1)
+        return staves, nostaff_img
+
+    def remove_staves(self, refine_staves=False):
+        """ Default staff removal implementation, with optional refinement """
+        self() # must have staves
+        self.staves, self.nostaff_img = self.refine_and_remove_staves(
+                remove_staves=True, refine_staves=refine_staves)
 
     def show(self):
         import pylab as p

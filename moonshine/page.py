@@ -4,6 +4,7 @@ from .gpu import *
 # Need to define this now so that orientation can use it
 PAGE_SIZE = 4096
 from . import image, staves, structure, measure#, note
+from .structure import staffsize, orientation
 
 class Page(object):
     def __init__(self, image_data):
@@ -18,12 +19,17 @@ class Page(object):
 
         self.staves = staves.Staves(self)
 
+    def preprocess(self):
+        staffsize.staffsize(self)
+        orientation.rotate(self)
+        staffsize.staffsize(self)
+
     def process(self):
         structure.process(self)
         measure.build_bars(self)
         #self.notepitch_score = note.get_notepitch_score(self)
 
-    def show(self, show_elements=False):
+    def show(self, show_structure=True, show_elements=False):
         import pylab
         from . import bitimage, staves
         from structure import barlines, systems, staffboundary
@@ -31,10 +37,11 @@ class Page(object):
         pylab.imshow(bitimage.as_hostimage(self.img))
         pylab.ylim([self.orig_size[0], 0])
         pylab.xlim([0, self.orig_size[1]])
-        self.staves.show()
-        barlines.show_barlines(self)
-        systems.show_system_barlines(self)
-        staffboundary.show_boundaries(self)
+        if show_structure:
+            self.staves.show()
+            barlines.show_barlines(self)
+            systems.show_system_barlines(self)
+            staffboundary.show_boundaries(self)
         if show_elements:
             for barsystem in self.bars:
                 for system_measure in barsystem:

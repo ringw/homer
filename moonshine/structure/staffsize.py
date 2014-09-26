@@ -36,6 +36,11 @@ def staffsize(page, img=None):
         page.staff_thick = int(staff_thick)
 
     light_run = light_runs(page, img)
+    if light_run.max() < 1000:
+        logging.warn("Few runs detected, likely no staves in image")
+        page.staff_space = None
+        page.staff_dist = None
+        return page.staff_thick, page.staff_space
     # Multiple staff space sizes are possible for different instruments
     diff = np.diff(light_run)
     is_max = (diff[:-1] > 0) & (diff[1:] < 0)

@@ -2,8 +2,8 @@ from ..gpu import *
 from .. import util
 import numpy as np
 
-#prg = build_program(["boundary", "scaled_bitmap_to_int_array",
-                     #"taxicab_distance"])
+prg = build_program(["boundary", "scaled_bitmap_to_int_array",
+                     "taxicab_distance"])
 
 def boundary_cost_kernel(dist, y0, ystep, y1, x0, xstep, x1):
     numy = int(y1 - y0) // int(ystep)

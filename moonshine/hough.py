@@ -53,15 +53,15 @@ def houghpeaks(H, npeaks=2000, thresh=1.0, invalidate=(1, 1)):
     Hmax = maximum_filter_kernel(H).get()
     peaks = []
     for i in xrange(npeaks):
-        r, t = np.unravel_index(np.argmax(Hmax), Hmax.shape)
-        if Hmax[r, t] < thresh:
+        t, r = np.unravel_index(np.argmax(Hmax), Hmax.shape)
+        if Hmax[t, r] < thresh:
             break
-        peaks.append((r, t))
-        rmin = max(0, r - (invalidate[0] // 2))
-        rmax = min(H.shape[0], r - (-invalidate[0] // 2))
-        tmin = max(0, t - (invalidate[1] // 2))
-        tmax = min(H.shape[1], t - (-invalidate[1] // 2))
-        Hmax[rmin:rmax, tmin:tmax] = 0
+        peaks.append((t, r))
+        tmin = max(0, t - (invalidate[0] // 2))
+        tmax = min(H.shape[0], t - (-invalidate[0] // 2))
+        rmin = max(0, r - (invalidate[1] // 2))
+        rmax = min(H.shape[1], r - (-invalidate[1] // 2))
+        Hmax[tmin:tmax, rmin:rmax] = 0
     if len(peaks) < npeaks:
         logger.debug("houghpeaks returned %d peaks", len(peaks))
     return np.array(peaks).reshape((-1, 2))
