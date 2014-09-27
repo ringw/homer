@@ -9,15 +9,15 @@ class FilteredHoughStaves(BaseStaves):
     def get_hough_peak_lines(self):
         if self.staff_filt is None:
             self.staff_filt = filter.staff_center(self.page)
-        thetas = np.linspace(-np.pi/500, np.pi/500, 51)
+        thetas = np.linspace(-np.pi/250, np.pi/250, 201)
         rhores = (self.page.staff_thick + 1) // 2
         bins = hough.hough_line_kernel(self.staff_filt,
                               rhores=rhores,
                               numrho=self.page.img.shape[0] // rhores,
                               thetas=thetas)
         peaks = hough.houghpeaks(bins,
-                                 invalidate=(101,
-                                             self.page.staff_dist*8 // rhores),
+                                 invalidate=(401,
+                                             self.page.staff_dist*10 // rhores),
                                  thresh=bins.get().max() / 4.0)
         theta = thetas[peaks[:, 0]]
         rho = peaks[:, 1]
