@@ -31,10 +31,12 @@ class BaseStaves(object):
         NotImplementedError("Use a concrete Staves subclass.")
 
     def refine_and_remove_staves(self, refine_staves=False, remove_staves=True,
-                                 staves=None):
+                                 staves=None, img=None):
         assert refine_staves or remove_staves, 'Need something to do'
         if staves is None:
             staves = self()
+        if img is None:
+            img = self.page.img
         if refine_staves:
             refined_num_points = np.int32(self.page.orig_size[1] // 8)
             refined_staves = thr.empty_like(Type(np.int32,
@@ -44,9 +46,9 @@ class BaseStaves(object):
             refined_num_points = np.int32(0) # disable refined_staves
             refined_staves = thr.empty_like(Type(np.int32, 1)) # dummy array
         if remove_staves:
-            nostaff_img = self.page.img.copy()
+            nostaff_img = img.copy()
         else:
-            nostaff_img = self.page.img
+            nostaff_img = img
             refined_num_points = np.int32(-refined_num_points)
         prg.staff_removal(thr.to_device(staves.filled().astype(np.int32)),
                           np.int32(self.page.staff_thick+1),
@@ -58,6 +60,8 @@ class BaseStaves(object):
                           refined_num_points,
                           global_size=staves.shape[1::-1])
         if refine_staves:
+            if not (refined_staves != -1).any():
+                return np.ma.array(np.empty([0, 2], np.int32)), nostaff_img
             new_staves = refined_staves.get()
             # Must move all (-1, -1) points to end of each staff
             num_points = max([sum(staff[:, 0] >= 0) for staff in new_staves])
