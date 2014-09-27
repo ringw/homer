@@ -56,7 +56,7 @@ KERNEL void staff_removal(GLOBAL_MEM const int2 *staves,
                     cur_run++;
                 else if (cur_run) {
                     if (cur_run < staff_thick*2) {
-                        int y_center = y_ + (-cur_run / 2);
+                        int y_center = y_ - 1 + (-cur_run / 2);
                         if (best_run_y == -1
                             || ABS(best_run_y - y) > ABS(y_center - y))
                             best_run_y = y_center;
