@@ -1,5 +1,5 @@
 # Join adjacent staves into a system if a barline connects them.
-from .. import util, bitimage, hough
+from . import util, bitimage, hough
 import numpy as np
 
 def initialize_systems(page):

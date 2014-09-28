@@ -1,5 +1,5 @@
-from ..gpu import *
-from .. import util, settings
+from .gpu import *
+from . import util, settings
 import numpy as np
 import logging
 

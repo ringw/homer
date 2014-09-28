@@ -1,5 +1,5 @@
-from ..gpu import *
-from .. import util
+from .gpu import *
+from . import util
 import numpy as np
 
 prg = build_program(["boundary", "scaled_bitmap_to_int_array",

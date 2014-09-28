@@ -1,6 +1,6 @@
-from ..gpu import *
-from .. import bitimage, hough
-from ..page import PAGE_SIZE
+from .gpu import *
+from . import bitimage, hough
+from .page import PAGE_SIZE
 import numpy as np
 from reikna.core import Type
 import reikna.fft
