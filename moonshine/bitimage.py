@@ -22,15 +22,16 @@ def transpose(img):
                   local_size=(1, 8))
     return img_T
 
-def scale(img, scale, align=8):
+def scale(img, scale_x, scale_y=None, align=8):
     """ Scale and round output dimension up to alignment """
-    out_h = -(-int(img.shape[0] * scale) & -align)
-    out_w = -(-int(img.shape[1] * scale) & -align)
+    if scale_y is None:
+        scale_y = scale_x
+    out_h = -(-int(img.shape[0] * scale_y) & -align)
+    out_w = -(-int(img.shape[1] * scale_x) & -align)
     out_img = cla.zeros(q, (out_h, out_w), np.uint8)
     prg.scale_image(img,
-                    np.float32(scale),
-                    np.int32(img.shape[1]),
-                    np.int32(img.shape[0]),
+                    np.float32(scale_x), np.float32(scale_y),
+                    np.int32(img.shape[1]), np.int32(img.shape[0]),
                     out_img,
                     global_size=out_img.shape[::-1],
                     local_size=(8, 8))

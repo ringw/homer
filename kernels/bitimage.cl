@@ -17,18 +17,18 @@ KERNEL void transpose(GLOBAL_MEM const UCHAR *image,
 }
 
 KERNEL void scale_image(GLOBAL_MEM const UCHAR *input,
-                          float scale,
-                          int inputWidth, int inputHeight,
-                          GLOBAL_MEM UCHAR *output) {
+                        float scale_x, float scale_y,
+                        int inputWidth, int inputHeight,
+                        GLOBAL_MEM UCHAR *output) {
     int x = get_global_id(0);
     int y = get_global_id(1);
-    int input_y = convert_int_rtn(y / scale);
+    int input_y = convert_int_rtn(y / scale_y);
 
     UCHAR result = 0;
     for (int bit = 0; bit < 8; bit++) {
         int bit_x = x * 8 + bit;
 
-        int input_x = convert_int_rtn(bit_x / scale);
+        int input_x = convert_int_rtn(bit_x / scale_x);
         if (input_x < inputWidth*8 && input_y < inputHeight) {
             UCHAR input_byte = input[input_x/8 + input_y * inputWidth];
             int input_bit = input_x % 8;
