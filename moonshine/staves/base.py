@@ -5,7 +5,7 @@ try:
 except ImportError:
     scipy_signal = None
 
-prg = build_program("staff_removal")
+prg = build_program("staves")
 
 class BaseStaves(object):
     page = None
@@ -85,6 +85,27 @@ class BaseStaves(object):
         self() # must have staves
         self.staves, self.nostaff_img = self.refine_and_remove_staves(
                 remove_staves=True, refine_staves=refine_staves)
+
+    def extract_staff(self, staff, img):
+        if type(staff) is int:
+            staff = self()[staff]
+        if hasattr(staff, 'mask'):
+            staff = staff.compressed().reshape([-1, 2])
+        if img is None:
+            img = self.page.img
+        output = thr.empty_like(Type(np.uint8,
+                    (self.page.staff_dist*4 + 1,
+                     staff[-1,0]/8 + 1 - staff[0,0]/8)))
+        output.fill(0)
+        prg.extract_staff(thr.to_device(staff.astype(np.int32)),
+                          np.int32(staff.shape[0]),
+                          np.int32(self.page.staff_dist),
+                          img,
+                          np.int32(img.shape[1]),
+                          np.int32(img.shape[0]),
+                          output,
+                          global_size=output.shape[::-1])
+        return output
 
     def show(self):
         import pylab as p

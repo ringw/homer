@@ -128,3 +128,48 @@ KERNEL void staff_removal(GLOBAL_MEM const int2 *staves,
         }
     }
 }
+
+KERNEL void extract_staff(GLOBAL_MEM const int2 *staff,
+                          int num_segments,
+                          int staff_dist,
+                          GLOBAL_MEM const UCHAR *img,
+                          int w, int h,
+                          GLOBAL_MEM UCHAR *output) {
+    int output_byte_x = get_global_id(0);
+    int output_y = get_global_id(1);
+    int output_byte_w = get_global_size(0);
+    int output_h = get_global_size(1);
+
+    int staff_x0 = staff[0].x;
+    int image_byte_x = output_byte_x + staff_x0 / 8;
+
+    // Find last staff point before this byte by binary search
+    int lo = 0, hi = num_segments, mid;
+    while (lo < hi) {
+        mid = (lo + hi) / 2;
+        int mid_x = staff[mid].x;
+        if (mid_x == image_byte_x * 8)
+            break;
+        else if (mid_x < image_byte_x * 8)
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    if (mid > image_byte_x * 8)
+        return;
+    int p0 = mid;
+    int x0 = staff[p0].x;
+    int y0 = staff[p0].y;
+    /*int p1 = mid+1;
+    if (p1 >= num_segments)
+        return;
+    int x1 = staff[p1].x;
+    int y1 = staff[p1].y;*/
+
+    // As an approximation, use previous point y0 as our y value
+    // Extract output_h pixels, centered on y0
+    int img_y = y0 + output_y - output_h/2;
+    if (0 <= img_y && img_y < h && 0 <= image_byte_x && image_byte_x < w);
+        output[output_byte_x + output_byte_w * output_y] =
+            img[image_byte_x + w * img_y];
+}
