@@ -1,7 +1,7 @@
 from .gpu import *
-from pyopencl.elementwise import ElementwiseKernel
-from pyopencl.reduction import ReductionKernel
-from pyopencl.scan import GenericScanKernel
+from reikna.algorithms import Reduce, Predicate
+from reikna.cluda import Snippet
+from reikna.core import Annotation, Type, Transformation, Parameter
 
 def as_bitimage(img):
     return cla.to_device(q, np.packbits(img).reshape((img.shape[0], -1)))
@@ -28,7 +28,8 @@ def scale(img, scale_x, scale_y=None, align=8):
         scale_y = scale_x
     out_h = -(-int(img.shape[0] * scale_y) & -align)
     out_w = -(-int(img.shape[1] * scale_x) & -align)
-    out_img = cla.zeros(q, (out_h, out_w), np.uint8)
+    out_img = thr.empty_like(Type(np.uint8, (out_h, out_w)))
+    out_img.fill(0)
     prg.scale_image(img,
                     np.float32(scale_x), np.float32(scale_y),
                     np.int32(img.shape[1]), np.int32(img.shape[0]),
@@ -65,10 +66,25 @@ def border(img):
     return repeat_kernel(img, prg.border, 1)
 
 # Create LUT and stringify into preamble of map kernel
-#LUT = np.zeros(256, np.int32)
-#for b in xrange(8):
-#    LUT[(np.arange(256) & (1 << b)) != 0] += 1
-#strLUT = "constant int LUT[256] = {" + ",".join(map(str, LUT)) + "};\n"
+LUT = np.zeros(256, np.int32)
+for b in xrange(8):
+    LUT[(np.arange(256) & (1 << b)) != 0] += 1
+strLUT = "constant int LUT[256] = {" + ",".join(map(str, LUT)) + "};\n"
+byte_to_count = Transformation(
+    [Parameter('output', Annotation(Type(np.int32, (1,)), 'o')),
+     Parameter('input', Annotation(Type(np.uint8, (1,)), 'i'))],
+    strLUT + """
+        ${output.store_same}(LUT[${input.load_same}]);
+    """)
+
+predicate = Predicate(
+    Snippet.create(lambda v1, v2: """return ${v1} + ${v2}"""),
+    np.int32(0))
+
+sum_bits_reduction = Reduce(byte_to_count.output, predicate)
+sum_bits_reduction.parameter.input.connect(byte_to_count, byte_to_count.output,
+                                           new_input=byte_to_count.input)
+sum_bits = sum_bits_reduction.compile(thr)
 #sum_byte_count = ReductionKernel(cx, np.int32, neutral="0",
 #                    reduce_expr="a+b", map_expr="LUT[bytes[i]]",
 #                    arguments="__global unsigned char *bytes",
