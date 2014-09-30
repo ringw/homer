@@ -22,6 +22,8 @@ class Page(object):
 
     def preprocess(self):
         staffsize.staffsize(self)
+        if type(staffsize) is not int:
+            return
         orientation.rotate(self)
         # If we rotate significantly, the vertical difference between staff
         # lines may be slightly different
