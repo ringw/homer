@@ -4,7 +4,7 @@
 
 #define X (1)
 #define Y (0)
-#define NUM_COUNTS (64)
+#define NUM_COUNTS (128)
 
 KERNEL void dark_hist(GLOBAL_MEM const UCHAR *image,
                       GLOBAL_MEM ATOMIC unsigned int *dark_counts) {

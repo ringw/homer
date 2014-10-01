@@ -3,10 +3,17 @@ from . import util, settings
 import numpy as np
 import logging
 
-prg = build_program("runhist")
+prg = build_program("staffsize")
+MAX_RUN = 128
+
+def staff_dist_hist(img):
+    staff_dist = thr.empty_like(Type(np.int32, MAX_RUN))
+    staff_dist.fill(0)
+    prg.staff_dist_hist(img, staff_dist, global_size=img.shape)
+    return staff_dist.get()
 
 def dark_runs(img):
-    dark_run = thr.empty_like(Type(np.int32, 64))
+    dark_run = thr.empty_like(Type(np.int32, MAX_RUN))
     dark_run.fill(0)
     prg.dark_hist(img, dark_run, global_size=img.shape)
     return dark_run.get()
@@ -15,7 +22,7 @@ def light_runs(page, img=None):
     if img is None:
         img = page.img
     # Find light run lengths, filtering using staff_thick
-    light_run = thr.empty_like(Type(np.int32, 64))
+    light_run = thr.empty_like(Type(np.int32, MAX_RUN))
     light_run.fill(0)
     prg.light_hist(img, np.int32(page.staff_thick), light_run,
                    global_size=img.shape)
