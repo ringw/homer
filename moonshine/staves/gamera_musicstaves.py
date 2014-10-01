@@ -1,15 +1,16 @@
 # Gamera interface for assessing staff detection accuracy
 import moonshine
 from . import base
+from .. import bitimage
 import numpy as np
 
 import gamera.core
+import gamera.plugins.numpy_io
 from gamera.toolkits import musicstaves
 gamera.core.init_gamera()
 
 from PIL import Image
 import sys
-import tempfile
 
 class GameraMusicStaves(base.BaseStaves):
     """ Wrapper for Gamera MusicStaves subclasses """
@@ -24,13 +25,9 @@ class GameraMusicStaves(base.BaseStaves):
         self.page = page
 
         # Gamera must read image from a file
-        gamera_img = page.byteimg[:page.orig_size[0], :page.orig_size[1]]
-        gamera_img = np.where(gamera_img, 0, 255).astype(np.uint8)
-        gamera_img = Image.fromarray(gamera_img).convert('1')
-        tempf = tempfile.NamedTemporaryFile()
-        gamera_img.save(tempf, 'png')
-        tempf.flush()
-        self.gamera_image = gamera.core.load_image(tempf.name)
+        gamera_img = (page.byteimg[:page.orig_size[0], :page.orig_size[1]]
+                        .astype(np.uint16))
+        self.gamera_image = gamera.plugins.numpy_io.from_numpy(gamera_img)
         self.gamera_instance = self.gamera_class(self.gamera_image)
 
         assert staff_removal in ['moonshine', 'gamera']
@@ -45,6 +42,9 @@ class GameraMusicStaves(base.BaseStaves):
             except TypeError: # undo_deskew only used for rl_fujinaga
                 self._nostaff_img = self.gamera_instance.remove_staves(
                                          num_lines=5)
+            if self._nostaff_img is None:
+                # may return None, but modifies image in-place
+                self._nostaff_img = self.gamera_instance.image
             horiz_slices = []
             # XXX: MusicStaves instances seem to return horizontal line
             staves = []
@@ -67,10 +67,12 @@ class GameraMusicStaves(base.BaseStaves):
                 raise NotImplementedError(
                     "Gamera staff removal with refinement not supported")
             self()
-            outfile = tempfile.NamedTemporaryFile(suffix='.png')
-            self._nostaff_img.image_save(outfile.name, 'PNG')
-            nostaff_page, = moonshine.open(outfile)
-            self.nostaff_img = nostaff_page.img
+            nostaff_byte = gamera.plugins.numpy_io.to_numpy.__call__(
+                    self._nostaff_img)
+            nostaff_pad = np.zeros((self.page.size, self.page.size), np.uint8)
+            nostaff_pad[:nostaff_byte.shape[0], :nostaff_byte.shape[1]] = \
+                nostaff_byte
+            self.nostaff_img = self(), bitimage.as_bitimage(nostaff_pad)
             return self.nostaff_img
         else:
             return super(GameraMusicStaves, self).refine_and_remove_staves(

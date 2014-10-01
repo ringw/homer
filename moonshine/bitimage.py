@@ -4,7 +4,7 @@ from reikna.cluda import Snippet
 from reikna.core import Annotation, Type, Transformation, Parameter
 
 def as_bitimage(img):
-    return cla.to_device(q, np.packbits(img).reshape((img.shape[0], -1)))
+    return thr.to_device(np.packbits(img).reshape((img.shape[0], -1)))
 def as_hostimage(img):
     return np.unpackbits(img.get()).reshape((img.shape[0], -1))
 def imshow(img):
