@@ -1,8 +1,5 @@
 import numpy as np
 from .gpu import *
-
-# Need to define this now so that orientation can use it
-PAGE_SIZE = 4096
 from . import image
 from . import staffsize, orientation, staves
 from . import barlines, systems, staffboundary, measure#, note
@@ -11,12 +8,19 @@ class Page(object):
     def __init__(self, image_data):
         self.image_data = image_data
         img = image.image_array(image_data)
-        padded_img = np.zeros((PAGE_SIZE, PAGE_SIZE), np.uint8)
+        size = max(img.shape)
+        assert size <= 8192
+        if size <= 4096:
+            size = 4096
+        else:
+            size = 8192
+        padded_img = np.zeros((size, size), np.uint8)
         padded_img[:img.shape[0], :img.shape[1]] = img
         self.byteimg = padded_img
         self.orig_size = img.shape
-        self.bitimg = np.packbits(padded_img).reshape((PAGE_SIZE, -1))
+        self.bitimg = np.packbits(padded_img).reshape((size, -1))
         self.img = thr.to_device(self.bitimg)
+        self.size = size
 
         self.staves = staves.Staves(self)
 

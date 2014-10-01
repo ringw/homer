@@ -11,7 +11,7 @@ except ImportError:
   print("PDF import disabled; please install pylibtiff")
   pdf_to_images = None
 
-IMAGE_MAX_SIZE = 4096
+IMAGE_MAX_SIZE = 8192
 def image_array(data):
   if type(data) is str:
     im = Image.open(StringIO(data))

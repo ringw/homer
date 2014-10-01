@@ -1,6 +1,5 @@
 from .gpu import *
 from . import bitimage, hough
-from .page import PAGE_SIZE
 import numpy as np
 from reikna.core import Type
 import reikna.fft
@@ -26,8 +25,8 @@ def rotate_kernel(img, theta):
     return new_img
 
 def patch_orientation_numpy(page, patch_size=256):
-    orientations = np.zeros((PAGE_SIZE / patch_size,
-                             PAGE_SIZE / patch_size))
+    orientations = np.zeros((page.size / patch_size,
+                             page.size / patch_size))
     mask = np.zeros_like(orientations, bool)
 
     # Windowed FFT
@@ -58,8 +57,8 @@ def patch_orientation_numpy(page, patch_size=256):
     return np.ma.masked_array(orientations, mask)
 
 def patch_orientation(page, patch_size=256):
-    orientations = np.zeros((PAGE_SIZE / patch_size,
-                             PAGE_SIZE / patch_size))
+    orientations = np.zeros((page.size / patch_size,
+                             page.size / patch_size))
     score = np.zeros_like(orientations)
     mask = np.zeros_like(orientations, bool)
 
