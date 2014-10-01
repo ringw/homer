@@ -1,4 +1,5 @@
 # Gamera interface for assessing staff detection accuracy
+import moonshine
 from . import base
 import numpy as np
 
@@ -18,7 +19,8 @@ class GameraMusicStaves(base.BaseStaves):
     gamera_instance = None
     staves = None
     nostaff_img = None
-    def __init__(self, page):
+    gamera_staff_removal = False
+    def __init__(self, page, staff_removal='moonshine'):
         self.page = page
 
         # Gamera must read image from a file
@@ -31,11 +33,20 @@ class GameraMusicStaves(base.BaseStaves):
         self.gamera_image = gamera.core.load_image(tempf.name)
         self.gamera_instance = self.gamera_class(self.gamera_image)
 
+        assert staff_removal in ['moonshine', 'gamera']
+        if staff_removal == 'gamera':
+            self.gamera_staff_removal = True
+
     def __call__(self):
         if self.staves is None:
-            self.nostaff_img = self.gamera_instance.remove_staves(num_lines=5)
+            try:
+                self._nostaff_img = self.gamera_instance.remove_staves(
+                                         num_lines=5, undo_deskew=True)
+            except TypeError: # undo_deskew only used for rl_fujinaga
+                self._nostaff_img = self.gamera_instance.remove_staves(
+                                         num_lines=5)
             horiz_slices = []
-            # XXX: Gamera seems to return horizontal line
+            # XXX: MusicStaves instances seem to return horizontal line
             staves = []
             for staff in self.gamera_instance.get_staffpos(0):
                 ypos = staff.yposlist
@@ -49,6 +60,22 @@ class GameraMusicStaves(base.BaseStaves):
             self.staves = np.ma.array(self.staves, fill_value=-1)
         return self.staves
 
+    def refine_and_remove_staves(self, refine_staves=False, remove_staves=True,
+                                 staves=None, img=None):
+        if remove_staves and self.gamera_staff_removal:
+            if refine_staves:
+                raise NotImplementedError(
+                    "Gamera staff removal with refinement not supported")
+            self()
+            outfile = tempfile.NamedTemporaryFile(suffix='.png')
+            self._nostaff_img.image_save(outfile.name, 'PNG')
+            nostaff_page, = moonshine.open(outfile)
+            self.nostaff_img = nostaff_page.img
+            return self.nostaff_img
+        else:
+            return super(GameraMusicStaves, self).refine_and_remove_staves(
+                refine_staves=refine_staves, remove_staves=remove_staves,
+                staves=staves, img=img)
 class GameraStaffFinder(GameraMusicStaves):
     """ Wrapper for Gamera StaffFinder subclasses """
 
