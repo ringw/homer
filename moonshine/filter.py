@@ -3,16 +3,6 @@ from . import bitimage
 
 prg = build_program("filter")
 
-def staff_center(page, img=None):
-    if img is None:
-        img = page.img
-    output = thr.empty_like(img)
-    prg.staff_center_filter(img,
-                            np.int32(page.staff_dist),
-                            output,
-                            global_size=img.shape[::-1])
-    return output
-
 def staff_removal_filter(page, img=None):
     if img is None:
         img = page.img

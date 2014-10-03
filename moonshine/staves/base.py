@@ -15,6 +15,15 @@ class BaseStaves(object):
     def __init__(self, page):
         self.page = page
 
+    def staff_center_filter(self):
+        output = thr.empty_like(self.page.img)
+        prg.staff_center_filter(self.page.img,
+                                np.int32(self.page.staff_thick),
+                                np.int32(self.page.staff_dist),
+                                output,
+                                global_size=self.page.img.shape[::-1])
+        return output
+
     def __call__(self):
         if self.staves is None:
             self.get_staves()

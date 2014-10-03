@@ -1,34 +1,6 @@
 #define X (0)
 #define Y (1)
 
-KERNEL void staff_center_filter(GLOBAL_MEM const UCHAR *image,
-                                int staff_dist,
-                                GLOBAL_MEM UCHAR *staff) {
-    // Ensure a given pixel has dark pixels above and below where we would
-    // expect if it were the center of a staff, then update the center pixel.
-    int x = get_global_id(X);
-    int y = get_global_id(Y);
-    int w = get_global_size(X);
-    int h = get_global_size(Y);
-    
-    UCHAR staff_byte = image[x + y * w];
-
-    for (int i = -2; i <= 2; i++) {
-        if (i == 0)
-            continue;
-        UCHAR found_point = 0x0;
-        // Search within 3 points of expected distance
-        for (int d = -3; d <= 3; d++) {
-            int point_y = y + i*staff_dist + d;
-            if (0 <= point_y && point_y < h)
-                found_point |= image[x + point_y * w];
-        }
-        staff_byte &= found_point;
-    }
-
-    staff[x + y * w] = staff_byte;
-}
-
 KERNEL void staff_removal_filter(GLOBAL_MEM const UCHAR *image,
                                  int staff_thick,
                                  int staff_dist,

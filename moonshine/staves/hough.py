@@ -5,13 +5,11 @@ from base import BaseStaves
 import numpy as np
 
 class FilteredHoughStaves(BaseStaves):
-    staff_filt = None
     def get_hough_peak_lines(self):
-        if self.staff_filt is None:
-            self.staff_filt = filter.staff_center(self.page)
+        staff_filt = self.staff_center_filter()
         thetas = np.linspace(-np.pi/250, np.pi/250, 201)
         rhores = (self.page.staff_thick + 1) // 2
-        bins = hough.hough_line_kernel(self.staff_filt,
+        bins = hough.hough_line_kernel(staff_filt,
                               rhores=rhores,
                               numrho=self.page.img.shape[0] // rhores,
                               thetas=thetas)
@@ -66,7 +64,7 @@ class FilteredHoughStaves(BaseStaves):
         img = self.page.img.copy()
         for i in xrange(staff_max-staff_min):
             img[i, staff[0,0] // 8 : staff[-1,0] // 8] = 0
-        staff_filt = filter.staff_center(self.page, img)
+        staff_filt = self.staff_center_filter(self.page, img)
 
         thetas = np.linspace(-np.pi/500, np.pi/500, 51)
         rhores = 1
@@ -132,7 +130,7 @@ class FilteredHoughStaves(BaseStaves):
                 img = self.page.img.copy()
                 for i in xrange(staff_max-staff_min):
                     img[i, staff[0,0]//8 : staff[-1,0]//8] = 0
-                staff_filt = filter.staff_center(self.page, img)
+                staff_filt = self.staff_center_filter(self.page, img)
         staff[:,1] += staff_min
         return staff
 
@@ -155,6 +153,6 @@ class FilteredHoughStaves(BaseStaves):
     def show_staff_filter(self):
         import pylab as p
         # Overlay staff line points
-        staff_filt = np.unpackbits(self.page.staff_filt.get()).reshape((4096, -1))
+        staff_filt = bitimage.as_hostimage(self.staff_center_filter())
         staff_line_mask = np.ma.masked_where(staff_filt == 0, staff_filt)
         p.imshow(staff_line_mask, cmap='Greens')

@@ -1,3 +1,70 @@
+inline int refine_staff_center_y(int staff_thick, int staff_dist,
+                                 GLOBAL_MEM UCHAR *img,
+                                 int w, int h,
+                                 int x_byte, int y0) {
+    if (! (0 <= y0 - staff_dist*3 && y0 + staff_dist*3 < h))
+        return -1;
+    // Search y in [ymin, ymax]
+    int ymin = y0 - staff_thick;
+    int ymax = y0 + staff_thick;
+
+    // Staff criteria: must have dark pixels at y and +- staff_dist * [1,2]
+    // At one of these points, must have light pixels at both
+    // y_line +- staff_thick*2 (evidence for isolated staff line).
+    // Pick y where the most columns in this byte match the criteria
+    int best_y = -1;
+    int num_agree = 0;
+    for (int y = ymin; y <= ymax; y++) {
+        UCHAR is_dark[5];
+        UCHAR is_line[5];
+        for (int line = 0; line <= 4; line++) {
+            is_dark[line] = 0;
+            int y_line = y + staff_dist * (line - 2);
+            for (int y_ = y_line-staff_thick; y_ <= y_line+staff_thick; y_++)
+                is_dark[line] |= img[x_byte + w * y_];
+            is_line[line] = ~img[x_byte + w * (y_line - staff_thick*2)];
+            is_line[line] &= ~img[x_byte + w * (y_line + staff_thick*2)];
+            is_line[line] &= is_dark[line];
+        }
+
+        UCHAR is_staff = (is_dark[0] & is_dark[1] & is_dark[2] & is_dark[3]
+                                     & is_dark[4])
+                         & (is_line[0] | is_line[1] | is_line[2] | is_line[3]
+                                       | is_line[4]);
+        int agreement = 0;
+        for (UCHAR mask = 0x80; mask; mask >>= 1)
+            if (is_staff & mask)
+                agreement++;
+        if (agreement > num_agree
+            || (agreement == num_agree && ABS(y - y0) < ABS(best_y - y0))) {
+            best_y = y;
+            num_agree = agreement;
+        }
+    }
+    return (num_agree > 1) ? best_y : -1;
+}
+
+#define X (0)
+#define Y (1)
+
+KERNEL void staff_center_filter(GLOBAL_MEM const UCHAR *img,
+                                int staff_thick, int staff_dist,
+                                GLOBAL_MEM UCHAR *staff_center) {
+    // Ensure a given pixel has dark pixels above and below where we would
+    // expect if it were the center of a staff, then update the center pixel.
+    int x = get_global_id(X);
+    int y = get_global_id(Y);
+    int w = get_global_size(X);
+    int h = get_global_size(Y);
+    
+    UCHAR staff_byte = img[x + y * w];
+
+    if (refine_staff_center_y(staff_thick, staff_dist, img, w, h, x, y) == y)
+        staff_center[x + y * w] = staff_byte;
+    else
+        staff_center[x + y * w] = 0;
+}
+
 KERNEL void staff_removal(GLOBAL_MEM const int2 *staves,
                           int staff_thick, int staff_dist,
                           GLOBAL_MEM UCHAR *img,
@@ -113,7 +180,7 @@ KERNEL void staff_removal(GLOBAL_MEM const int2 *staves,
         }
         UCHAR some_space = 0;
         for (int i = 0; i < 5; i++)
-            some_space |= found_line[i] & mask[i];
+            some_space |= found_line[i] & ~ mask[i];
         is_staff &= some_space;
 
         if (byte_x < refined_num_points && is_staff != 0)
