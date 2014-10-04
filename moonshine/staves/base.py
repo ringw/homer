@@ -67,7 +67,8 @@ class BaseStaves(object):
                           np.int32(nostaff_img.shape[0]),
                           refined_staves,
                           refined_num_points,
-                          global_size=staves.shape[1::-1])
+                          global_size=staves.shape[1::-1],
+                          local_size=(staves.shape[1], 1))
         if refine_staves:
             if not (refined_staves != -1).any():
                 return np.ma.array(np.empty([0, 2], np.int32)), nostaff_img
