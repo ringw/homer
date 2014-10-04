@@ -26,7 +26,7 @@ class Page(object):
 
     def preprocess(self):
         staffsize.staffsize(self)
-        if type(staffsize) is not int:
+        if type(self.staff_dist) is not int:
             return
         orientation.rotate(self)
         # If we rotate significantly, the vertical difference between staff
@@ -42,6 +42,7 @@ class Page(object):
         staffboundary.boundaries(self)
 
     def process(self):
+        self.preprocess()
         self.structure()
         measure.build_bars(self)
         #self.notepitch_score = note.get_notepitch_score(self)
