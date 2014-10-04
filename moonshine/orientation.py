@@ -24,9 +24,12 @@ def rotate_kernel(img, theta):
                      global_size=(img.shape[1], img.shape[0]))
     return new_img
 
-def patch_orientation_numpy(page, patch_size=256):
-    orientations = np.zeros((page.size / patch_size,
-                             page.size / patch_size))
+def patch_orientation_numpy(page, patch_size=256, step_size=None):
+    if step_size is None:
+        step_size = patch_size/2
+    patch_x0 = np.arange(0, page.orig_size[1] - patch_size, step_size)
+    patch_y0 = np.arange(0, page.orig_size[0] - patch_size, step_size)
+    orientations = np.zeros((len(patch_y0), len(patch_x0)))
     mask = np.zeros_like(orientations, bool)
 
     # Windowed FFT
@@ -56,21 +59,24 @@ def patch_orientation_numpy(page, patch_size=256):
                 mask[patch_y, patch_x] = True
     return np.ma.masked_array(orientations, mask)
 
-def patch_orientation(page, patch_size=256):
-    orientations = np.zeros((page.size / patch_size,
-                             page.size / patch_size))
+def patch_orientation(page, patch_size=256, step_size=None):
+    if step_size is None:
+        step_size = patch_size/4
+    patch_x0 = np.arange(0, page.orig_size[1] - patch_size, step_size)
+    patch_y0 = np.arange(0, page.orig_size[0] - patch_size, step_size)
+    orientations = np.zeros((len(patch_y0), len(patch_x0)))
     score = np.zeros_like(orientations)
     mask = np.zeros_like(orientations, bool)
 
     patch = thr.empty_like(Type(np.complex64, (patch_size, patch_size)))
     our_fft = reikna.fft.FFT(patch).compile(thr)
     patch_fft = thr.empty_like(patch)
-    for patch_y in xrange(orientations.shape[0]):
-        for patch_x in xrange(orientations.shape[1]):
+    for i, y0 in enumerate(patch_y0):
+        for j, x0 in enumerate(patch_x0):
             prg.copy_bits_complex64(
                 page.img,
-                np.int32(patch_x*patch_size),
-                np.int32(patch_y*patch_size),
+                np.int32(x0),
+                np.int32(y0),
                 np.int32(page.img.shape[1]),
                 patch, global_size=patch.shape[::-1])
             our_fft(patch_fft, patch)
@@ -87,14 +93,14 @@ def patch_orientation(page, patch_size=256):
                         : min(fft_top.shape[1], peak_x+page.staff_thick*2)] = 0
             bgval = np.amax(fft_top)
             if bgval > 0:
-                score[patch_y, patch_x] = maxval / bgval
+                score[i, j] = maxval / bgval
 
             if peak_x > patch_size/2:
                 peak_x -= patch_size
             if peak_y:
-                orientations[patch_y, patch_x] = np.arctan2(peak_x, peak_y)
+                orientations[i, j] = np.arctan2(peak_x, peak_y)
             else:
-                mask[patch_y, patch_x] = True
+                mask[i, j] = True
     return np.ma.masked_array(np.dstack([orientations, score]),
                     np.repeat(mask[:,:,None], 2, axis=2))
 
@@ -105,7 +111,7 @@ def orientation(page):
     while page.staff_dist * 10 > patch_size:
         patch_size *= 2
     assert patch_size <= 1024
-    patches = patch_orientation(page)
+    patches = patch_orientation(page, patch_size)
     orientations = patches[:,:,0]
     scores = patches[:,:,1]
     score_cutoff = min(1.5, np.ma.median(scores) * 2)
