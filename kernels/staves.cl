@@ -5,12 +5,13 @@ inline int refine_staff_center_y(int staff_thick, int staff_dist,
     if (! (0 <= y0 - staff_dist*3 && y0 + staff_dist*3 < h))
         return -1;
     // Search y in [ymin, ymax]
-    int ymin = y0 - staff_thick;
-    int ymax = y0 + staff_thick;
+    int dy = MAX(1, staff_thick/2);
+    int ymin = y0 - dy;
+    int ymax = y0 + dy;
 
     // Staff criteria: must have dark pixels at y and +- staff_dist * [1,2]
     // At one of these points, must have light pixels at both
-    // y_line +- staff_thick*2 (evidence for isolated staff line).
+    // y_line +- staff_thick (evidence for isolated staff line).
     // Pick y where the most columns in this byte match the criteria
     int best_y = -1;
     int num_agree = 0;
@@ -22,8 +23,8 @@ inline int refine_staff_center_y(int staff_thick, int staff_dist,
             int y_line = y + staff_dist * (line - 2);
             for (int y_ = y_line-staff_thick; y_ <= y_line+staff_thick; y_++)
                 is_dark[line] |= img[x_byte + w * y_];
-            is_line[line] = ~img[x_byte + w * (y_line - staff_thick*2)];
-            is_line[line] &= ~img[x_byte + w * (y_line + staff_thick*2)];
+            is_line[line] = ~img[x_byte + w * (y_line - staff_thick)];
+            is_line[line] &= ~img[x_byte + w * (y_line + staff_thick)];
             is_line[line] &= is_dark[line];
         }
 
@@ -117,9 +118,9 @@ KERNEL void staff_removal(GLOBAL_MEM const int2 *staves,
         if (remove_staff) {
             for (int i = 0; i < 5; i++) {
                 // Test for empty space above and below
-                UCHAR mask = img[byte_x + w * (lines[i] - 2*staff_thick)]
-                           | img[byte_x + w * (lines[i] + 2*staff_thick)];
-                for (int dy = -staff_thick/2; dy <= staff_thick/2; dy++)
+                UCHAR mask = img[byte_x + w * (lines[i] - staff_thick)]
+                           | img[byte_x + w * (lines[i] + staff_thick)];
+                for (int dy = 1 - staff_thick; dy < staff_thick; dy++)
                     img[byte_x + w * (lines[i] + dy)] &= mask;
             }
         }
