@@ -39,6 +39,28 @@ class BaseStaves(object):
     def get_staves(self):
         NotImplementedError("Use a concrete Staves subclass.")
 
+    def remove_staff_gaps(self, staff, max_gap=None):
+        if max_gap is None:
+            max_gap = 8 * self.page.staff_dist
+
+        if hasattr(staff, 'compressed'):
+            staff = staff.compressed().reshape((-1, 2))
+        staff = staff[staff[:,0] >= 0]
+        is_gapped = np.empty(staff.shape[0], bool)
+        is_gapped[0] = True
+        is_gapped[1:] = np.diff(staff[:,0]) > max_gap
+        gap_inds, = np.where(is_gapped)
+        gap_starts = gap_inds
+        gap_ends = list(gap_inds[1:]) + [None]
+
+        segments = []
+        lengths = []
+        for start, end in zip(gap_starts, gap_ends):
+            segment = staff[start:end]
+            segments.append(segment)
+            lengths.append(segment[-1, 0] - segment[0, 0])
+        return segments[np.argmax(lengths)]
+
     def refine_and_remove_staves(self, refine_staves=False, remove_staves=True,
                                  staves=None, img=None):
         assert refine_staves or remove_staves, 'Need something to do'
@@ -72,18 +94,17 @@ class BaseStaves(object):
         if refine_staves:
             if not (refined_staves != -1).any():
                 return np.ma.array(np.empty([0, 2], np.int32)), nostaff_img
-            new_staves = refined_staves.get()
+            new_staves = map(self.remove_staff_gaps, refined_staves.get())
             # Must move all (-1, -1) points to end of each staff
-            num_points = max([sum(staff[:, 0] >= 0) for staff in new_staves])
+            num_points = max([staff.shape[0] for staff in new_staves])
             staves_copy = np.empty((staves.shape[0], num_points, 2), np.int32)
             mask = np.ones_like(staves_copy, bool)
             for i, staff in enumerate(new_staves):
-                points = staff[staff[:, 0] >= 0]
                 # Clean up single spurious points (requires scipy)
                 if scipy_signal is not None:
-                    points[:, 1] = scipy_signal.medfilt(points[:, 1])
-                staves_copy[i, :len(points)] = points
-                mask[i, :len(points)] = 0
+                    staff[:, 1] = scipy_signal.medfilt(staff[:, 1])
+                staves_copy[i, :len(staff)] = staff
+                mask[i, :len(staff)] = 0
             order = np.argsort(staves_copy[:, 0, 1]) # sort by y0
             staves_copy = staves_copy[order]
             mask = mask[order]
