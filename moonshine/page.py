@@ -6,8 +6,11 @@ from . import barlines, systems, staffboundary, measure#, note
 
 class Page(object):
     def __init__(self, image_data):
-        self.image_data = image_data
-        img = image.image_array(image_data)
+        if isinstance(image_data, np.ndarray):
+            img = image_data
+        else:
+            self.image_data = image_data
+            img = image.image_array(image_data)
         size = max(img.shape)
         assert size <= 8192
         if size <= 4096:

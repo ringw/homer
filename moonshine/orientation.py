@@ -6,8 +6,11 @@ import reikna.fft
 
 prg = build_program(['rotate', 'bitimage'])
 
-def rotate(page):
-    orientation(page)
+def rotate(page, force_orientation=None):
+    if force_orientation is not None:
+        page.orientation = force_orientation
+    else:
+        orientation(page)
     new_img = rotate_kernel(page.img, page.orientation)
     page.img = new_img
     page.bitimg = new_img.get()
