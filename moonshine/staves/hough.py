@@ -15,8 +15,8 @@ class FilteredHoughStaves(BaseStaves):
                               thetas=thetas)
         peaks = hough.houghpeaks(bins,
                                  invalidate=(401,
-                                             self.page.staff_dist*10 // rhores),
-                                 thresh=bins.get().max() / 4.0)
+                                             self.page.staff_dist*12 // rhores),
+                                 thresh=bins.get().max() / 2.0)
         theta = thetas[peaks[:, 0]]
         rho = peaks[:, 1]
         x0 = 0
