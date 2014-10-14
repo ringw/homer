@@ -28,15 +28,19 @@ def kanungo(eta, a0, a, b0, b, k=2, seed=1):
     return lambda x,y: staffdeformation.degrade_kanungo_parallel.__call__(
                             x, y, eta, a0, a, b0, b, k, seed)
 deformations = dict([('orig', lambda x,y: [x,y]),
-                     ('k0.02-0.1-0.1', kanungo(0.02, 0.1, 0.1, 0.1, 0.1)),
+                     ('k0.001-.1-.5', kanungo(0.001, 0.1, 0.5, 0.1, 0.5)),
+                     ('k0.001-1-.9-.1-.5', kanungo(0.001, 1, 1, 0.1, 0.5)),
+                     ('k0.05-1-.9-.1-.5', kanungo(0.05, 1, 1, 0.1, 0.5)),
+                     ('k0.05-1-.5-.1-.5', kanungo(0.05, 1, .5, 0.1, 0.5)),
+                     ('k-.5-.1-.1-.5', kanungo(0, 0.5, 0.1, 0.1, 0.5)),
                      ('k0.02-0.1-0.1-0.5-0.1', kanungo(0.02, 0.1, 0.1, 0.5, 0.1)),
-                     #('ws0.02-5', lambda x,y: staffdeformation.white_speckles_parallel.__call__(x,y,0.02,5)),
-                     #('typeset', lambda x,y: staffdeformation.typeset_emulation.__call__(x,y,0,0,0)),])
-                     ('curvature', lambda x,y: staffdeformation.curvature.__call__(x,y, 0.02,0.1))])
+                     ('k-sp-0.05', kanungo(0.05, 0, 0, 0, 0)),
+                     ('curvature-0.02-0.1', lambda x,y: staffdeformation.curvature.__call__(x,y, 0.02,0.1)),
+                     ('curvature-0.01-0.05', lambda x,y: staffdeformation.curvature.__call__(x,y, 0.02,0.1)),
+                     ('curvature-0.005-0.2', lambda x,y: staffdeformation.curvature.__call__(x,y, 0.02,0.1))])
 
 import gc
 import glob
-import gzip
 import os
 import pandas
 import re
@@ -47,11 +51,11 @@ import subprocess
 import tempfile
 tmpdir = tempfile.mkdtemp()
 
-orientations = dict()
 try:
     output = sys.argv[1]
 
     result = pandas.DataFrame()
+    pagedata = pandas.DataFrame(columns='staff_sens staff_spec'.split())
     for i, filename in enumerate(sorted(glob.glob(TESTSET + '/*-nostaff.png'))):
         gc.collect()
         fileid = os.path.basename(filename).split('-')[0]
@@ -65,7 +69,6 @@ try:
         orientation.rotate(page)
         staffsize.staffsize(page)
         orientation.rotate(nostaff, page.orientation)
-        orientations[fileid] = float(page.orientation)
 
         page_gamera = page.byteimg[:page.orig_size[0], :page.orig_size[1]]
         nostaff_gamera = nostaff.byteimg[:page.orig_size[0], :page.orig_size[1]]
@@ -110,6 +113,8 @@ try:
                     staves = methods[method](page_)
                     scores = validator.score_staves(method=staves)
                     scores.index = ('%s-%s-%s-' % (method, fileid,deformation)) + scores.index
+                    sens, spec = staves.score(baselineStaves)
+                    pagedata.loc[('%s-%s-%s' % (method, fileid,deformation))] = [sens, spec]
                     signal.alarm(0)
                 except Exception, e:
                     signal.alarm(0)
@@ -137,6 +142,7 @@ try:
                 result = result.append(scores)
 
     if len(result):
-        result.to_csv(gzip.open(output, 'wb'))
+        result.to_csv(open(output, 'wb'))
+        pagedata.to_csv(open('pagedata-'+output, 'wb'))
 finally:
     shutil.rmtree(tmpdir)

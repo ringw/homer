@@ -1,5 +1,6 @@
 from ..gpu import *
 import numpy as np
+from moonshine import util
 try:
     import scipy.signal as scipy_signal
 except ImportError:
@@ -137,6 +138,23 @@ class BaseStaves(object):
                           output,
                           global_size=output.shape[::-1])
         return output
+
+    def score(self, labeled_staves):
+        staff_med = np.ma.median(self()[..., 1], axis=1)
+        label_med = np.ma.median(labeled_staves[..., 1], axis=1)
+        matches = util.match(staff_med, label_med)
+        was_found = np.zeros(len(label_med), bool)
+        is_correct = (np.abs(staff_med - label_med[matches])
+                        < self.page.staff_dist)
+        for i in xrange(len(is_correct)):
+            was_found[matches[i]] |= is_correct[i]
+        sensitivity = float(was_found.sum()) / len(label_med)
+        specificity = 0
+        # Can have at most 1 true match for each labeled staff
+        for ind in xrange(len(label_med)):
+            specificity += is_correct[matches == ind].any()
+        specificity = float(specificity) / max(1, len(staff_med))
+        return sensitivity, specificity
 
     def show(self):
         import pylab as p
