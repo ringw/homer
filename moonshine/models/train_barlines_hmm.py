@@ -2,6 +2,7 @@ import moonshine
 from ..barlines import hmm as bhmm
 from .. import bitimage
 from ..staves import validation
+from . import synthesize_barlines
 
 from hmmlearn import hmm
 
@@ -13,10 +14,7 @@ import os
 def fit(files):
     HMM_FILE = os.path.join(os.path.dirname(__file__), 'barlines_hmm.pkl')
 
-    if os.path.exists(HMM_FILE):
-        model = cPickle.load(HMM_FILE)
-    else:
-        model = hmm.BernoulliHMM(n_components=50)
+    model = hmm.BernoulliHMM(n_components=100)
 
     staves = []
     for filename in files:
@@ -39,8 +37,14 @@ def fit(files):
             for i in xrange(len(page.staves())):
                 if scores.loc[i]['score'] > 0.90:
                     staff = bhmm.scaled_staff(page, i)
-                    staves.append(bitimage.as_hostimage(staff).T.astype(bool))
-    print len(staves), "staves"
+                    staffimg = bitimage.as_hostimage(staff).T.astype(bool)
+                    staves.append((staffimg, -np.ones(staffimg.shape[0],int)))
+    print len(staves), "unlabeled staves"
+    LABELS = 'BACKGROUND BAR THICK_BAR BAR_DOTS'.split()
+    for i in xrange(len(staves)/10):
+        st, lb = synthesize_barlines.gen_bars()
+        labels = np.array([LABELS.index(l) for l in lb])
+        staves.append((st.T, lb))
     model.fit(staves)
     cPickle.dump(model, open(HMM_FILE, 'wb'))
 
