@@ -99,7 +99,7 @@ class BaseStaves(object):
             # Must move all (-1, -1) points to end of each staff
             num_points = max([staff.shape[0] for staff in new_staves])
             staves_copy = np.empty((staves.shape[0], num_points, 2), np.int32)
-            mask = np.ones_like(staves_copy, bool)
+            mask = np.ones_like(staves_copy).astype(bool)
             for i, staff in enumerate(new_staves):
                 # Clean up single spurious points (requires scipy)
                 if scipy_signal is not None:

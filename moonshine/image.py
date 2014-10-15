@@ -29,7 +29,7 @@ def image_array(data):
   # Heuristic to detect whether image needs inverting
   if (pixels != 0).sum() > im.size[0] * im.size[1] / 2:
     # Swap pixels so colored pixels are 1
-    np.logical_not(pixels, output=pixels)
+    pixels = np.logical_not(pixels)
   else:
     pixels[pixels != 0] = 1
   return pixels
