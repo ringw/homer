@@ -1,5 +1,3 @@
-import moonshine
-from ..barlines import hmm as bhmm
 from .. import bitimage
 from ..staves import validation
 from . import synthesize_barlines
