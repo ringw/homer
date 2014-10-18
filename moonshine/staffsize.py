@@ -3,7 +3,7 @@ from . import util, settings
 import numpy as np
 import logging
 
-prg = build_program("runhist")
+prg = build_program("staffsize")
 
 def dark_runs(img):
     dark_run = thr.empty_like(Type(np.int32, 64))
@@ -20,6 +20,13 @@ def light_runs(page, img=None):
     prg.light_hist(img, np.int32(page.staff_thick), light_run,
                    global_size=img.shape)
     return light_run.get()
+
+def staff_dist_hist(img):
+    staff_dist = thr.empty_like(Type(np.int32, 64))
+    staff_dist.fill(0)
+    import pyopencl
+    prg.cardoso_rebelo_staffdist(img, pyopencl.LocalMemory(8 * 8), staff_dist, global_size=img.shape, local_size=(8, 8))
+    return staff_dist.get()
 
 def staffsize(page, img=None):
     if img is None:

@@ -1,5 +1,5 @@
 /*
- * runhist.cl - bincount all black and white vertical runs in the image
+ * staffsize.cl - bincount all black and white vertical runs in the image
  */
 
 #define X (1)
@@ -126,4 +126,40 @@ KERNEL void light_hist(GLOBAL_MEM const UCHAR *image,
             if (light_below)
                 atomic_inc(&light_counts[rl_u.a[i]]);
         }
+}
+
+KERNEL void cardoso_rebelo_staffdist(GLOBAL_MEM const UCHAR *image,
+                  LOCAL_MEM UCHAR *image_cache,
+                  GLOBAL_MEM ATOMIC unsigned int *staff_dist_hist) {
+    // If our pixel is the first in its run, iterate downwards for 2 runs.
+    int x = get_global_id(X);
+    int y = get_global_id(Y);
+    int w = get_global_size(X);
+    int h = get_global_size(Y);
+
+    int x_local = get_local_id(X);
+    int y_local = get_local_id(Y);
+    int w_local = get_local_size(X);
+    image_cache[x_local + w_local * y_local] = image[x + w * y];
+
+    for (uchar mask = 0x80U; mask; mask >>= 1) {
+        int y_ = y;
+        int num_runs = 0;
+        if (y != 0) {
+            if (y_local > 0) {
+                if ((image_cache[x_local + w_local * (y_local-1)]
+                    ^ image_cache[x_local + w_local * y_local]) & mask == 0) continue;
+            }
+            else
+                if ((image[x + w * (y-1)]
+                     ^ image_cache[x_local + w_local * y_local]) & mask == 0) continue;
+        }
+        do {
+            y_++;
+            if ((image[x + w * (y_-1)] ^ image[x + w * y_]) & mask)
+                num_runs++;
+        } while (y_ < h && num_runs < 2);
+        if (y_ < h && (y_ - y) < NUM_COUNTS)
+            atomic_inc(&staff_dist_hist[y_ - y]);
+    }
 }
