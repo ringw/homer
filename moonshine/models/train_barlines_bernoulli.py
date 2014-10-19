@@ -1,6 +1,3 @@
-from .. import bitimage
-from ..staves import validation
-from . import synthesize_barlines
 import numpy as np
 
 from hmmlearn import hmm
