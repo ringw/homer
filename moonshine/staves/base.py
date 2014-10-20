@@ -126,7 +126,7 @@ class BaseStaves(object):
         if img is None:
             img = self.page.img
         output = thr.empty_like(Type(np.uint8,
-                    (self.page.staff_dist*4 + 1,
+                    (self.page.staff_dist*6 + 1,
                      staff[-1,0]/8 + 1 - staff[0,0]/8)))
         output.fill(0)
         prg.extract_staff(thr.to_device(staff.astype(np.int32)),
