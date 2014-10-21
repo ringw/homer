@@ -12,7 +12,15 @@ class Page(object):
             self.image_data = image_data
             img = image.image_array(image_data)
         size = max(img.shape)
-        assert size <= 8192
+        if size > 8192:
+            if img.shape[0] > img.shape[1]:
+                new_size = (8192, img.shape[1] * 8192 / img.shape[0])
+            else:
+                new_size = (img.shape[0] * 8192 / img.shape[1], 8192)
+            import scipy
+            img = scipy.misc.imresize(img, new_size, 'nearest')
+            img = img != 0
+            size = 8192
         if size <= 4096:
             size = 4096
         else:
