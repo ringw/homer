@@ -1,46 +1,54 @@
-import pandas as pd
-import glob
+import pandas
+import numpy as np
 import gzip
+from glob import glob
+from cStringIO import StringIO
 import re
 
-#FILES = glob.glob('tests/validated/*.csv.gz')
-FILES = ['staves.csv.gz']
-staves = pd.DataFrame()
-pages = pd.DataFrame()
-for f in FILES:
-    doc = pd.DataFrame.from_csv(gzip.open(f))
-    our_staves = doc[~doc.index.to_series().str.contains('page')]
-    page_staves = our_staves[our_staves['score'] >= 0.5]
-    staves = staves.append(our_staves)
-    pagenum = page_staves.index.to_series().str.replace('S.+$','') + 'page'
-    staffbypage = page_staves['runs'].groupby(pagenum)
-    new_page_removed = staffbypage.sum()
-    new_page_df = pd.DataFrame(dict(id=new_page_removed.index,
-                                    new_removed=new_page_removed),
-                               index=new_page_removed.index)
-    orig_pages = doc[doc.index.to_series().str.contains('page')]
-    merged = orig_pages.join(new_page_df, how='outer')
-    our_pages = merged[['new_removed','runs']]
-    clm = list(our_pages.columns)
-    clm[0] = 'removed'
-    our_pages.columns = clm
-    our_pages['removed'].fillna(0, inplace=True)
-    our_pages['score'] = our_pages['removed'] / our_pages['runs']
-    pages = pages.append(our_pages)
+csvstr = StringIO()
+csvstr.write(',removed,runs,score\n')
+for filename in sorted(glob('staves/*.csv.gz')):
+    fbase = re.search('IMSLP[0-9]+', filename).group(0)
+    f = gzip.open(filename)
+    f.readline()
+    for line in f.readlines():
+        csvstr.write(fbase + '-' + line)
+    csvstr.write(f.read())
+csvstr.seek(0)
 
-pages['score'].fillna(0, inplace=True)
-staves['score'].fillna(0, inplace=True)
+results = pandas.DataFrame.from_csv(csvstr)
+ul_index = pandas.Series(list(results.index)).str.extract(
+    '^(?P<doc>IMSLP[0-9]+)-(?P<method>[a-z]+)P(?P<page>[0-9]+)S?(?P<staffpage>[0-9]+|page)$')
+ul_multiindex = pandas.MultiIndex.from_tuples(ul_index.apply(tuple, axis=1), names=ul_index.columns)
+results.index = ul_multiindex
 
-# can't figure out how to use groupby object
-page_method = pages.index.to_series().str.replace('-.+','')
-page_bymethod = dict(list(pages['score'].groupby(page_method)))
+allstaves = results[results.index.get_level_values('staffpage') != 'page']
+allstaves.index = allstaves.index.droplevel('staffpage')
+allstaves = allstaves.drop('score', 1)
 
-staff_method = staves.index.to_series().str.replace('-.+','')
-staff_bymethod = dict(list(staves['score'].groupby(staff_method)))
+allstaves = results[results.index.get_level_values('staffpage') != 'page']
+allstaves.index = allstaves.index.droplevel('staffpage')
+allstaves = allstaves.drop('score', 1)
 
-import pylab
-def density(points, *opts, **kwopts):
-    from scipy import stats
-    dens = stats.kde.gaussian_kde(points)
-    x = pylab.arange(0, 1.5, .01)
-    pylab.plot(x, dens(x), *opts, **kwopts)
+allstaves = allstaves.groupby(allstaves.index).sum()
+allstaves.index = pandas.MultiIndex.from_tuples(allstaves.index,
+                                                names='doc method page'.split())
+allstaves['score'] = allstaves.removed / allstaves.runs
+staffscore = allstaves.score.fillna(0)
+
+pagescore = results.xs('page', level='staffpage').score
+
+f1score = 2*pagescore*staffscore/(pagescore + staffscore)
+
+def methods_scatter(scores, m1, m2, color='.'):
+    import pylab
+    scores = scores[scores.index.get_level_values('method').isin([m1,m2])]
+    scorearr = np.array(scores.unstack(1).fillna(0)).T
+    pylab.plot(*tuple(scorearr) + (color,))
+
+def density(vals, color=None):
+    import pylab
+    from scipy.stats import gaussian_kde
+    dens = gaussian_kde(vals)
+    xs = np.linspace(0,1,500)
+    pylab.plot(*[xs, dens(xs)] + [color] * (color is not None))

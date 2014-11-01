@@ -54,6 +54,14 @@ try:
             else:
                 scores.index = ('%sP%02d' % (method, i)) + scores.index
                 result = result.append(scores)
+            if method in 'fujinaga skeleton'.split():
+                staves = methods[method](page, staff_removal='gamera')
+                scores = validator.score_staves(method=staves)
+                if output is None:
+                    print scores
+                else:
+                    scores.index = ('%s-nativeP%02d' % (method, i)) + scores.index
+                    result = result.append(scores)
 
     if output is not None and len(result):
         result.to_csv(gzip.open(output, 'wb'))

@@ -48,7 +48,11 @@ class GameraMusicStaves(base.BaseStaves):
             horiz_slices = []
             # XXX: MusicStaves instances seem to return horizontal line
             staves = []
-            for staff in self.gamera_instance.get_staffpos(0):
+            staffpos = self.gamera_instance.get_staffpos(0)
+            if staffpos is None:
+                self.staves = np.ma.array((0, 0, 2), dtype=np.int32)
+                return self.staves
+            for staff in staffpos:
                 ypos = staff.yposlist
                 if len(ypos) != 5:
                     continue
