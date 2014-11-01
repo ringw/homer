@@ -20,26 +20,33 @@ unlabeled.index = ul_multiindex
 dummy = unlabeled.xs('dummy')
 runsmean = dummy.runs.groupby(map(dummy.index.get_level_values,
                                   ['noise', 'doc'])).mean()
-runsremoved = runsmean.unstack(0) / runsmean.xs('orig') # XXX: broken
+runsremoved = runsmean.unstack(0).copy()
+runs_orig = runsmean.xs('orig')
+for col in runsremoved:
+    runsremoved[col] /= runs_orig
+toonoisy = runsremoved.min(axis=0) < 0.25
+oknoise = toonoisy[~toonoisy].index
+unlabeled = unlabeled[unlabeled.index.get_level_values('noise').isin(oknoise)]
 
-# XXX: need to remove 'native' in name and remove non-native counterpart
-ul_methods = unlabeled.index.get_level_values('method').to_series()
-ul_dummy = unlabeled.xs('dummy')
-to_analyze = ~np.array(ul_methods.str.contains('-native'))
+ul_methods = unlabeled.index.get_level_values('method')
+to_analyze = np.array(ul_methods != 'dummy')
 unlabeled = unlabeled.iloc[to_analyze]
 
 # Remove duplicates
 unlabeled = unlabeled.groupby(unlabeled.index).first()
 unlabeled.index = pandas.MultiIndex.from_tuples(unlabeled.index, names=ul_index.columns)
 
+# Must replace non-native with native
+unlabeled.index = unlabeled.index.droplevel('native')
+
 allstaves = unlabeled[unlabeled.index.get_level_values('staffpage') != 'page']
 allstaves.index = allstaves.index.droplevel('staffpage')
 allstaves = allstaves.drop('score', 1)
 
-noises = allstaves.index.droplevel('method').droplevel('doc')
-badnoise = noises[(allstaves.runs < 100).groupby(noises).any() ]
-goodunl = ~unlabeled.index.get_level_values('noise').isin(badnoise)
-unlabeled = unlabeled.iloc[goodunl]
+#noises = allstaves.index.droplevel('method').droplevel('doc')
+#badnoise = noises[(allstaves.runs < 100).groupby(noises).any()]
+#goodunl = ~unlabeled.index.get_level_values('noise').isin(badnoise)
+#unlabeled = unlabeled.iloc[goodunl]
 
 allstaves = unlabeled[unlabeled.index.get_level_values('staffpage') != 'page']
 allstaves.index = allstaves.index.droplevel('staffpage')
@@ -51,13 +58,16 @@ allstaves.index = pandas.MultiIndex.from_tuples(allstaves.index,
 allstaves['score'] = allstaves.removed / allstaves.runs
 uls = allstaves.score.fillna(0)
 
-ulp = unlabeled.xs('page', level='staffpage').score.fillna(0)
+ulp = unlabeled.xs('page', level='staffpage').score
+ulp = ulp.groupby(ulp.index).first()
+ulp.index = pandas.MultiIndex.from_tuples(ulp.index, names='method doc noise'.split())
 
-sens = pandas.DataFrame([pageMethods.staff_sens, ulp]).T
-sens = sens.ix[(~sens.isnull()).any(axis=1)]
+sens = pandas.DataFrame(pageMethods.staff_sens).join(pandas.DataFrame(ulp))
+sens = sens[(~sens.isnull()).all(axis=1)]
 sens.columns = ['labeled', 'unlabeled']
-spec = pandas.DataFrame([pageMethods.staff_spec, uls]).T.fillna(0)
-spec = spec.ix[(~spec.isnull()).any(axis=1)]
+# print sens.unstack(0).fillna(0).mean(0).unstack(0)
+spec = pandas.DataFrame(pageMethods.staff_spec).join(pandas.DataFrame(uls)).fillna(0)
+spec = spec[(~spec.isnull()).all(axis=1)]
 spec.columns = ['labeled', 'unlabeled']
 f1 = (2*sens*spec/(sens + spec)).fillna(0)
 
