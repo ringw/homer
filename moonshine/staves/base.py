@@ -1,6 +1,6 @@
 from ..gpu import *
+import moonshine.bitimage, moonshine.util
 import numpy as np
-from moonshine import util
 try:
     import scipy.signal as scipy_signal
 except ImportError:
@@ -118,7 +118,7 @@ class BaseStaves(object):
         self.staves, self.nostaff_img = self.refine_and_remove_staves(
                 remove_staves=True, refine_staves=refine_staves)
 
-    def extract_staff(self, staff, img):
+    def extract_staff(self, staff, img=None):
         if type(staff) is int:
             staff = self()[staff]
         if hasattr(staff, 'mask'):
@@ -142,7 +142,7 @@ class BaseStaves(object):
     def score(self, labeled_staves):
         staff_med = np.ma.median(self()[..., 1], axis=1)
         label_med = np.ma.median(labeled_staves[..., 1], axis=1)
-        matches = util.match(staff_med, label_med)
+        matches = moonshine.util.match(staff_med, label_med)
         was_found = np.zeros(len(label_med), bool)
         is_correct = (np.abs(staff_med - label_med[matches])
                         < self.page.staff_dist)
@@ -155,6 +155,15 @@ class BaseStaves(object):
             specificity += is_correct[matches == ind].any()
         specificity = float(specificity) / max(1, len(staff_med))
         return sensitivity, specificity
+
+    def scaled_staff(self, staff_num):
+        """ Scale each staff so that staff_dist ~= 6, and scale horizontally
+            by a factor of 1 / max(1, staff_thick/2). """
+        scale_x = 1.0 / max(1, (self.page.staff_thick + 1) // 2)
+        scale_y = 6.0 / float(self.page.staff_dist)
+        extracted = self.extract_staff(staff_num, self.page.img)
+        scaled_img = moonshine.bitimage.scale(extracted, scale_x, scale_y)
+        return scaled_img[:24], scale_x, scale_y
 
     def show(self):
         import pylab as p

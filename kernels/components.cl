@@ -93,10 +93,13 @@ KERNEL void component_info(GLOBAL_MEM const UCHAR *classes,
 
     int parent = id;
     int root;
+    // XXX: terminate search after 1024 steps
+    // We should figure out why we are looping
+    int k = 1024;
     do {
         root = parent;
         parent = pixel_tree[root];
-    } while (parent >= 0);
+    } while (parent >= 0 && k--);
     int component_num = -1 - parent;
 
     if (root == id) {
