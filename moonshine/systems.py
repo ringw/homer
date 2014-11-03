@@ -8,6 +8,8 @@ def initialize_systems(page):
     page.systems = []
     i = 0
     for staff, barlines in zip(page.staves(), page.barlines):
+        # Unmask staff
+        staff = staff.compressed().reshape((-1, 2))
         x0, y0 = staff[0]
         x1, y1 = staff[-1]
         system_bars = []
