@@ -118,7 +118,7 @@ class BaseStaves(object):
         self.staves, self.nostaff_img = self.refine_and_remove_staves(
                 remove_staves=True, refine_staves=refine_staves)
 
-    def extract_staff(self, staff, img=None):
+    def extract_staff(self, staff, img=None, extract_lines=4):
         if type(staff) is int:
             staff = self()[staff]
         if hasattr(staff, 'mask'):
@@ -126,8 +126,8 @@ class BaseStaves(object):
         if img is None:
             img = self.page.img
         output = thr.empty_like(Type(np.uint8,
-                    (self.page.staff_dist*4 + 1,
-                     staff[-1,0]/8 + 1 - staff[0,0]/8)))
+                    (self.page.staff_dist*extract_lines + 1,
+                     self.page.orig_size[1]/8)))
         output.fill(0)
         prg.extract_staff(thr.to_device(staff.astype(np.int32)),
                           np.int32(staff.shape[0]),

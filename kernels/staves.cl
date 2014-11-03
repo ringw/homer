@@ -140,8 +140,7 @@ KERNEL void extract_staff(GLOBAL_MEM const int2 *staff,
     int output_byte_w = get_global_size(0);
     int output_h = get_global_size(1);
 
-    int staff_x0 = staff[0].x;
-    int image_byte_x = output_byte_x + staff_x0 / 8;
+    int image_byte_x = output_byte_x;
 
     // Find last staff point before this byte by binary search
     int lo = 0, hi = num_segments, mid;
@@ -155,8 +154,6 @@ KERNEL void extract_staff(GLOBAL_MEM const int2 *staff,
         else
             hi = mid;
     }
-    if (mid > image_byte_x * 8)
-        return;
     int p0 = mid;
     int x0 = staff[p0].x;
     int y0 = staff[p0].y;

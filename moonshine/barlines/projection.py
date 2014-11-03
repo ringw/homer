@@ -6,30 +6,29 @@ from ..gpu import *
 from .. import bitimage, filter, util
 
 def staff_barlines(page, staff_num):
-    staff = page.staves()[staff_num]
-    staff_y = int(np.mean(staff[:, 1]))
-    y0 = max(0, staff_y - page.staff_dist * 4)
-    y1 = min(page.img.shape[0], staff_y + page.staff_dist * 4)
-    img_slice = bitimage.as_hostimage(page.barline_filter[y0:y1, :])
+    img_slice = bitimage.as_hostimage(page.staves.extract_staff(staff_num,
+                                                page.barline_filter,
+                                                extract_lines=6))
     proj = img_slice.sum(0)
 
     # Barline must take up at least 90% of the vertical space,
     # and there should be background (few black pixels) around it
-    is_barline = proj > page.staff_dist * 4 * 0.9
+    is_barline = ((page.staff_dist * 4 * 0.9 < proj)
+                    & (proj < page.staff_dist * 4 * 1.5))
     is_background = proj < page.staff_dist/2
     near_background_left = is_background.copy()
     near_background_right = is_background.copy()
-    for i in range(page.staff_thick, page.staff_thick*2):
+    for i in range(1, page.staff_dist/2):
         near_background_left[i:] |= is_background[:-i]
-    for i in range(page.staff_thick, page.staff_thick*2):
+    for i in range(1, page.staff_dist/2):
         near_background_right[:-i] |= is_background[i:]
     is_barline &= near_background_left & near_background_right
-    from moonshine import util
     labels, num_labels = util.label_1d(is_barline)
     barlines = np.rint(util.center_of_mass_1d(labels)).astype(int)
 
     # Add a barline at the start and end of the staff if necessary
     if len(barlines):
+        staff = page.staves()[staff_num]
         if barlines[0] - staff[0,0] > page.staff_dist*2:
             barlines = np.concatenate([[staff[0,0]], barlines])
         if staff[1,0] - barlines[-1] > page.staff_dist*2:
