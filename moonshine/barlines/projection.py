@@ -9,12 +9,15 @@ def staff_barlines(page, staff_num):
     img_slice = bitimage.as_hostimage(page.staves.extract_staff(staff_num,
                                                 page.barline_filter,
                                                 extract_lines=8))
-    proj = img_slice.sum(0)
+    # The barlines should contain mostly black pixels just in the actual staff,
+    # but we need to check above and below the staff for other symbols
+    staff_proj = img_slice[page.staff_dist*2:page.staff_dist*6, :].sum(0)
+    gap_proj = img_slice.sum(0)
 
     # Barline must take up at least 90% of the vertical space,
     # and there should be background (few black pixels) around it
-    is_barline = proj > page.staff_dist * 4 * 0.9
-    is_background = proj < page.staff_dist/2
+    is_barline = staff_proj > page.staff_dist * 4 * 0.8
+    is_background = gap_proj < page.staff_dist/2
     near_background_left = is_background.copy()
     near_background_right = is_background.copy()
     for i in range(1, page.staff_dist/2):
