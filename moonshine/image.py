@@ -42,9 +42,27 @@ def read_pages(path):
   path.seek(0)
   if path.read(4) == '%PDF':
     if pdf_to_images is None:
-      raise ValueError("pylibtiff required for PDF import")
+      images = fallback_pdf_to_images(path)
     images = pdf_to_images(path)
+    if not len(images):
+      images = fallback_pdf_to_images(path)
   else:
     path.seek(0)
     images = [path.read()]
   return images
+
+def fallback_pdf_to_images(pdf):
+  "Convert pdf using pdfimages subprocess"
+  import glob
+  import os
+  import shutil
+  import subprocess
+  import tempfile
+  tmpdir = tempfile.mkdtemp()
+  try:
+    subprocess.check_output(['pdfimages', pdf.name,
+                             os.path.join(tmpdir, 'img')])
+    images = sorted(glob.glob(os.path.join(tmpdir, 'img-*.pbm')))
+    return [open(path).read() for path in images]
+  finally:
+    shutil.rmtree(tmpdir)
