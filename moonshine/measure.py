@@ -27,23 +27,25 @@ def get_measure(page, staff, measure):
 
     measure_pixel_size = (y1 - y0, (x1 - x0) // 8)
     measure_size = tuple(-(-i & -16) for i in measure_pixel_size)
-    measure = cla.zeros(q, measure_size, np.uint8)
-    device_b0 = cla.to_device(q, page.boundaries[staff][:, 1].astype(np.int32))
-    device_b1 = cla.to_device(q, page.boundaries[staff + 1][:, 1]
-                                     .astype(np.int32))
-    prg.copy_measure(q, measure.shape[::-1], (1, 1),
-                        page.img.data,
-                        np.array(page.img.shape[::-1],
-                                 np.int32).view(int2)[0],
-                        device_b0.data,
-                        np.int32(page.boundaries[staff][1, 0]
-                                    - page.boundaries[staff][0, 0]),
-                        device_b1.data,
-                        np.int32(page.boundaries[staff+1][1, 0]
-                                    - page.boundaries[staff+1][0, 0]),
-                        measure.data,
-                        np.array([x0 // 8, y0] + list(measure_size[::-1]),
-                                 np.int32).view(int4)[0]).wait()
+    measure = thr.empty_like(Type(np.uint8, measure_size))
+    measure.fill(0)
+    device_b0 = thr.to_device(page.boundaries[staff][:, 1].astype(np.int32))
+    device_b1 = thr.to_device(page.boundaries[staff + 1][:, 1]
+                                  .astype(np.int32))
+    prg.copy_measure(page.img.data,
+                     np.array(page.img.shape[::-1],
+                              np.int32).view(int2)[0],
+                     device_b0.data,
+                     np.int32(page.boundaries[staff][1, 0]
+                                 - page.boundaries[staff][0, 0]),
+                     device_b1.data,
+                     np.int32(page.boundaries[staff+1][1, 0]
+                                 - page.boundaries[staff+1][0, 0]),
+                     measure.data,
+                     np.array([x0 // 8, y0] + list(measure_size[::-1]),
+                              np.int32).view(int4)[0],
+                     global_size=measure.shape[::-1],
+                     local_size=(1, 1))
     return measure, (x0, x1, y0, y1)
 
 class Measure:
