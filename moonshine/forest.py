@@ -38,8 +38,8 @@ def predict_cpu(forest, patch, num_results=1):
         nodes = nodes[~leaves]
 
         feats = forest['features'][nodes]
-        seen = np.zeros_like(feats, bool)
-        which_child = np.zeros_like(feats, bool)
+        seen = np.zeros_like(feats, dtype=bool)
+        which_child = np.zeros_like(feats, dtype=bool)
         pixel_feat = feats < BLOCK_SIZE * BLOCK_SIZE
         which_child[pixel_feat] = patch.ravel()[feats[pixel_feat]]
         seen |= pixel_feat

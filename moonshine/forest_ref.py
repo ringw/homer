@@ -7,7 +7,7 @@ def load_forest(path):
 PATCH_SIZE = 17
 def predict(forest, bitimg):
     image = np.unpackbits(bitimg.get()).reshape((bitimg.shape[0], -1))
-    prediction = np.zeros_like(image, int)
+    prediction = np.zeros_like(image, dtype=int)
     class_list = list(forest.classes_)
     for y in xrange(image.shape[0]):
         for x in xrange(image.shape[1]):

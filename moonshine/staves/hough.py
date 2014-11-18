@@ -140,7 +140,7 @@ class FilteredHoughStaves(BaseStaves):
         staves = np.ma.empty((len(new_staves), num_segments, 2),
                              dtype=np.int32,
                              fill_value=-1)
-        staves.mask = np.ones_like(staves, bool)
+        staves.mask = np.ones_like(staves, dtype=bool)
         for i, staff in enumerate(new_staves):
             staves[i, :len(staff)] = staff
             staves.mask[i, :len(staff)] = False
