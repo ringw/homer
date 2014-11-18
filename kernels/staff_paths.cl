@@ -27,7 +27,7 @@ KERNEL void staff_paths(GLOBAL_MEM const UCHAR *image,
             int image_y1 = convert_int_rtn((y + 1) * scale);
             int looks_like_staff = 0;
             int any_dark = 0;
-            for (int image_y = image_y0; image_y < image_y1; image_y++)
+            for (int image_y = image_y0; image_y < image_y1; image_y++) {
                 for (int image_x = image_x0; image_x < image_x1; image_x++) {
                     if (! (0 <= image_x && image_x < image_w*8))
                         continue;
@@ -40,14 +40,16 @@ KERNEL void staff_paths(GLOBAL_MEM const UCHAR *image,
                     UCHAR below  = image[byte_x + image_w * (image_y+staff_thick)];
                     if ((center & ~(above | below)) & (0x80U >> bit_x)) {
                         looks_like_staff = 1;
-                        goto LOOKS_LIKE_STAFF;
+                        break;
                     }
                     else if (center & (0x80U >> bit_x))
                         any_dark = 1;
                 }
+                // Break out of nested loop if looks_like_staff
+                if (looks_like_staff) break;
+            }
             float base_weight;
 
-            LOOKS_LIKE_STAFF:
             any_dark = 0;
             base_weight = (any_dark ? 4.f : 8.f) - looks_like_staff;
             float prev_cost = INFINITY;
