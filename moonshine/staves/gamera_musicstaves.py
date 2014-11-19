@@ -115,7 +115,7 @@ class GameraStaffFinder(GameraMusicStaves):
                 staves.append(our_staff)
             num_points = max([len(s) for s in staves])
             our_staves = np.zeros((len(staves), num_points, 2), np.int32)
-            mask = np.ones_like(our_staves, bool)
+            mask = np.ones_like(our_staves, dtype=bool)
             for i, staff in enumerate(staves):
                 our_staves[i, :len(staff)] = staff
                 mask[i, :len(staff)] = 0

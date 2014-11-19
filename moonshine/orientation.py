@@ -33,7 +33,7 @@ def patch_orientation_numpy(page, patch_size=256, step_size=None):
     patch_x0 = np.arange(0, page.orig_size[1] - patch_size, step_size)
     patch_y0 = np.arange(0, page.orig_size[0] - patch_size, step_size)
     orientations = np.zeros((len(patch_y0), len(patch_x0)))
-    mask = np.zeros_like(orientations, bool)
+    mask = np.zeros_like(orientations, dtype=bool)
 
     # Windowed FFT
     # We can probably get away with a box filter.
@@ -69,7 +69,7 @@ def patch_orientation(page, patch_size=256, step_size=None):
     patch_y0 = np.arange(0, page.orig_size[0] - patch_size, step_size)
     orientations = np.zeros((len(patch_y0), len(patch_x0)))
     score = np.zeros_like(orientations)
-    mask = np.zeros_like(orientations, bool)
+    mask = np.zeros_like(orientations, dtype=bool)
 
     patch = thr.empty_like(Type(np.complex64, (patch_size, patch_size)))
     our_fft = reikna.fft.FFT(patch).compile(thr)

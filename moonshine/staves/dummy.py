@@ -27,7 +27,7 @@ class LabeledStaffPosition(BaseStaves):
         num_segs = max([len(l) for l in lines])
         staves = np.ma.empty((len(lines), num_segs, 2), dtype=np.int32,
                              fill_value=-1)
-        staves.mask = np.ones_like(staves, bool)
+        staves.mask = np.ones_like(staves, dtype=bool)
         for i in xrange(len(lines)):
             staves[i, :len(lines[i])] = lines[i]
             staves.mask[i, :len(lines[i])] = 0
@@ -60,7 +60,7 @@ class LabeledStaffRemoval(BaseStaves):
         if len(seg_start) == 0:
             self.staves = np.ma.zeros((0, 2, 2))
             return self.staves
-        seg_gap = np.zeros_like(seg_start, bool)
+        seg_gap = np.zeros_like(seg_start, dtype=bool)
         seg_gap[1:] = (seg_start[1:] - seg_end[:-1]) >= self.page.staff_dist*2
         seg_id = np.cumsum(seg_gap)
         staves = np.zeros((seg_id.max() + 1, 2, 2), np.int32)
