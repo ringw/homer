@@ -139,6 +139,40 @@ class BaseStaves(object):
                           global_size=output.shape[::-1])
         return output
 
+    def extend_staff(self, staff):
+        """ Extract a piece of the staff along the center line, then extend
+            the staff on either side until we reach a gap """
+        staff_img = moonshine.bitimage.as_hostimage(self.extract_staff(staff,
+                                                        extract_lines=1))
+        is_dark = staff_img.any(axis=0)
+        components, n_components = moonshine.util.label_1d(is_dark)
+        staff_points = self()[staff].compressed().reshape((-1, 2))
+        c0 = components[staff_points[0, 0]]
+        if c0:
+            staff_min = np.where(components == c0)[0][0]
+            if staff_min != staff_points[0, 0]:
+                staff_points = np.r_[[[staff_min, staff_points[0, 1]]],
+                                     staff_points]
+        c1 = components[staff_points[-1, 0]]
+        if c1:
+            staff_max = np.where(components == c1)[0][-1]
+            if staff_max != staff_points[-1, 0]:
+                staff_points = np.r_[staff_points,
+                                     [[staff_max, staff_points[-1, 1]]]]
+        return staff_points
+
+    def extend_staves(self):
+        new_staves = [self.extend_staff(i) for i in xrange(len(self.staves))]
+        num_segments = max([s.shape[0] for s in new_staves])
+        staves = np.ma.empty((len(new_staves), num_segments, 2),
+                             dtype=np.int32,
+                             fill_value=-1)
+        staves.mask = np.ones_like(staves, dtype=bool)
+        for i, staff in enumerate(new_staves):
+            staves[i, :len(staff)] = staff
+            staves.mask[i, :len(staff)] = False
+        self.staves = staves
+
     def score(self, labeled_staves):
         staff_med = np.ma.median(self()[..., 1], axis=1)
         label_med = np.ma.median(labeled_staves[..., 1], axis=1)
