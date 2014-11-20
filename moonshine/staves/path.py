@@ -151,15 +151,25 @@ class StablePathStaves(BaseStaves):
         if not staff_lines:
             self.staves = np.empty((0, 2, 2), int)
             return self.staves
-        width = max([len(line[2]) for line in staff_lines])
+        staff_center_lines = []
+        for lines in staff_lines:
+            line = lines[2]
+            keep_points = np.zeros(len(line), bool)
+            keep_points[[0, -1]] = 1
+            keep_points[1:-1] = (np.diff(line[:-1, 1]) != 0) | (np.diff(line[1:, 1]) != 0)
+            line_med = np.median(line[:,1])
+            for i in xrange(len(line)):
+                keep_points[i] &= np.abs(line[i,1] - line_med) < self.page.staff_dist*2
+            staff_center_lines.append(line[keep_points])
+        width = max([len(line) for line in staff_center_lines])
         mask = map(lambda line:
-                   np.vstack([np.zeros((len(line[2]), 2), bool),
-                              np.ones((width-len(line[2]), 2), bool)]),
-                   staff_lines)
+                   np.vstack([np.zeros((len(line), 2), bool),
+                              np.ones((width-len(line), 2), bool)]),
+                   staff_center_lines)
         pad_centers = map(lambda line:
-                          np.vstack([line[2],
-                                  -np.ones((width-len(line[2]), 2), int)]),
-                          staff_lines)
+                          np.vstack([line,
+                                  -np.ones((width-len(line), 2), int)]),
+                          staff_center_lines)
         self.staves = np.ma.array(pad_centers, np.int32, mask=mask, fill_value=-1)
         self.weights = None
         return self.staves
