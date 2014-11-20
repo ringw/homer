@@ -6,23 +6,26 @@ import numpy as np
 
 class FilteredHoughStaves(BaseStaves):
     def get_hough_peak_lines(self):
+        if not hasattr(self, 'thetas'):
+            self.thetas = np.linspace(-np.pi/250, np.pi/250, 201)
+        if not hasattr(self, 'rhores'):
+            self.rhores = (self.page.staff_thick + 1) // 2
         staff_filt = self.staff_center_filter()
-        thetas = np.linspace(-np.pi/250, np.pi/250, 201)
-        rhores = (self.page.staff_thick + 1) // 2
         bins = hough.hough_line_kernel(staff_filt,
-                              rhores=rhores,
-                              numrho=self.page.img.shape[0] // rhores,
-                              thetas=thetas)
+                              rhores=self.rhores,
+                              numrho=self.page.img.shape[0] // self.rhores,
+                              thetas=self.thetas)
         peaks = hough.houghpeaks(bins,
-                                 invalidate=(401,
-                                             self.page.staff_dist*12 // rhores),
+                                 invalidate=(10000,
+                                             self.page.staff_dist*12
+                                                // self.rhores),
                                  thresh=bins.get().max() / 2.0)
-        theta = thetas[peaks[:, 0]]
+        theta = self.thetas[peaks[:, 0]]
         rho = peaks[:, 1]
         x0 = 0
         x1 = self.page.orig_size[1]
-        y0 = (rho*rhores) / np.cos(theta)
-        y1 = (rho*rhores - x1 * np.sin(theta)) / np.cos(theta)
+        y0 = ((rho+0.5)*self.rhores) / np.cos(theta)
+        y1 = ((rho+0.5)*self.rhores - x1 * np.sin(theta)) / np.cos(theta)
         left_points = np.c_[np.repeat(x0, len(y0)), y0]
         right_points = np.c_[np.repeat(x1, len(y1)), y1]
         return np.dstack([[left_points], [right_points]]).reshape((-1,2,2))
