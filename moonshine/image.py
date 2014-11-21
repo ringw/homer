@@ -43,9 +43,10 @@ def read_pages(path):
   if path.read(4) == '%PDF':
     if pdf_to_images is None:
       images = fallback_pdf_to_images(path)
-    images = pdf_to_images(path)
-    if not len(images):
-      images = fallback_pdf_to_images(path)
+    else:
+      images = pdf_to_images(path)
+      if not len(images):
+        images = fallback_pdf_to_images(path)
   else:
     path.seek(0)
     images = [path.read()]
