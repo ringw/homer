@@ -18,14 +18,36 @@ inline int refine_staff_center_y(int staff_thick, int staff_dist,
     for (int y = ymin; y <= ymax; y++) {
         UCHAR is_dark[5];
         UCHAR is_line[5];
+        int y_center_ests[5];
         for (int line = 0; line <= 4; line++) {
             is_dark[line] = 0;
             int y_line = y + staff_dist * (line - 2);
-            for (int y_ = y_line-staff_thick; y_ <= y_line+staff_thick; y_++)
-                is_dark[line] |= img[x_byte + w * y_];
+            int line_min = h;
+            int line_max = 0;
+            for (int y_ = y_line-staff_thick; y_ <= y_line+staff_thick; y_++) {
+                UCHAR byte = img[x_byte + w * y_];
+                if (byte) {
+                    is_dark[line] |= byte;
+                    line_min = MIN(line_min, y_);
+                    line_max = MAX(line_max, y_);
+                }
+            }
             is_line[line] = ~img[x_byte + w * (y_line - staff_thick)];
             is_line[line] &= ~img[x_byte + w * (y_line + staff_thick)];
             is_line[line] &= is_dark[line];
+
+            y_center_ests[line] = line_min + (line_max - line_min)/2 + staff_dist * (2 - line);
+        }
+        int y_center_est = y_center_ests[2];
+        // Median calculation
+        for (int i = 0; i <= 2; i++) {
+            int next_ind = -1;
+            for (int l = 0; l < 5; l++)
+                if (0 <= y_center_ests[l] && y_center_ests[l] < y_center_est) {
+                    y_center_est = y_center_ests[l];
+                    next_ind = l;
+                }
+            y_center_ests[next_ind] = -1;
         }
 
         UCHAR is_staff = (is_dark[0] & is_dark[1] & is_dark[2] & is_dark[3]
@@ -37,7 +59,7 @@ inline int refine_staff_center_y(int staff_thick, int staff_dist,
             if (is_staff & mask)
                 agreement++;
         if (agreement > num_agree
-            || (agreement == num_agree && ABS(y - y0) < ABS(best_y - y0))) {
+            || (agreement == num_agree && ABS(y - y_center_est) < ABS(best_y - y_center_est))) {
             best_y = y;
             num_agree = agreement;
         }
