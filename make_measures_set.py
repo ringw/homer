@@ -24,16 +24,14 @@ runs = open('runlength.csv', 'a')
 for filename in open('trainpdfs').readlines():
     filename = filename.strip()
     imslpid = re.search('IMSLP[0-9]+', filename).group(0)
-    if last_doc is not None and last_doc != imslpid:
+    if last_doc is not None:
+        if last_doc == imslpid:
+            last_doc = None
         continue
     images = moonshine.image.read_pages(filename)
     if not (0 < len(images) <= 100):
         continue
     for pagenum, image in enumerate(images):
-        if last_page is not None:
-            if last_page == pagenum:
-                last_doc, last_page = None, None
-            continue
         print imslpid, pagenum
         page = moonshine.page.Page(image)
         page.preprocess()
@@ -56,6 +54,8 @@ for filename in open('trainpdfs').readlines():
                         out_image = moonshine.bitimage.as_hostimage(img)
                         if not out_image.any():
                             continue
+                        true_width = int((part.bounds[1]-part.bounds[0])*scale)
+                        out_image = out_image[:, :true_width]
                         # Clean up by removing margin
                         import moonshine.util
                         labels, nl = moonshine.util.label_1d(out_image.sum(1))
@@ -74,7 +74,7 @@ for filename in open('trainpdfs').readlines():
         except Exception, e:
             print e
 
-        if i % 500 == 0:
+        if i % 100 == 0:
             out.close()
             shutil.copy('trainset_measures.zip', 'trainset_measures-current.zip')
             out = zipfile.ZipFile('trainset_measures.zip', 'a', zipfile.ZIP_DEFLATED, True)
