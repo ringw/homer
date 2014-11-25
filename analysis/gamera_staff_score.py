@@ -6,6 +6,7 @@ from moonshine.staves.gamera_musicstaves import *
 from moonshine import orientation, staffsize
 from moonshine import page as page_mod
 import datetime
+import gzip
 import numpy as np
 
 import gamera.plugins.numpy_io
@@ -170,7 +171,7 @@ try:
                 result = result.append(scores)
 
     if len(result):
-        result.to_csv(open(output, 'wb'))
-        pagedata.to_csv(open('pagedata-'+output, 'wb'))
+        result.to_csv(gzip.open(output, 'wb'))
+        pagedata.to_csv(gzip.open('pagedata-'+output, 'wb'))
 finally:
     shutil.rmtree(tmpdir)
