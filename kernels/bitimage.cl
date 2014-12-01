@@ -39,6 +39,37 @@ KERNEL void scale_image(GLOBAL_MEM const UCHAR *input,
     output[x + y * get_global_size(0)] = result;
 }
 
+// Scale a bitmap image down to a grayscale 8-bit image
+KERNEL void scale_image_gray(GLOBAL_MEM const UCHAR *input,
+                             float scale_x, float scale_y,
+                             int inputWidth, int inputHeight,
+                             GLOBAL_MEM UCHAR *output) {
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+    int image_x0 = convert_int_rtn(x * scale_x);
+    int image_y0 = convert_int_rtn(y * scale_y);
+    int image_x1 = convert_int_rtp((x + 1) * scale_x);
+    int image_y1 = convert_int_rtp((y + 1) * scale_y);
+
+    int pixel_sum = 0;
+    for (int image_y = image_y0; image_y < image_y1; image_y++) {
+        for (int image_x = image_x0; image_x < image_x1; image_x++) {
+            if (! (0 <= image_x && image_x < inputWidth*8))
+                continue;
+            if (! (0 <= image_y && image_y < inputHeight))
+                continue;
+            int byte_x = image_x / 8;
+            int bit_x  = image_x % 8;
+            UCHAR byte = input[byte_x + inputWidth * image_y];
+            pixel_sum += (byte >> (7 - bit_x)) & 0x1;
+        }
+    }
+    int area = (image_x1 - image_x0) * (image_y1 - image_y0);
+    UCHAR result = pixel_sum * 255 / area;
+
+    output[x + y * get_global_size(0)] = result;
+}
+
 KERNEL void erode(GLOBAL_MEM const UCHAR *image,
                     GLOBAL_MEM UCHAR *output_image) {
     int x = get_global_id(0);
