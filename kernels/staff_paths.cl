@@ -3,68 +3,45 @@ struct path_point {
     int prev;
 };
 
+// image should be a scaled down grayscale version
 KERNEL void staff_paths(GLOBAL_MEM const UCHAR *image,
                         int image_w, int image_h,
-                        int staff_thick,
-                        float scale,
-                        GLOBAL_MEM struct path_point *paths,
-                        int paths_w, int paths_h) {
+                        GLOBAL_MEM struct path_point *paths) {
     int worker_id = get_local_id(0);
     int num_workers = get_local_size(0);
 
-    for (int x = 0; x < paths_w; x++) {
+    for (int x = 0; x < image_w; x++) {
         if (x == 0) {
-            for (int y = worker_id; y < paths_h; y += num_workers) {
-                paths[x + paths_w * y].cost = 0.f;
-                paths[x + paths_w * y].prev = -1;
+            for (int y = worker_id; y < image_h; y += num_workers) {
+                paths[x + image_w * y].cost = 0.f;
+                paths[x + image_w * y].prev = -1;
             }
-            continue;
         }
-        for (int y = worker_id; y < paths_h; y += num_workers) {
-            int image_x0 = convert_int_rtn(x * scale);
-            int image_y0 = convert_int_rtn(y * scale);
-            int image_x1 = convert_int_rtn((x + 1) * scale);
-            int image_y1 = convert_int_rtn((y + 1) * scale);
-            int looks_like_staff = 0;
-            int any_dark = 0;
-            for (int image_y = image_y0; image_y < image_y1; image_y++) {
-                for (int image_x = image_x0; image_x < image_x1; image_x++) {
-                    if (! (0 <= image_x && image_x < image_w*8))
-                        continue;
-                    if (! (0 <= image_y - staff_thick && image_y + staff_thick < image_h))
-                        continue;
-                    int byte_x = image_x / 8;
-                    int bit_x  = image_x % 8;
-                    UCHAR center = image[byte_x + image_w * image_y];
-                    UCHAR above  = image[byte_x + image_w * (image_y-staff_thick)];
-                    UCHAR below  = image[byte_x + image_w * (image_y+staff_thick)];
-                    if ((center & ~(above | below)) & (0x80U >> bit_x)) {
-                        looks_like_staff = 1;
-                        break;
+        else {
+            for (int y = worker_id; y < image_h; y += num_workers) {
+                UCHAR our_value = image[x + image_h * y];
+                float base_weight = 4.f - (float)our_value / 255.f;
+                // Calculate weight from pixel to left
+                int prev = y;
+                UCHAR left_value = image[x-1 + image_w * y];
+                float weight = paths[x-1 + image_w * prev].cost
+                               + base_weight - (float)left_value / 255.f;
+                for (int i = 0; i < 2; i++) {
+                    int prev_y = i == 0 ? y-1 : y+1;
+                    if (0 <= prev_y && prev_y < image_h) {
+                        left_value = image[x-1 + image_h * prev_y];
+                        float new_weight =
+                            paths[x-1 + image_h * prev_y].cost +
+                            (base_weight - (float)left_value / 255.f) * 1.414f;
+                        if (new_weight < weight) {
+                            prev = prev_y;
+                            weight = new_weight;
+                        }
                     }
-                    else if (center & (0x80U >> bit_x))
-                        any_dark = 1;
                 }
-                // Break out of nested loop if looks_like_staff
-                if (looks_like_staff) break;
+                paths[x + image_w * y].cost = weight;
+                paths[x + image_w * y].prev = prev;
             }
-            float base_weight;
-
-            any_dark = 0;
-            base_weight = (any_dark ? 4.f : 8.f) - looks_like_staff;
-            float prev_cost = INFINITY;
-            int prev = 0;
-            for (int prev_y = y - 1; prev_y <= y + 1; prev_y++)
-                if (0 <= prev_y && prev_y < paths_h) {
-                    float old_cost = paths[x-1 + paths_w * prev_y].cost
-                                     + ((prev_y == y) ? 0 : 1);
-                    if (old_cost < prev_cost) {
-                        prev_cost = old_cost;
-                        prev = prev_y;
-                    }
-                }
-            paths[x + paths_w * y].cost = prev_cost + base_weight;
-            paths[x + paths_w * y].prev = prev;
         }
 
         // Ensure workers all process the current column before moving on

@@ -1,4 +1,5 @@
 from ..gpu import *
+from .. import bitimage
 from .base import BaseStaves
 import logging
 
@@ -6,22 +7,18 @@ prg = build_program('staff_paths')
 
 path_point = np.dtype([('cost', np.float32), ('prev', np.int32)])
 class StablePathStaves(BaseStaves):
+    scaled_img = None
     weights = None
     def get_weights(self, img=None, num_workers=512, scale=2.0):
         if img is None:
             img = self.page.img
-        self.weights = thr.empty_like(Type(np.int32,
-                                           (int(img.shape[0]/scale),
-                                            int(img.shape[1]*8/scale), 2)))
+        self.scaled_img = simg = bitimage.scale_image_gray(img, scale)
+        self.weights = thr.empty_like(Type(np.int32, simg.shape + (2,)))
         self.weights.fill(0)
         prg.staff_paths(img,
-                        np.int32(img.shape[1]),
-                        np.int32(img.shape[0]),
-                        np.int32(self.page.staff_thick),
-                        np.float32(2.0),
+                        np.int32(simg.shape[1]),
+                        np.int32(simg.shape[0]),
                         self.weights,
-                        np.int32(self.weights.shape[1]),
-                        np.int32(self.weights.shape[0]),
                         global_size=(num_workers,), local_size=(num_workers,))
         return self.weights
 
@@ -103,6 +100,7 @@ class StablePathStaves(BaseStaves):
             if threshold is None:
                 try:
                     threshold = int(np.median(sums[sums > 0]) * 0.8)
+                    print threshold
                     all_paths.append(paths.get()[sums >= threshold])
                 except ValueError: # all paths have 0 dark pixels
                     return np.empty((0, 2048), np.int32)
