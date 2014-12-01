@@ -26,7 +26,7 @@ def get_measure(page, staff, measure):
     y1 = -(-page.boundaries[staff+1][:, 1].max() & -8)
 
     measure_pixel_size = (y1 - y0, (x1 - x0) // 8)
-    measure_size = tuple(-(-i & -16) for i in measure_pixel_size)
+    measure_size = tuple(-(-i & -8) for i in measure_pixel_size)
     measure = thr.empty_like(Type(np.uint8, measure_size))
     measure.fill(0)
     device_b0 = thr.to_device(page.boundaries[staff][:, 1].astype(np.int32))

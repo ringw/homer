@@ -5,23 +5,24 @@ import shutil
 from StringIO import StringIO
 import subprocess
 import numpy as np
+from . import settings
 try:
   from .pdfimage import pdf_to_images
 except ImportError:
   print("PDF import disabled; please install pylibtiff")
   pdf_to_images = None
 
-IMAGE_MAX_SIZE = 8192
 def image_array(data):
   if type(data) is str:
     im = Image.open(StringIO(data))
   else:
     im = data
   im = im.convert('1')
-  if im.size[0] > IMAGE_MAX_SIZE and im.size[0] > im.size[1]:
-    im = im.resize((IMAGE_MAX_SIZE, im.size[1]*IMAGE_MAX_SIZE/im.size[0]))
-  elif im.size[1] > IMAGE_MAX_SIZE:
-    im = im.resize((im.size[0]*IMAGE_MAX_SIZE/im.size[1], IMAGE_MAX_SIZE))
+  MAXSIZE = settings.IMAGE_MAX_SIZE
+  if im.size[0] > MAXSIZE and im.size[0] > im.size[1]:
+    im = im.resize((MAXSIZE, im.size[1]*MAXSIZE/im.size[0]))
+  elif im.size[1] > MAXSIZE:
+    im = im.resize((im.size[0]*MAXSIZE/im.size[1], MAXSIZE))
   im = im.convert('L')
   bytestring = im.tostring()
   pixels = np.fromstring(bytestring, dtype=np.uint8)
