@@ -45,12 +45,12 @@ def scale_image_gray(img, scale_x, scale_y=None, align=8):
     out_w = -(-int(img.shape[1]*8 / scale_x) & -align)
     out_img = thr.empty_like(Type(np.uint8, (out_h, out_w)))
     out_img.fill(0)
-    prg.scale_image(img,
-                    np.float32(scale_x), np.float32(scale_y),
-                    np.int32(img.shape[1]), np.int32(img.shape[0]),
-                    out_img,
-                    global_size=out_img.shape[::-1],
-                    local_size=(8, 8))
+    prg.scale_image_gray(img,
+                         np.float32(scale_x), np.float32(scale_y),
+                         np.int32(img.shape[1]), np.int32(img.shape[0]),
+                         out_img,
+                         global_size=out_img.shape[::-1],
+                         local_size=(8, 8))
     return out_img
 
 def repeat_kernel(img, kernel, numiter=1):
