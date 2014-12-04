@@ -5,4 +5,4 @@ from .hough import FilteredHoughStaves
 from .path import StablePathStaves
 
 # Default implementation
-Staves = StablePathStaves
+Staves = FilteredHoughStaves

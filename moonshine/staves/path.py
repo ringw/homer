@@ -15,7 +15,7 @@ class StablePathStaves(BaseStaves):
         self.scaled_img = simg = bitimage.scale_image_gray(img, scale)
         self.weights = thr.empty_like(Type(np.int32, simg.shape + (2,)))
         self.weights.fill(0)
-        prg.staff_paths(img,
+        prg.staff_paths(simg,
                         np.int32(simg.shape[1]),
                         np.int32(simg.shape[0]),
                         self.weights,
@@ -100,7 +100,6 @@ class StablePathStaves(BaseStaves):
             if threshold is None:
                 try:
                     threshold = int(np.median(sums[sums > 0]) * 0.8)
-                    print threshold
                     all_paths.append(paths.get()[sums >= threshold])
                 except ValueError: # all paths have 0 dark pixels
                     return np.empty((0, 2048), np.int32)

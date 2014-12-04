@@ -1,6 +1,6 @@
 import numpy as np
 from .gpu import *
-from . import image
+from . import image, settings
 from . import staffsize, orientation, staves
 from . import barlines, systems, staffboundary, measure#, note
 
@@ -12,19 +12,20 @@ class Page(object):
             self.image_data = image_data
             img = image.image_array(image_data)
         size = max(img.shape)
-        if size > 8192:
+        MAXSIZE = settings.IMAGE_MAX_SIZE
+        if size > MAXSIZE:
             if img.shape[0] > img.shape[1]:
-                new_size = (8192, img.shape[1] * 8192 / img.shape[0])
+                new_size = (MAXSIZE, img.shape[1] * MAXSIZE / img.shape[0])
             else:
-                new_size = (img.shape[0] * 8192 / img.shape[1], 8192)
+                new_size = (img.shape[0] * MAXSIZE / img.shape[1], MAXSIZE)
             import scipy
             img = scipy.misc.imresize(img, new_size, 'nearest')
             img = img != 0
-            size = 8192
-        if size <= 4096:
-            size = 4096
+            size = MAXSIZE
+        if size <= MAXSIZE/2:
+            size = MAXSIZE/2
         else:
-            size = 8192
+            size = MAXSIZE
         padded_img = np.zeros((size, size), np.uint8)
         padded_img[:img.shape[0], :img.shape[1]] = img
         self.byteimg = padded_img
