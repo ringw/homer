@@ -89,7 +89,7 @@ class FFTRotation(base.BaseRotation):
     def get_rotation(self):
         assert type(self.page.staff_dist) is not tuple, \
                "Multiple staff sizes not supported"
-        patch_size = 1024
+        patch_size = 128
         while self.page.staff_dist * 10 > patch_size:
             patch_size *= 2
         assert patch_size <= 2048
