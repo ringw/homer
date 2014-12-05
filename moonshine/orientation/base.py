@@ -3,7 +3,7 @@ import numpy as np
 from ..gpu import *
 from .. import bitimage
 
-prg = build_program('rotate')
+prg = build_program('orientation')
 
 class BaseRotation:
     page = None
@@ -43,25 +43,27 @@ class BaseRotation:
 
     def transform_page(self, M, size):
         pad_size, new_size = self.page.padded_size(size)
-        new_img = thr.empty_like(Type(np.uint8, pad_size))
+        new_img = thr.empty_like(Type(np.uint8, (pad_size[0], pad_size[1]/8)))
         new_img.fill(0)
+        # inverse transformation to map output points to input
+        Minv = thr.to_device(np.linalg.inv(M).astype(np.float32))
         prg.transform(new_img, self.page.img,
                       np.int32(self.page.img.shape[1]),
                       np.int32(self.page.img.shape[0]),
-                      thr.to_device(M.astype(np.float32)),
+                      Minv,
                       global_size=new_img.shape[::-1])
-        page.initial_size = page.orig_size
-        page.orig_size = new_size
-        page.size = pad_size
-        page.img = new_img
-        page.byteimg = bitimage.as_hostimage(new_img)
+        self.page.initial_size = self.page.orig_size
+        self.page.orig_size = new_size
+        self.page.size = pad_size
+        self.page.img = new_img
+        self.page.byteimg = bitimage.as_hostimage(new_img)
 
     def get_transformation(self):
         " Default implementation just uses rotation" 
-        self.bounds, self.size = self.rotation_transformation(
-                                    self.get_rotation())
+        self.transformation, self.size = self.rotation_transformation(
+                                            self.get_rotation())
 
     def __call__(self):
         if self.transformation is None:
             self.get_transformation()
-            self.transform_page(self.bounds, self.size)
+            self.transform_page(self.transformation, self.size)
