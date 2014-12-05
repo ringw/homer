@@ -150,7 +150,7 @@ class StablePathStaves(BaseStaves):
             return self.staves
         staff_center_lines = []
         for lines in staff_lines:
-            line = lines[2]
+            line = np.array(lines).mean(axis=0)
             keep_points = np.zeros(len(line), bool)
             keep_points[[0, -1]] = 1
             keep_points[1:-1] = (np.diff(line[:-1, 1]) != 0) | (np.diff(line[1:, 1]) != 0)
