@@ -1,6 +1,6 @@
 import numpy as np
 from .gpu import *
-from . import image, settings
+from . import image, bitimage, settings
 from . import staffsize, orientation, staves
 from . import barlines, systems, staffboundary, measure#, note
 
@@ -11,36 +11,39 @@ class Page(object):
         else:
             self.image_data = image_data
             img = image.image_array(image_data)
-        size = max(img.shape)
-        MAXSIZE = settings.IMAGE_MAX_SIZE
-        if size > MAXSIZE:
-            if img.shape[0] > img.shape[1]:
-                new_size = (MAXSIZE, img.shape[1] * MAXSIZE / img.shape[0])
-            else:
-                new_size = (img.shape[0] * MAXSIZE / img.shape[1], MAXSIZE)
+        pad_size, new_size = self.padded_size(img.shape)
+        if new_size != img.shape:
             import scipy
             img = scipy.misc.imresize(img, new_size, 'nearest')
             img = img != 0
-            size = MAXSIZE
-        if size <= MAXSIZE/2:
-            size = MAXSIZE/2
-        else:
-            size = MAXSIZE
-        padded_img = np.zeros((size, size), np.uint8)
+        padded_img = np.zeros(pad_size, np.uint8)
         padded_img[:img.shape[0], :img.shape[1]] = img
         self.byteimg = padded_img
         self.orig_size = img.shape
-        self.bitimg = np.packbits(padded_img).reshape((size, -1))
-        self.img = thr.to_device(self.bitimg)
-        self.size = size
+        self.img = bitimage.as_bitimage(padded_img)
+        self.size = pad_size
 
+        self.rotation = orientation.Rotation(self)
         self.staves = staves.Staves(self)
+
+    def padded_size(self, shape):
+        size = max(shape)
+        MAXSIZE = settings.IMAGE_MAX_SIZE
+        if size > MAXSIZE:
+            if shape[0] > shape[1]:
+                new_size = (MAXSIZE, shape[1] * MAXSIZE / shape[0])
+            else:
+                new_size = (shape[0] * MAXSIZE / shape[1], MAXSIZE)
+        else:
+            new_size = shape
+        pad_size = tuple(-(-s & -settings.IMAGE_ALIGNMENT) for s in new_size)
+        return pad_size, new_size
 
     def preprocess(self):
         staffsize.staffsize(self)
         if type(self.staff_dist) is not int:
             return
-        orientation.rotate(self)
+        self.rotation()
         # If we rotate significantly, the vertical difference between staff
         # lines may be slightly different
         staffsize.staffsize(self)
