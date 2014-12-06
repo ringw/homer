@@ -92,8 +92,9 @@ class FFTRotation(base.BaseRotation):
         patch_size = 128
         while self.page.staff_dist * 10 > patch_size:
             patch_size *= 2
-        assert patch_size <= 2048
-        patches = self.patch_rotation(patch_size)
+        assert patch_size <= min(self.page.size) / 2
+        print patch_size
+        patches = self.patch_rotation(patch_size, 128)
         thetas = patches[:,:,0]
         scores = patches[:,:,1]
         score_cutoff = min(1.5, np.ma.median(scores) * 2)
