@@ -1,3 +1,6 @@
+from . import settings
+if settings.ALWAYS_USE_PDFIMAGES:
+  raise ImportError("Internal pdf reader disabled")
 try:
   from PyPDF2 import PdfFileReader
 except ImportError:
