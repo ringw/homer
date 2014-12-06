@@ -1,6 +1,7 @@
 from ..gpu import *
 import moonshine.bitimage, moonshine.util
 import numpy as np
+import logging
 try:
     import scipy.signal as scipy_signal
 except ImportError:
@@ -102,8 +103,12 @@ class BaseStaves(object):
             mask = np.ones_like(staves_copy, dtype=bool)
             for i, staff in enumerate(new_staves):
                 # Clean up single spurious points (requires scipy)
-                if scipy_signal is not None:
-                    staff[:, 1] = scipy_signal.medfilt(staff[:, 1])
+                if scipy_signal is None:
+                    logging.warn('Scipy not installed; staff refinement will be'
+                                 ' poor quality')
+                else:
+                    staff[:, 1] = scipy_signal.medfilt(staff[:, 1],
+                                    self.page.staff_dist * 4 / 8)
                 staves_copy[i, :len(staff)] = staff
                 mask[i, :len(staff)] = 0
             order = np.argsort(staves_copy[:, 0, 1]) # sort by y0

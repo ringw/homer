@@ -5,7 +5,7 @@ inline int refine_staff_center_y(int staff_thick, int staff_dist,
     if (! (0 <= y0 - staff_dist*3 && y0 + staff_dist*3 < h))
         return -1;
     // Search y in [ymin, ymax]
-    int dy = MAX(1, staff_thick/2);
+    int dy = MAX(1, staff_thick);
     int ymin = y0 - dy;
     int ymax = y0 + dy;
 
@@ -32,11 +32,13 @@ inline int refine_staff_center_y(int staff_thick, int staff_dist,
                     line_max = MAX(line_max, y_);
                 }
             }
+            // Update y_line using known dark run
+            y_line = line_min + (line_max + 1 - line_min)/2;
             is_line[line] = ~img[x_byte + w * (y_line - staff_thick)];
             is_line[line] &= ~img[x_byte + w * (y_line + staff_thick)];
             is_line[line] &= is_dark[line];
 
-            y_center_ests[line] = line_min + (line_max - line_min)/2 + staff_dist * (2 - line);
+            y_center_ests[line] = y_line + staff_dist * (2 - line);
         }
         int y_center_est = y_center_ests[2];
         // Median calculation
