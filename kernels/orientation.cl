@@ -12,7 +12,7 @@ KERNEL void transform(GLOBAL_MEM UCHAR *output,
 
         if (0 <= input_x && input_x < get_global_size(0)*8
             && 0 <= input_y && input_y < get_global_size(1)) {
-            UCHAR input_byte = input[input_x/8 + input_y * get_global_size(0)];
+            UCHAR input_byte = input[input_x/8 + input_w * input_y];
             int input_bit = input_x % 8;
             result |= (((input_byte >> (7 - input_bit)) & 1) << (7 - bit));
         }
