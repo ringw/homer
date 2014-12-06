@@ -6,7 +6,7 @@ from reikna.core import Type
 import reikna.fft
 
 class FFTRotation(base.BaseRotation):
-    def patch_rotation(self, patch_size=256, step_size=None):
+    def patch_rotation_numpy(self, patch_size=256, step_size=None):
         if step_size is None:
             step_size = patch_size/2
         patch_x0 = np.arange(0, self.page.orig_size[1] - patch_size, step_size)
