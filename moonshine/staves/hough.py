@@ -19,7 +19,8 @@ class FilteredHoughStaves(BaseStaves):
                                  invalidate=(10000,
                                              self.page.staff_dist*12
                                                 // self.rhores),
-                                 thresh=bins.get().max() / 2.0)
+                                 thresh=max(bins.get().max() / 2.0,
+                                            self.page.orig_size[1] / 4.0))
         theta = self.thetas[peaks[:, 0]]
         rho = peaks[:, 1]
         x0 = 0
