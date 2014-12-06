@@ -22,7 +22,6 @@ class HoughStavesRotation(base.BaseRotation):
                                              2*int(self.tolerance
                                                        / self.resolution) + 1)
         lines = self.staves.get_hough_peak_lines()
-        print lines
         angles = [np.arctan2(y1 - y0, x1 - x0)
                   for ((x0, y0), (x1, y1)) in lines]
         rotation = -np.median(angles)
