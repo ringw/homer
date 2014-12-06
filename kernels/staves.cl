@@ -10,7 +10,7 @@ inline int refine_staff_center_y(int staff_thick, int staff_dist,
     int ymax = y0 + dy;
 
     // Staff criteria: must have dark pixels at y and +- staff_dist * [1,2]
-    // At one of these points, must have light pixels at both
+    // At least 2 of these points, must have light pixels at both
     // y_line +- staff_thick (evidence for isolated staff line).
     // Pick y where the most columns in this byte match the criteria
     int best_y = -1;
@@ -52,10 +52,15 @@ inline int refine_staff_center_y(int staff_thick, int staff_dist,
             y_center_ests[next_ind] = -1;
         }
 
-        UCHAR is_staff = (is_dark[0] & is_dark[1] & is_dark[2] & is_dark[3]
-                                     & is_dark[4])
-                         & (is_line[0] | is_line[1] | is_line[2] | is_line[3]
-                                       | is_line[4]);
+        // XXX: this is terrible
+        UCHAR atleast2_line = (is_line[0] & (  is_line[1] | is_line[2]
+                                             | is_line[3] | is_line[4]))
+                            | (is_line[1] & (  is_line[2] | is_line[3]
+                                             | is_line[4]))
+                            | (is_line[2] & (is_line[3] | is_line[4]))
+                            | (is_line[3] & is_line[4]);
+        UCHAR is_staff = is_dark[0] & is_dark[1] & is_dark[2] & is_dark[3]
+                                    & is_dark[4] & atleast2_line;
         int agreement = 0;
         for (UCHAR mask = 0x80; mask; mask >>= 1)
             if (is_staff & mask)
