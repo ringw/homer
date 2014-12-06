@@ -23,8 +23,8 @@ def hough_staves(thetarange, ntheta):
 
 methods = dict(hough_pi250_201=hough_staves(np.pi/250, 201),
                hough_1deg_201=hough_staves(np.pi/180, 201),
-               hough_1deg_101=hough_staves(np.pi/180, 101),
                hough_1deg_51=hough_staves(np.pi/180, 51),
+               hough_1deg_21=hough_staves(np.pi/180, 21),
                path=path.StablePathStaves,
                linetracking=MusicStaves_linetracking,
                carter=MusicStaves_rl_carter,
