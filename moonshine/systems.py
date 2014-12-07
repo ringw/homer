@@ -81,6 +81,9 @@ def try_join_system(page, i):
     if len(pairs) == 0:
         return False
     ispair = (pairs >= 0).all(axis=1)
+    if ispair.sum() == 0:
+        # Must have at least one actual pair to test other possible ones
+        return False
     s0_nopair = (pairs[:,0] >= 0) & ~ispair
     s1_nopair = (pairs[:,1] >= 0) & ~ispair
     new_systems = np.zeros((len(pairs), 2, 2), np.int32)
