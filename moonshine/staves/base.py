@@ -108,7 +108,7 @@ class BaseStaves(object):
                                  ' poor quality')
                 else:
                     staff[:, 1] = scipy_signal.medfilt(staff[:, 1],
-                                    self.page.staff_dist * 4 / 8)
+                                    -(-(self.page.staff_dist * 4 / 8) & -2) + 1)
                 staves_copy[i, :len(staff)] = staff
                 mask[i, :len(staff)] = 0
             order = np.argsort(staves_copy[:, 0, 1]) # sort by y0
