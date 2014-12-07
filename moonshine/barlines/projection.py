@@ -46,9 +46,9 @@ def get_barlines(page):
 
 def show_barlines(page):
     import pylab
-    for staff_line, barlines in zip(page.staves(), page.barlines):
-        staff_y = np.mean(staff_line[:, 1])
+    for i, barlines in enumerate(page.barlines):
         for barline_x in barlines:
+            staff_y = page.staves.staff_y(i, barline_x)
             pylab.plot([barline_x, barline_x],
                        [staff_y - page.staff_dist*2,
                         staff_y + page.staff_dist*2],

@@ -6,20 +6,14 @@ def initialize_systems(page):
     """ Initial systems are each individual staff,
         barlines are a vertical line through the staff """
     page.systems = []
-    i = 0
-    for staff, barlines in zip(page.staves(), page.barlines):
-        # Unmask staff
-        staff = staff.compressed().reshape((-1, 2))
-        x0, y0 = staff[0]
-        x1, y1 = staff[-1]
+    for i, barlines in enumerate(page.barlines):
         system_bars = []
         for barline_x in barlines:
-            staff_y = y0 + (y1 - y0) * (barline_x - x0) / (x1 - x0)
+            staff_y = page.staves.staff_y(i, barline_x)
             system_bars.append([[barline_x, staff_y - page.staff_dist*2],
                                 [barline_x, staff_y + page.staff_dist*2]])
         barlines = np.array(system_bars, int)
         page.systems.append(dict(barlines=barlines, start=i, stop=i))
-        i += 1
 
 def verify_barlines(page, i, j, barlines):
     """ Convert each barline to a rho and theta value, then verify that
