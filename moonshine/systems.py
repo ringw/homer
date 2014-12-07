@@ -30,7 +30,7 @@ def verify_barlines(page, i, j, barlines):
     y1 = min(page.img.shape[0],
              page.staves()[j,:,1].max() + page.staff_dist*3)
     # Gap between y0 and y1 must be a multiple of 8
-    y1 += 8 - ((y1 - y0) & 0x7)
+    y1 += -(y1 - y0) & 7
     img_slice = page.img[y0:y1].copy()
     slice_T = bitimage.transpose(img_slice)
     slice_barlines = barlines.copy()
@@ -71,16 +71,27 @@ def try_join_system(page, i):
         or len(page.systems[i+1]['barlines']) == 0):
         return False
     # Match each barline x1 in the top system to x0 in the bottom system
-    system0_x1 = page.systems[i]['barlines'][:,1,0]
-    system1_x0 = page.systems[i+1]['barlines'][:,0,0]
-    matches = util.match(system0_x1, system1_x0)
-    match1_x0 = page.systems[i+1]['barlines'][matches, 0, 0]
-    good_match = np.abs(system0_x1 - match1_x0) < page.staff_dist/2
-    if not any(good_match):
+    # If no matching barline within staff_dist, then extend the barline
+    # vertically to the height of the system
+    system0 = page.systems[i]['barlines']
+    system1 = page.systems[i+1]['barlines']
+    system0_x1 = system0[:,1,0]
+    system1_x0 = system1[:,0,0]
+    pairs = util.merge(system0_x1, system1_x0, page.staff_dist)
+    if len(pairs) == 0:
         return False
-    system0 = page.systems[i]['barlines'][good_match]
-    system1 = page.systems[i+1]['barlines'][matches[good_match]]
-    new_systems = np.hstack([system0[:,0], system1[:,1]]).reshape((-1, 2, 2))
+    ispair = (pairs >= 0).all(axis=1)
+    s0_nopair = (pairs[:,0] >= 0) & ~ispair
+    s1_nopair = (pairs[:,1] >= 0) & ~ispair
+    new_systems = np.zeros((len(pairs), 2, 2), np.int32)
+    new_systems[ispair, 0] = system0[pairs[ispair, 0], 0]
+    new_systems[ispair, 1] = system1[pairs[ispair, 1], 1]
+    new_systems[s0_nopair, 0] = system0[pairs[s0_nopair, 0], 0]
+    new_systems[s0_nopair, 1] = system0[pairs[s0_nopair, 0], 1]
+    new_systems[s0_nopair, 1, 1] = system1[:, 1, 1].mean()
+    new_systems[s1_nopair, 1] = system1[pairs[s1_nopair, 1], 1]
+    new_systems[s1_nopair, 0] = system1[pairs[s1_nopair, 1], 0]
+    new_systems[s1_nopair, 0, 1] = system1[:, 0, 1].mean()
     actual_systems = verify_barlines(page,
                        page.systems[i]['start'],
                        page.systems[i+1]['stop'], new_systems)
