@@ -43,7 +43,7 @@ def verify_barlines(page, i, j, barlines):
     t = np.arctan(-(slice_barlines[:,1,0] - slice_barlines[:,0,0]).astype(float)
                    / (slice_barlines[:,1,1] - slice_barlines[:,0,1]))
     rho = slice_barlines[:,0,0] * np.cos(t) + slice_barlines[:,0,1] * np.sin(t)
-    rhores = page.staff_thick * 3
+    rhores = max(1, page.staff_dist / 4)
     rhoval = (rho / rhores).astype(int) + 1
 
     # Try a range of theta and rho values around each predicted line segment
