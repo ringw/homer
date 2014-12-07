@@ -6,20 +6,14 @@ def initialize_systems(page):
     """ Initial systems are each individual staff,
         barlines are a vertical line through the staff """
     page.systems = []
-    i = 0
-    for staff, barlines in zip(page.staves(), page.barlines):
-        # Unmask staff
-        staff = staff.compressed().reshape((-1, 2))
-        x0, y0 = staff[0]
-        x1, y1 = staff[-1]
+    for i, barlines in enumerate(page.barlines):
         system_bars = []
         for barline_x in barlines:
-            staff_y = y0 + (y1 - y0) * (barline_x - x0) / (x1 - x0)
+            staff_y = page.staves.staff_y(i, barline_x)
             system_bars.append([[barline_x, staff_y - page.staff_dist*2],
                                 [barline_x, staff_y + page.staff_dist*2]])
         barlines = np.array(system_bars, int)
         page.systems.append(dict(barlines=barlines, start=i, stop=i))
-        i += 1
 
 def verify_barlines(page, i, j, barlines):
     """ Convert each barline to a rho and theta value, then verify that
@@ -30,7 +24,7 @@ def verify_barlines(page, i, j, barlines):
     y1 = min(page.img.shape[0],
              page.staves()[j,:,1].max() + page.staff_dist*3)
     # Gap between y0 and y1 must be a multiple of 8
-    y1 += 8 - ((y1 - y0) & 0x7)
+    y1 += -(y1 - y0) & 7
     img_slice = page.img[y0:y1].copy()
     slice_T = bitimage.transpose(img_slice)
     slice_barlines = barlines.copy()
@@ -43,7 +37,7 @@ def verify_barlines(page, i, j, barlines):
     t = np.arctan(-(slice_barlines[:,1,0] - slice_barlines[:,0,0]).astype(float)
                    / (slice_barlines[:,1,1] - slice_barlines[:,0,1]))
     rho = slice_barlines[:,0,0] * np.cos(t) + slice_barlines[:,0,1] * np.sin(t)
-    rhores = page.staff_thick * 3
+    rhores = max(1, page.staff_dist / 4)
     rhoval = (rho / rhores).astype(int) + 1
 
     # Try a range of theta and rho values around each predicted line segment
@@ -71,16 +65,30 @@ def try_join_system(page, i):
         or len(page.systems[i+1]['barlines']) == 0):
         return False
     # Match each barline x1 in the top system to x0 in the bottom system
-    system0_x1 = page.systems[i]['barlines'][:,1,0]
-    system1_x0 = page.systems[i+1]['barlines'][:,0,0]
-    matches = util.match(system0_x1, system1_x0)
-    match1_x0 = page.systems[i+1]['barlines'][matches, 0, 0]
-    good_match = np.abs(system0_x1 - match1_x0) < page.staff_dist/2
-    if not any(good_match):
+    # If no matching barline within staff_dist, then extend the barline
+    # vertically to the height of the system
+    system0 = page.systems[i]['barlines']
+    system1 = page.systems[i+1]['barlines']
+    system0_x1 = system0[:,1,0]
+    system1_x0 = system1[:,0,0]
+    pairs = util.merge(system0_x1, system1_x0, page.staff_dist)
+    if len(pairs) == 0:
         return False
-    system0 = page.systems[i]['barlines'][good_match]
-    system1 = page.systems[i+1]['barlines'][matches[good_match]]
-    new_systems = np.hstack([system0[:,0], system1[:,1]]).reshape((-1, 2, 2))
+    ispair = (pairs >= 0).all(axis=1)
+    if ispair.sum() == 0:
+        # Must have at least one actual pair to test other possible ones
+        return False
+    s0_nopair = (pairs[:,0] >= 0) & ~ispair
+    s1_nopair = (pairs[:,1] >= 0) & ~ispair
+    new_systems = np.zeros((len(pairs), 2, 2), np.int32)
+    new_systems[ispair, 0] = system0[pairs[ispair, 0], 0]
+    new_systems[ispair, 1] = system1[pairs[ispair, 1], 1]
+    new_systems[s0_nopair, 0] = system0[pairs[s0_nopair, 0], 0]
+    new_systems[s0_nopair, 1] = system0[pairs[s0_nopair, 0], 1]
+    new_systems[s0_nopair, 1, 1] = system1[:, 1, 1].mean()
+    new_systems[s1_nopair, 1] = system1[pairs[s1_nopair, 1], 1]
+    new_systems[s1_nopair, 0] = system1[pairs[s1_nopair, 1], 0]
+    new_systems[s1_nopair, 0, 1] = system1[:, 0, 1].mean()
     actual_systems = verify_barlines(page,
                        page.systems[i]['start'],
                        page.systems[i+1]['stop'], new_systems)

@@ -204,6 +204,32 @@ class BaseStaves(object):
         scaled_img = moonshine.bitimage.scale(extracted, scale_x, scale_y)
         return scaled_img[:24], scale_x, scale_y
 
+    def get_staff(self, staff_num):
+        if hasattr(self(), 'compressed'):
+            return self()[staff_num].compressed().reshape((-1, 2))
+        else:
+            return self()[staff_num]
+    def staff_y(self, staff_num, x):
+        staff = self.get_staff(staff_num)
+        if (staff[:,0] < x).all():
+            # Extrapolate from overall direction of staff
+            return staff[0,1] + ((staff[0,0] - x)
+                                 * (staff[0,1] - staff[-1,1])
+                                 / (staff[-1,0] - staff[0,0]))
+        elif (staff[:,0] > x).all():
+            return staff[-1,1] + ((x - staff[-1,0])
+                                  * (staff[-1,1] - staff[0,1])
+                                  / (staff[-1,0] - staff[0,0]))
+        # First staff point past x
+        past_x = np.argmin(staff[:, 0] < x)
+        if staff[past_x, 0] == x:
+            return staff[past_x, 1]
+        else:
+            assert past_x > 0
+            pre_x = past_x - 1
+            return staff[past_x, 1] + ((x - staff[pre_x, 0])
+                                        * (staff[past_x,1] - staff[pre_x,1])
+                                        / (staff[past_x,0] - staff[pre_x,0]))
     def show(self):
         import pylab as p
         for staff in self():
