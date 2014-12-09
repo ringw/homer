@@ -9,6 +9,12 @@ labeled.index = multiindex
 labeled = labeled.fillna(0)
 labeled.index.names = 'method doc noise'.split()
 labeled.columns = 'sens spec time'.split()
+labeled = labeled.ix[~pandas.Series(labeled.index.get_level_values('method'),index=labeled.index).str.match('miyao|carter|hough_1deg|roach')]
+labeled['method2']=pandas.Series(labeled.index.get_level_values('method'),index=labeled.index).str.replace('hough_pi250_201','hough')
+labeled.set_index('method2',append=True,inplace=True)
+labeled.index = labeled.index.droplevel('method')
+labeled.index = labeled.index.reorder_levels(['method2','doc','noise'])
+labeled.index.names = ['method','doc','noise']
 
 unlabeled = pandas.DataFrame.from_csv(gzip.open('staves.csv.gz'))
 ul_index = pandas.Series(list(unlabeled.index)).str.extract(
@@ -16,6 +22,12 @@ ul_index = pandas.Series(list(unlabeled.index)).str.extract(
 ul_index.native.fillna('', inplace=True)
 ul_multiindex = pandas.MultiIndex.from_tuples(ul_index.apply(tuple, axis=1), names=ul_index.columns)
 unlabeled.index = ul_multiindex
+unlabeled = unlabeled.ix[~pandas.Series(unlabeled.index.get_level_values('method'),index=unlabeled.index).str.match('miyao|carter|hough_1deg|roach')]
+unlabeled['method2']=pandas.Series(map(str,unlabeled.index.get_level_values('method')),index=unlabeled.index).str.replace('hough_pi250_201','hough')
+unlabeled.set_index('method2',append=True,inplace=True)
+unlabeled.index = unlabeled.index.droplevel('method')
+unlabeled.index = unlabeled.index.reorder_levels(['method2','native','doc','noise','staffpage'])
+unlabeled.index.names = ['method','native','doc','noise','staffpage']
 
 # Remove noise conditions which remove too many of the runs
 dummy = unlabeled.xs('dummy')
@@ -71,6 +83,26 @@ def scatter_plot(score, color='.'):
     l, ul = np.array(score.T)
     pylab.plot(*((l, ul) + (color,) * (color is not None)))
 
+def scatter_summary(m):
+    import pylab
+    m = m.unstack('method').mean(0)
+    methods = m.spec.index
+    for method in methods:
+        pylab.plot(m.spec.ix[method], m.sens.ix[method], 'o')
+    pylab.legend(methods, numpoints=1, loc='lower left')
+    pylab.xlim([0.7,1])
+    pylab.ylim([0.7,1])
+
+def scatter_method(m):
+    import pylab
+    m = m.unstack('method').mean(0)
+    methods = m.spec.index
+    for method in methods:
+        pylab.plot(m.spec.ix[method], m.sens.ix[method], 'o')
+    pylab.legend(methods, numpoints=1, loc='lower left')
+    pylab.xlim([0.7,1])
+    pylab.ylim([0.7,1])
+
 if __name__ == '__main__':
     import pylab
     pylab.figure()
@@ -83,6 +115,6 @@ if __name__ == '__main__':
     l, ul = np.array(f1.T)
     m, b = np.polyfit(l, ul, 1)
     pylab.plot([0, 1], [b, b+m], 'r')
-    pylab.savefig('gamera_labeled_vs_unlabeled_scatter.png')
+    pylab.savefig('gamera_labeled_vs_unlabeled_scatter.pdf')
 
     scores.groupby(scores.index.get_level_values('method')).apply(lambda x: x.mean(axis=0)).to_csv('gamera_performance.csv')
