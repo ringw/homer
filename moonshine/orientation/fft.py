@@ -5,6 +5,8 @@ import numpy as np
 from reikna.core import Type
 import reikna.fft
 
+prg = build_program("fft_peak")
+
 class FFTRotation(base.BaseRotation):
     def patch_rotation_numpy(self, patch_size=256, step_size=None):
         if step_size is None:
@@ -23,22 +25,27 @@ class FFTRotation(base.BaseRotation):
         # all but a band around there.
         # For good measure, patch_size should be at least 10*staff_dist.
         # (it actually needs to be >> 6*staff_dist)
-        for patch_y in xrange(orientations.shape[0]):
-            for patch_x in xrange(orientations.shape[1]):
-                patch = self.page.byteimg[patch_y*patch_size:(patch_y+1)*patch_size,
-                                     patch_x*patch_size:(patch_x+1)*patch_size]
+        for i, patch_y in enumerate(patch_y0):
+            for j, patch_x in enumerate(patch_x0):
+                patch = np.zeros((patch_size, patch_size), np.complex64)
+                patch_img = self.page.byteimg[patch_y:patch_y+patch_size,
+                                              patch_x:patch_x+patch_size]
+                patch[:patch_img.shape[0], :patch_img.shape[1]] = patch_img
                 patch_fft = np.abs(np.fft.fft2(patch))
                 fft_top = patch_fft[:patch_size/2]
-                fft_top[:int(self.page.staff_dist*2.5)] = 0
-                fft_top[int(self.page.staff_dist*3.5):] = 0
+                fft_y, fft_x = np.ix_(np.arange(patch_size/2),
+                                      np.r_[np.arange(patch_size/2),
+                                            np.arange(1-patch_size/2, 0)])
+                fft_top[fft_y**2 + fft_x**2 <=
+                          (self.page.staff_dist*2.5)**2] = 0
                 peak_y, peak_x = np.unravel_index(np.argmax(fft_top),
                                                   fft_top.shape)
                 if peak_x > patch_size/2:
                     peak_x -= patch_size
                 if peak_y:
-                    orientations[patch_y, patch_x] = np.arctan2(peak_x, peak_y)
+                    orientations[i, j] = np.arctan2(peak_x, peak_y)
                 else:
-                    mask[patch_y, patch_x] = True
+                    mask[i, j] = True
         return np.ma.masked_array(orientations, mask)
 
     def patch_rotation(self, patch_size=256, step_size=None):
@@ -62,24 +69,20 @@ class FFTRotation(base.BaseRotation):
                     np.int32(self.page.img.shape[1]),
                     patch, global_size=patch.shape[::-1])
                 our_fft(patch_fft, patch)
-                fft_top = np.abs(patch_fft[:patch_size/2].get())
-                fft_top[:int(self.page.staff_dist*2.5)] = 0
-                fft_top[int(self.page.staff_dist*3.5):] = 0
-                peak_y, peak_x = np.unravel_index(np.argmax(fft_top),
-                                                  fft_top.shape)
-
-                maxval = np.amax(fft_top)
-                fft_top[max(0, peak_y-self.page.staff_thick*2)
-                            : min(fft_top.shape[0], peak_y+self.page.staff_thick*2),
-                        max(0, peak_x-self.page.staff_thick*2)
-                            : min(fft_top.shape[1], peak_x+self.page.staff_thick*2)] = 0
-                bgval = np.amax(fft_top)
-                if bgval > 0:
-                    score[i, j] = maxval / bgval
+                peak = thr.empty_like(Type(np.int16, (2,)))
+                peak.fill(0)
+                prg.fft_peak(patch_fft,
+                             np.float32(self.page.staff_dist * 2.5),
+                             peak,
+                             global_size=(patch_fft.shape[1],
+                                          patch_fft.shape[0]/2))
+                peak_y, peak_x = peak.get()
+                maxval = patch_fft[peak_y, peak_x].get().item()
+                score[i, j] = np.abs(maxval)
 
                 if peak_x > patch_size/2:
                     peak_x -= patch_size
-                if peak_y:
+                if peak_x or peak_y:
                     orientations[i, j] = np.arctan2(peak_x, peak_y)
                 else:
                     mask[i, j] = True
@@ -96,7 +99,8 @@ class FFTRotation(base.BaseRotation):
         patches = self.patch_rotation(patch_size, 128)
         thetas = patches[:,:,0]
         scores = patches[:,:,1]
-        score_cutoff = min(1.5, np.ma.median(scores) * 2)
+        score_cutoff = np.ma.median(scores) / 2
+        print thetas.compressed()
         rotation = float(np.ma.mean(thetas[scores >= score_cutoff]))
         if np.isnan(rotation):
             return 0.0
