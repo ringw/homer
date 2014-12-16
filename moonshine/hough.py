@@ -64,7 +64,7 @@ def houghpeaks(H, npeaks=2000, thresh=1.0, invalidate=(1, 1)):
         Hmax[tmin:tmax, rmin:rmax] = 0
     if len(peaks) < npeaks:
         logger.debug("houghpeaks returned %d peaks", len(peaks))
-    return np.array(peaks).reshape((-1, 2))
+    return np.array(peaks).reshape((-1, 2)).astype(int)
 
 # Reikna doesn't have a sort function?
 def sort_segments(segments):

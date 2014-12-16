@@ -68,6 +68,9 @@ class BaseStaves(object):
         assert refine_staves or remove_staves, 'Need something to do'
         if staves is None:
             staves = self()
+        if not len(staves):
+            # This function does nothing if there are no staves
+            return staves, self.page.img.copy()
         if img is None:
             img = self.page.img
         if refine_staves:
@@ -167,6 +170,8 @@ class BaseStaves(object):
         return staff_points
 
     def extend_staves(self):
+        if not len(self.staves):
+            return # This does nothing if there are no staves
         new_staves = [self.extend_staff(i) for i in xrange(len(self.staves))]
         num_segments = max([s.shape[0] for s in new_staves])
         staves = np.ma.empty((len(new_staves), num_segments, 2),
