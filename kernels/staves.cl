@@ -18,7 +18,8 @@ inline int refine_staff_center_y(int staff_thick, int staff_dist,
     for (int y = ymin; y <= ymax; y++) {
         UCHAR is_dark[5];
         UCHAR is_line[5];
-        int y_center_ests[5];
+        int y_center_est_sum = 0;
+        int num_estimates = 0;
         for (int line = 0; line <= 4; line++) {
             is_dark[line] = 0;
             int y_line = y + staff_dist * (line - 2);
@@ -33,24 +34,22 @@ inline int refine_staff_center_y(int staff_thick, int staff_dist,
                 }
             }
             // Update y_line using known dark run
-            y_line = line_min + (line_max + 1 - line_min)/2;
-            is_line[line] = ~img[x_byte + w * (y_line - staff_thick)];
-            is_line[line] &= ~img[x_byte + w * (y_line + staff_thick)];
-            is_line[line] &= is_dark[line];
+            if (line_max > 0 && line_min < h) {
+                y_line = line_min + (line_max + 1 - line_min)/2;
+                is_line[line] = ~img[x_byte + w * (y_line - staff_thick)];
+                is_line[line] &= ~img[x_byte + w * (y_line + staff_thick)];
+                is_line[line] &= is_dark[line];
 
-            y_center_ests[line] = y_line + staff_dist * (2 - line);
+                y_center_est_sum += y_line + staff_dist * (2 - line);
+                num_estimates++;
+            }
+            else {
+                is_line[line] = 0;
+            }
         }
-        int y_center_est = y_center_ests[2];
-        // Median calculation
-        for (int i = 0; i <= 2; i++) {
-            int next_ind = -1;
-            for (int l = 0; l < 5; l++)
-                if (0 <= y_center_ests[l] && y_center_ests[l] < y_center_est) {
-                    y_center_est = y_center_ests[l];
-                    next_ind = l;
-                }
-            y_center_ests[next_ind] = -1;
-        }
+        int y_center_est = num_estimates
+                         ? y_center_est_sum / num_estimates
+                         : -1;
 
         // XXX: this is terrible
         UCHAR atleast2_line = (is_line[0] & (  is_line[1] | is_line[2]
@@ -66,7 +65,8 @@ inline int refine_staff_center_y(int staff_thick, int staff_dist,
             if (is_staff & mask)
                 agreement++;
         if (agreement > num_agree
-            || (agreement == num_agree && ABS(y - y_center_est) < ABS(best_y - y_center_est))) {
+            || (agreement == num_agree
+                  && ABS(y - y_center_est) < ABS(best_y - y_center_est))) {
             best_y = y;
             num_agree = agreement;
         }
