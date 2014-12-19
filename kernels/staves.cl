@@ -1,13 +1,17 @@
+// Search x in [x_byte*8, (x_byte+1)*8) and y in
+// [y0-staff_search, y0+staff_search] for a staff center estimate.
+// The refined y value has the most single-pixel columns matching the filter.
+// Returns refined y value, or -1 if no y value in the range matches the filter.
 inline int refine_staff_center_y(int staff_thick, int staff_dist,
+                                 int staff_search,
                                  GLOBAL_MEM const UCHAR *img,
                                  int w, int h,
                                  int x_byte, int y0) {
     if (! (0 <= y0 - staff_dist*3 && y0 + staff_dist*3 < h))
         return -1;
     // Search y in [ymin, ymax]
-    int dy = MAX(1, staff_thick);
-    int ymin = y0 - dy;
-    int ymax = y0 + dy;
+    int ymin = y0 - staff_search;
+    int ymax = y0 + staff_search;
 
     // Staff criteria: must have dark pixels at y and +- staff_dist * [1,2]
     // At least 2 of these points, must have light pixels at both
@@ -88,7 +92,7 @@ KERNEL void staff_center_filter(GLOBAL_MEM const UCHAR *img,
     
     UCHAR staff_byte = img[x + y * w];
 
-    if (refine_staff_center_y(staff_thick, staff_dist, img, w, h, x, y) == y)
+    if (refine_staff_center_y(staff_thick, staff_dist, 0, img, w, h, x, y) == y)
         staff_center[x + y * w] = staff_byte;
     else
         staff_center[x + y * w] = 0;
@@ -130,6 +134,7 @@ KERNEL void staff_removal(GLOBAL_MEM const int2 *staves,
     for (int byte_x = p0.x / 8; byte_x <= p1.x / 8 && byte_x < w; byte_x++) {
         int y = p0.y + (p1.y - p0.y) * (byte_x*8 - p0.x) / (p1.x - p0.x);
         int y_refined = refine_staff_center_y(staff_thick, staff_dist,
+                                              staff_thick,
                                               img, w, h, byte_x, y);
 
         int lines[5] = {y_refined - staff_dist*2,
