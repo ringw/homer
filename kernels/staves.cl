@@ -29,7 +29,8 @@ inline int refine_staff_center_y(int staff_thick, int staff_dist,
             int y_line = y + staff_dist * (line - 2);
             int line_min = h;
             int line_max = 0;
-            for (int y_ = y_line-staff_thick; y_ <= y_line+staff_thick; y_++) {
+            int dy = staff_thick*2;
+            for (int y_ = y_line-dy; y_ <= y_line+dy; y_++) {
                 UCHAR byte = img[x_byte + w * y_];
                 if (byte) {
                     is_dark[line] |= byte;
@@ -38,18 +39,15 @@ inline int refine_staff_center_y(int staff_thick, int staff_dist,
                 }
             }
             // Update y_line using known dark run
-            if (line_max > 0 && line_min < h) {
+            if (line_min > y_line-dy || line_max < y_line+dy) {
                 y_line = line_min + (line_max + 1 - line_min)/2;
-                is_line[line] = ~img[x_byte + w * (y_line - staff_thick)];
-                is_line[line] &= ~img[x_byte + w * (y_line + staff_thick)];
-                is_line[line] &= is_dark[line];
 
                 y_center_est_sum += y_line + staff_dist * (2 - line);
                 num_estimates++;
             }
-            else {
-                is_line[line] = 0;
-            }
+
+            is_line[line] = ~img[x_byte + w * (y_line - staff_thick*2)];
+            is_line[line] &= ~img[x_byte + w * (y_line + staff_thick*2)];
         }
         int y_center_est = num_estimates
                          ? y_center_est_sum / num_estimates
