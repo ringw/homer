@@ -54,13 +54,16 @@ class Page(object):
         self.staves()
         barlines.get_barlines(self)
         systems.build_systems(self)
-        staffboundary.boundaries(self)
 
     def process(self):
         self.preprocess()
         self.structure()
+
+    def get_notepitch_score(self):
+        staffboundary.boundaries(self)
         measure.build_bars(self)
-        #self.notepitch_score = note.get_notepitch_score(self)
+        self.notepitch_score = note.get_notepitch_score(self)
+        return self.notepitch_score
 
     def show(self, show_structure=True, show_elements=False):
         import pylab
@@ -73,7 +76,7 @@ class Page(object):
             self.staves.show()
             barlines.show_barlines(self)
             systems.show_system_barlines(self)
-            staffboundary.show_boundaries(self)
+            #staffboundary.show_boundaries(self)
         if show_elements:
             for barsystem in self.bars:
                 for system_measure in barsystem:
