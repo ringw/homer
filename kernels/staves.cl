@@ -29,7 +29,7 @@ inline int refine_staff_center_y(int staff_thick, int staff_dist,
             int y_line = y + staff_dist * (line - 2);
             int line_min = h;
             int line_max = 0;
-            int dy = staff_thick*2;
+            int dy = staff_thick;
             for (int y_ = y_line-dy; y_ <= y_line+dy; y_++) {
                 UCHAR byte = img[x_byte + w * y_];
                 if (byte) {
