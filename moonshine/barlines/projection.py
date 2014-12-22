@@ -17,19 +17,20 @@ def staff_barlines(page, staff_num):
     # Barline must take up at least 80% of the vertical space,
     # and there should be background (few black pixels) around it
     is_barline = staff_proj > page.staff_dist * 4 * 0.8
-    is_background = gap_proj < page.staff_dist/2
-    labels, num_labels = util.label_1d(is_barline)
+    is_background = gap_proj <= page.staff_dist
+    is_in_barline = util.closing_1d(is_barline, page.staff_thick)
+    labels, num_labels = util.label_1d(is_in_barline)
     if not labels.any():
         return np.array([], int)
     barlines = []
     for label in xrange(1, num_labels+1):
         pos, = np.where(labels == label)
-        if pos[-1] - pos[0] > page.staff_thick*3:
+        if pos[-1] - pos[0] > page.staff_dist * 1.5:
             continue
-        left_bg = is_background[max(0, pos[0] - page.staff_dist) : pos[0]]
+        left_bg = is_background[max(0, pos[0] - page.staff_dist/2) : pos[0]]
         right_bg = is_background[pos[-1] : min(len(gap_proj),
-                                               pos[-1] + page.staff_dist)]
-        if left_bg.any() and right_bg.any():
+                                               pos[-1] + page.staff_dist/2)]
+        if left_bg.sum() >= len(left_bg)/2 and right_bg.sum() >=len(right_bg)/2:
             barlines.append(np.mean(pos).astype(int))
 
     # Add a barline at the start and end of the staff if necessary
