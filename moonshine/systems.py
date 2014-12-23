@@ -8,7 +8,8 @@ def initialize_systems(page):
     page.systems = []
     for i, barlines in enumerate(page.barlines):
         system_bars = []
-        for barline_x in barlines:
+        for barline_range in barlines:
+            barline_x = int(np.mean(barline_range))
             staff_y = page.staves.staff_y(i, barline_x)
             system_bars.append([[barline_x, staff_y - page.staff_dist*2],
                                 [barline_x, staff_y + page.staff_dist*2]])

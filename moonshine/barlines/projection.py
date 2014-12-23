@@ -31,16 +31,17 @@ def staff_barlines(page, staff_num):
         right_bg = is_background[pos[-1] : min(len(gap_proj),
                                                pos[-1] + page.staff_dist/2)]
         if left_bg.sum() >= len(left_bg)/2 and right_bg.sum() >=len(right_bg)/2:
-            barlines.append(np.mean(pos).astype(int))
+            barlines.append([pos[0], pos[-1]])
+    barlines = np.array(barlines, int)
 
     # Add a barline at the start and end of the staff if necessary
     if len(barlines):
         staff = page.staves()[staff_num]
-        if barlines[0] - staff[0,0] > page.staff_dist*2:
-            barlines = np.concatenate([[staff[0,0]], barlines])
-        if staff[1,0] - barlines[-1] > page.staff_dist*2:
-            barlines = np.concatenate([barlines, [staff[1,0]]])
-    return np.array(barlines, int)
+        if barlines[0, 0] - staff[0,0] > page.staff_dist*2:
+            barlines = np.concatenate([[[staff[0,0], staff[0,0]]], barlines])
+        if staff[1,0] - barlines[-1, 1] > page.staff_dist*2:
+            barlines = np.concatenate([barlines, [[staff[1,0], staff[1,0]]]])
+    return barlines
 
 def get_barlines(page):
     page.barline_filter = page.staves.nostaff()
@@ -52,7 +53,8 @@ def get_barlines(page):
 def show_barlines(page):
     import pylab
     for i, barlines in enumerate(page.barlines):
-        for barline_x in barlines:
+        for barline_range in barlines:
+            barline_x = int(barline_range.mean())
             staff_y = page.staves.staff_y(i, barline_x)
             pylab.plot([barline_x, barline_x],
                        [staff_y - page.staff_dist*2,
