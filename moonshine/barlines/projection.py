@@ -53,10 +53,33 @@ def get_barlines(page):
 def show_barlines(page):
     import pylab
     for i, barlines in enumerate(page.barlines):
-        for barline_range in barlines:
+        for j, barline_range in enumerate(barlines):
             barline_x = int(barline_range.mean())
             staff_y = page.staves.staff_y(i, barline_x)
-            pylab.plot([barline_x, barline_x],
-                       [staff_y - page.staff_dist*2,
-                        staff_y + page.staff_dist*2],
-                       color='g')
+            repeats = page.repeats[i][j]
+            if repeats:
+                # Draw thick bar
+                pylab.fill_between([barline_x - page.staff_dist/4,
+                                    barline_x + page.staff_dist/4],
+                                   staff_y - page.staff_dist*2,
+                                   staff_y + page.staff_dist*2,
+                                   color='g')
+                for letter, sign in (('L', -1), ('R', +1)):
+                    if letter in repeats:
+                        # Draw thin bar
+                        bar_x = barline_x + sign * page.staff_dist/2
+                        pylab.plot([bar_x, bar_x],
+                                   [staff_y - page.staff_dist*2,
+                                    staff_y + page.staff_dist*2],
+                                   color='g')
+                        for y in (-1, +1):
+                            circ = pylab.Circle((bar_x + sign*page.staff_dist/2,
+                                                 staff_y + y*page.staff_dist/2),
+                                                page.staff_dist/4,
+                                                color='g')
+                            pylab.gcf().gca().add_artist(circ)
+            else:
+                pylab.plot([barline_x, barline_x],
+                           [staff_y - page.staff_dist*2,
+                            staff_y + page.staff_dist*2],
+                           color='g')

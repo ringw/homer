@@ -2,7 +2,8 @@ import numpy as np
 from .gpu import *
 from . import image, bitimage, settings
 from . import staffsize, orientation, staves
-from . import barlines, systems, staffboundary, measure#, note
+from . import barlines, repeats, systems
+from . import staffboundary, measure#, note
 
 class Page(object):
     def __init__(self, image_data):
@@ -53,6 +54,7 @@ class Page(object):
             self.preprocess()
         self.staves()
         barlines.get_barlines(self)
+        repeats.get_repeats(self)
         systems.build_systems(self)
 
     def process(self):
