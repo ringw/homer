@@ -240,4 +240,5 @@ class BaseStaves(object):
         for staff in self():
             xs = staff[:, 0].compressed()
             ys = staff[:, 1].compressed()
-            p.plot(xs, ys, 'g')
+            for line in range(-2, 3):
+                p.plot(xs, ys + self.page.staff_dist * line, 'g')
