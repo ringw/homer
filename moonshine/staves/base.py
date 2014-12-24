@@ -100,9 +100,14 @@ class BaseStaves(object):
             if not (refined_staves != -1).any():
                 return np.ma.array(np.empty([0, 2], np.int32)), nostaff_img
             new_staves = map(self.remove_staff_gaps, refined_staves.get())
+            num_points = map(len, new_staves)
+            cutoff = np.mean(num_points) / 10.0
+            keep_staff = [n >= cutoff for n in num_points]
+            new_staves = [s for k,s in zip(keep_staff, new_staves) if k]
+            num_points = [p for k,p in zip(keep_staff, num_points) if p]
             # Must move all (-1, -1) points to end of each staff
-            num_points = max([staff.shape[0] for staff in new_staves])
-            staves_copy = np.empty((staves.shape[0], num_points, 2), np.int32)
+            max_points = max(num_points)
+            staves_copy = np.empty((len(new_staves), max_points, 2), np.int32)
             mask = np.ones_like(staves_copy, dtype=bool)
             for i, staff in enumerate(new_staves):
                 # Clean up single spurious points (requires scipy)
