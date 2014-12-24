@@ -7,6 +7,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-p", "--page", type=int)
 parser.add_argument("-s", "--show", dest="show", action="store_true")
 parser.add_argument("-S", "--no-show", dest="show", action="store_false")
+parser.add_argument("-i", "--interactive", dest="int", action="store_true")
 parser.set_defaults(show=True)
 parser.add_argument("path", type=str, help="path to scanned music")
 
@@ -24,4 +25,6 @@ else:
         page.show()
 if args.show:
     import pylab as p
+    if args.int:
+        p.ion()
     p.show()
