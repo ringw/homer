@@ -17,7 +17,7 @@ class FilteredHoughStaves(BaseStaves):
                               thetas=self.thetas)
         peaks = hough.houghpeaks(bins,
                                  invalidate=(10000,
-                                             self.page.staff_dist*12
+                                             self.staff_dist*12
                                                 // self.rhores),
                                  thresh=self.page.orig_size[1] / 10.0)
         theta = self.thetas[peaks[:, 0]]
@@ -45,7 +45,7 @@ class FilteredHoughStaves(BaseStaves):
             seg = seg.compressed().reshape([-1, 2])
             pylab.plot(seg[:, 0], seg[:, 1], 'y')
 
-    def get_staves(self):
+    def find_staves(self):
         self.staves = self.get_staff_segments()
         self.extend_staves()
         return self.staves

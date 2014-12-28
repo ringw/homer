@@ -18,12 +18,12 @@ class BaseStaves(object):
         self.page = page
 
     def staff_center_filter(self):
-        output = thr.empty_like(self.page.img)
-        prg.staff_center_filter(self.page.img,
-                                np.int32(self.page.staff_thick),
-                                np.int32(self.page.staff_dist),
+        output = thr.empty_like(self.img)
+        prg.staff_center_filter(self.img,
+                                np.int32(self.staff_thick),
+                                np.int32(self.staff_dist),
                                 output,
-                                global_size=self.page.img.shape[::-1])
+                                global_size=self.img.shape[::-1])
         return output
 
     def __call__(self):
@@ -38,12 +38,53 @@ class BaseStaves(object):
             self.remove_staves()
         return self.nostaff_img
 
-    def get_staves(self):
+    def find_staves(self):
+        """ Concrete implementations should assume a single value has already
+            been set for self.staff_dist """
         NotImplementedError("Use a concrete Staves subclass.")
+
+    def get_staves(self):
+        self.staff_thick = self.page.staff_thick # Always single value
+        self.img = self.page.img
+        if type(self.page.staff_dist) is int:
+            self.staff_dist = self.page.staff_dist
+            self.staves = self.find_staves()
+            self.staff_dist = np.array(
+                                  [self.staff_dist for staff in self.staves],
+                                  np.int32)
+        else:
+            staff_dists = []
+            all_staves = []
+            self.staves = None
+            for sd in self.page.staff_dist:
+                if self.staves is not None:
+                    # Remove previously detected staves
+                    _, self.img = self.refine_and_remove_staves(
+                                    refine_staves=False,
+                                    remove_staves=True)
+                self.staff_dist = sd
+                self.staves = self.find_staves()
+                all_staves.extend(self.staves)
+                staff_dists.extend(sd for staff in self.staves)
+            self.staff_dist = np.array(staff_dists, np.int32)
+            self.img = self.page.img
+            all_staves = [s.compressed().reshape((-1, 2)) for s in all_staves]
+            num_points = max(map(len, all_staves))
+            new_staves = np.ma.zeros((len(all_staves), num_points, 2), int)
+            new_staves.mask = np.ones_like(new_staves, bool)
+            for i, staff in enumerate(all_staves):
+                new_staves[i, 0:len(staff)] = staff
+                new_staves.mask[i, 0:len(staff)] = False
+            # Sort by mean y value
+            staff_order = np.argsort(np.ma.mean(new_staves[:,1], axis=1))
+            new_staves = new_staves[staff_order]
+            self.staff_dist = self.staff_dist[staff_order]
+            self.staves = new_staves
+        return self.staves
 
     def remove_staff_gaps(self, staff, max_gap=None):
         if max_gap is None:
-            max_gap = 8 * self.page.staff_dist
+            max_gap = 8 * self.staff_dist
 
         if hasattr(staff, 'compressed'):
             staff = staff.compressed().reshape((-1, 2))
@@ -70,9 +111,9 @@ class BaseStaves(object):
             staves = self()
         if not len(staves):
             # This function does nothing if there are no staves
-            return staves, self.page.img.copy()
+            return staves, self.img.copy()
         if img is None:
-            img = self.page.img
+            img = self.img
         if refine_staves:
             refined_num_points = np.int32(self.page.orig_size[1] // 8)
             refined_staves = thr.empty_like(Type(np.int32,
@@ -86,9 +127,13 @@ class BaseStaves(object):
         else:
             nostaff_img = img
             refined_num_points = np.int32(-refined_num_points)
+        staff_dist = np.atleast_1d(self.staff_dist)
+        assert not (1 < len(staff_dist) < len(staves))
+        if len(staff_dist) == 1:
+            staff_dist = np.repeat(staff_dist, len(staves))
         prg.staff_removal(thr.to_device(staves.filled().astype(np.int32)),
-                          np.int32(self.page.staff_thick+1),
-                          np.int32(self.page.staff_dist),
+                          np.int32(self.staff_thick+1),
+                          thr.to_device(staff_dist.astype(np.int32)),
                           nostaff_img,
                           np.int32(nostaff_img.shape[1]),
                           np.int32(nostaff_img.shape[0]),
@@ -101,7 +146,7 @@ class BaseStaves(object):
                 return np.ma.array(np.empty([0, 2], np.int32)), nostaff_img
             new_staves = map(self.remove_staff_gaps, refined_staves.get())
             num_points = map(len, new_staves)
-            cutoff = np.mean(num_points) / 10.0
+            cutoff = np.mean(num_points) / 4.0
             keep_staff = [n >= cutoff for n in num_points]
             new_staves = [s for k,s in zip(keep_staff, new_staves) if k]
             num_points = [p for k,p in zip(keep_staff, num_points) if p]
@@ -116,7 +161,7 @@ class BaseStaves(object):
                                  ' poor quality')
                 else:
                     staff[:, 1] = scipy_signal.medfilt(staff[:, 1],
-                                    -(-(self.page.staff_dist * 4 / 8) & -2) + 1)
+                                    -(-(self.staff_dist * 4 / 8) & -2) + 1)
                 staves_copy[i, :len(staff)] = staff
                 mask[i, :len(staff)] = 0
             order = np.argsort(staves_copy[:, 0, 1]) # sort by y0
@@ -131,20 +176,21 @@ class BaseStaves(object):
         self.staves, self.nostaff_img = self.refine_and_remove_staves(
                 remove_staves=True, refine_staves=refine_staves)
 
-    def extract_staff(self, staff, img=None, extract_lines=4):
-        if type(staff) is int:
-            staff = self()[staff]
+    def extract_staff(self, staff_num, img=None, extract_lines=4):
+        staff = self()[staff_num]
         if hasattr(staff, 'mask'):
             staff = staff.compressed().reshape([-1, 2])
         if img is None:
-            img = self.page.img
+            img = self.img
+        staff_dist = (self.staff_dist[staff_num]
+                       if isinstance(self.staff_dist, np.ndarray)
+                       else self.staff_dist)
         output = thr.empty_like(Type(np.uint8,
-                    (self.page.staff_dist*extract_lines + 1,
-                     self.page.orig_size[1]/8)))
+                    (staff_dist*extract_lines + 1, self.page.orig_size[1]/8)))
         output.fill(0)
         prg.extract_staff(thr.to_device(staff.astype(np.int32)),
                           np.int32(staff.shape[0]),
-                          np.int32(self.page.staff_dist),
+                          np.int32(staff_dist),
                           img,
                           np.int32(img.shape[1]),
                           np.int32(img.shape[0]),
@@ -208,9 +254,9 @@ class BaseStaves(object):
     def scaled_staff(self, staff_num):
         """ Scale each staff so that staff_dist ~= 6, and scale horizontally
             by a factor of 1 / max(1, staff_thick/2). """
-        scale_x = 1.0 / max(1, (self.page.staff_thick + 1) // 2)
-        scale_y = 6.0 / float(self.page.staff_dist)
-        extracted = self.extract_staff(staff_num, self.page.img)
+        scale_x = 1.0 / max(1, (self.staff_thick + 1) // 2)
+        scale_y = 6.0 / float(self.staff_dist)
+        extracted = self.extract_staff(staff_num, self.img)
         scaled_img = moonshine.bitimage.scale(extracted, scale_x, scale_y)
         return scaled_img[:24], scale_x, scale_y
 
@@ -242,8 +288,8 @@ class BaseStaves(object):
                                         / (staff[past_x,0] - staff[pre_x,0]))
     def show(self):
         import pylab as p
-        for staff in self():
+        for staff, sd in zip(self(), self.staff_dist):
             xs = staff[:, 0].compressed()
             ys = staff[:, 1].compressed()
             for line in range(-2, 3):
-                p.plot(xs, ys + self.page.staff_dist * line, 'g')
+                p.plot(xs, ys + sd * line, 'g')

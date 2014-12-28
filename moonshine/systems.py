@@ -7,12 +7,13 @@ def initialize_systems(page):
         barlines are a vertical line through the staff """
     page.systems = []
     for i, barlines in enumerate(page.barlines):
+        sd = page.staves.staff_dist[i]
         system_bars = []
         for barline_range in barlines:
             barline_x = int(np.mean(barline_range))
             staff_y = page.staves.staff_y(i, barline_x)
-            system_bars.append([[barline_x, staff_y - page.staff_dist*2],
-                                [barline_x, staff_y + page.staff_dist*2]])
+            system_bars.append([[barline_x, staff_y - sd*2],
+                                [barline_x, staff_y + sd*2]])
         barlines = np.array(system_bars, int)
         page.systems.append(dict(barlines=barlines, start=i, stop=i))
 
@@ -21,9 +22,10 @@ def verify_barlines(page, i, j, barlines):
         a line exists using hough_lineseg. """
     # Get a slice of the image which includes systems i through j
     assert i <= j
-    y0 = max(0, np.amin(page.staves()[i,:,1]) - page.staff_dist*3)
+    sd = page.staves.staff_dist[i:j+1].max()
+    y0 = max(0, np.amin(page.staves()[i,:,1]) - sd*3)
     y1 = min(page.img.shape[0],
-             page.staves()[j,:,1].max() + page.staff_dist*3)
+             page.staves()[j,:,1].max() + sd*3)
     # Gap between y0 and y1 must be a multiple of 8
     y1 += -(y1 - y0) & 7
     img_slice = page.img[y0:y1].copy()
@@ -38,7 +40,7 @@ def verify_barlines(page, i, j, barlines):
     t = np.arctan(-(slice_barlines[:,1,0] - slice_barlines[:,0,0]).astype(float)
                    / (slice_barlines[:,1,1] - slice_barlines[:,0,1]))
     rho = slice_barlines[:,0,0] * np.cos(t) + slice_barlines[:,0,1] * np.sin(t)
-    rhores = max(1, page.staff_dist / 4)
+    rhores = max(1, sd / 4)
     rhoval = (rho / rhores).astype(int) + 1
 
     # Try a range of theta and rho values around each predicted line segment
@@ -49,14 +51,14 @@ def verify_barlines(page, i, j, barlines):
     t = (t[:, None] + dt[None, :]).ravel()
     rhoval = (rhoval[:, None] + drho[None, :]).ravel()
     new_lines = hough.hough_lineseg_kernel(
-                    slice_T, rhoval, t, rhores, max_gap=page.staff_dist).get()
+                    slice_T, rhoval, t, rhores, max_gap=sd).get()
     best_lines = hough.hough_paths(new_lines)
     best_lines = best_lines[:, :, ::-1] # transpose
     best_lines[:, :, 1] += y0
     best_lines = best_lines[(best_lines[:,0,1] < page.staves()[i,:,1].min()
-                                                - page.staff_dist)
+                                                - sd)
                           & (best_lines[:,1,1] > page.staves()[j,:,1].max()
-                                                + page.staff_dist)]
+                                                + sd)]
     return best_lines
 def try_join_system(page, i):
     """ Try joining system i with the system below it.
@@ -72,7 +74,7 @@ def try_join_system(page, i):
     system1 = page.systems[i+1]['barlines']
     system0_x1 = system0[:,1,0]
     system1_x0 = system1[:,0,0]
-    pairs = util.merge(system0_x1, system1_x0, page.staff_dist)
+    pairs = util.merge(system0_x1, system1_x0, np.max(page.staff_dist))
     if len(pairs) == 0:
         return False
     ispair = (pairs >= 0).all(axis=1)

@@ -97,7 +97,7 @@ KERNEL void staff_center_filter(GLOBAL_MEM const UCHAR *img,
 }
 
 KERNEL void staff_removal(GLOBAL_MEM const int2 *staves,
-                          int staff_thick, int staff_dist,
+                          int staff_thick, GLOBAL_MEM const int *staff_dists,
                           GLOBAL_MEM UCHAR *img,
                           int w, int h,
                           GLOBAL_MEM int2 *refined_staves,
@@ -106,6 +106,7 @@ KERNEL void staff_removal(GLOBAL_MEM const int2 *staves,
     int num_staves = get_global_size(1);
     int segment_num = get_global_id(0);
     int staff_num = get_global_id(1);
+    int staff_dist = staff_dists[staff_num];
 
     int remove_staff = 1;
     if (refined_num_points < 0) {

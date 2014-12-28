@@ -18,7 +18,7 @@ def staff_dots(page, staff_num):
     # to perfect ellipse area
     width = bounds[:, 1] - bounds[:, 0] + 1
     height = bounds[:, 3] - bounds[:, 2] + 1
-    sd = page.staff_dist
+    sd = page.staves.staff_dist[staff_num]
     repeat_dot_size = ((sd/3 <= width) & (width <= sd*2/3)
                        & (sd/3 <= height) & (height <= sd*2/3))
     ellipse_area = np.pi * width * height / 4.0
@@ -28,15 +28,13 @@ def staff_dots(page, staff_num):
 
 def staff_repeats(page, staff_num):
     dots = staff_dots(page, staff_num).reshape((-1, 2, 2)).mean(axis=-1)
-    is_y = (np.min(np.abs(dots[:,1,None] - [[page.staff_dist*1.5,
-                                             page.staff_dist*2.5]]), axis=1)
-                   < page.staff_dist/3)
+    sd = page.staves.staff_dist[staff_num]
+    is_y = np.min(np.abs(dots[:,1,None] - [[sd*1.5, sd*2.5]]), axis=1) < sd/3
     repeats = []
     for barline in page.barlines[staff_num]:
         result = ''
-        for x, label in ((barline[0] - page.staff_dist/2, 'L'),
-                         (barline[1] + page.staff_dist/2, 'R')):
-            if (is_y & (np.abs(dots[:,0] - x) < page.staff_dist/3)).sum() == 2:
+        for x, label in ((barline[0] - sd/2, 'L'), (barline[1] + sd/2, 'R')):
+            if (is_y & (np.abs(dots[:,0] - x) < sd/3)).sum() == 2:
                 result += label
         repeats.append(result)
     return repeats
