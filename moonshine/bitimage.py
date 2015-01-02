@@ -54,19 +54,20 @@ def scale_image_gray(img, scale_x, scale_y=None, align=8):
     return out_img
 
 def repeat_kernel(img, kernel, numiter=1):
+    if numiter == 0:
+        return img
     temp_1 = thr.empty_like(img)
     temp_1.fill(0)
     if numiter > 1:
         temp_2 = thr.empty_like(img)
         temp_2.fill(0)
-    kernel(img, temp_1, global_size=img.shape[::-1], local_size=(16, 8))
+    kernel(img, temp_1, global_size=img.shape[::-1])
     for i in xrange(1, numiter, 2):
-        kernel(temp_1, temp_2, global_size=img.shape[::-1], local_size=(16, 8))
-        kernel(temp_2, temp_1, global_size=img.shape[::-1], local_size=(16, 8))
+        kernel(temp_1, temp_2, global_size=img.shape[::-1])
+        kernel(temp_2, temp_1, global_size=img.shape[::-1])
     if numiter % 2 == 1:
         return temp_1
     else:
-        kernel(temp_1, temp_2, global_size=img.shape[::-1], local_size=(16, 8))
         return temp_2
 
 def erode(img, numiter=1):
