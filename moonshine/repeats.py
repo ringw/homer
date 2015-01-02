@@ -6,8 +6,9 @@ from .gpu import *
 import numpy as np
 
 def staff_dots(page, staff_num):
+    sd = page.staves.staff_dist[staff_num]
     img = page.staves.extract_staff(staff_num, img=page.staves.nostaff())
-    img = bitimage.erode(img, page.staves.staff_dist[staff_num] / 6)
+    img = bitimage.erode(img, sd / 4)
     img = bitimage.as_hostimage(img)
     # Need a byte per pixel for components
     byteimg = thr.to_device(img)
@@ -15,16 +16,10 @@ def staff_dots(page, staff_num):
     classes, bounds, num_pixels = components.get_components(byteimg)
     bounds = bounds.get()
     num_pixels = num_pixels.get()
-    # Assume dots are an ellipse circumscribed in the bounds.
-    # The "roundness" score by comparing actual pixel count
-    # to perfect ellipse area
     width = bounds[:, 1] - bounds[:, 0] + 1
     height = bounds[:, 3] - bounds[:, 2] + 1
-    sd = page.staves.staff_dist[staff_num]
-    repeat_dot_size = ((width <= 4) & (height <= 4))
-    ellipse_area = np.pi * width * height / 4.0
-    roundness_score = 1.0 / (np.abs(num_pixels - ellipse_area) / ellipse_area)
-    potential_dots = bounds[(roundness_score >= 5) & repeat_dot_size]
+    repeat_dot_size = ((width <= sd / 3) & (height <= sd / 3))
+    potential_dots = bounds[repeat_dot_size]
     return potential_dots
 
 def staff_repeats(page, staff_num):
