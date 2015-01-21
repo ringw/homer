@@ -49,8 +49,8 @@ unlabeled = unlabeled.iloc[to_analyze]
 unlabeled = unlabeled.groupby(unlabeled.index).first()
 unlabeled.index = pandas.MultiIndex.from_tuples(unlabeled.index, names=ul_index.columns)
 
-# Must replace non-native with native
-unlabeled.index = unlabeled.index.droplevel('native')
+# Use non-native
+unlabeled = unlabeled.xs('', level='native')
 
 allstaves = unlabeled[unlabeled.index.get_level_values('staffpage') != 'page']
 allstaves.index = allstaves.index.droplevel('staffpage')
@@ -60,8 +60,10 @@ allstaves.index = pandas.MultiIndex.from_tuples(allstaves.index,
                                                 names=labeled.index.names)
 allstaves['score'] = allstaves.removed / allstaves.runs
 ul_sens = allstaves.score.fillna(0)
-ul_spec = unlabeled.xs('page', level='staffpage').score
-ul_spec = ul_spec.groupby(ul_spec.index).first()
+staffpage = unlabeled.index.get_level_values('staffpage')
+ul_staffscore = unlabeled.ix[staffpage != 'page']
+ul_spec = ul_staffscore.score.groupby(ul_staffscore.index.droplevel('staffpage')).mean()
+ul_spec[ul_spec < 0] = 0
 ul_spec.index = pandas.MultiIndex.from_tuples(ul_spec.index, names='method doc noise'.split())
 unlabeled = pandas.DataFrame(ul_sens).join(pandas.DataFrame(ul_spec))
 unlabeled.columns = ['sens', 'spec']
@@ -85,11 +87,11 @@ def scatter_plot(score, color='.'):
 
 def scatter_summary(m):
     import pylab
-    m = m.unstack('method').mean(0)
+    m = m.unstack('method').fillna(0).mean(0)
     methods = m.spec.index
     for method in methods:
         pylab.plot(m.spec.ix[method], m.sens.ix[method], 'o')
-    pylab.legend(methods, numpoints=1, loc='lower left')
+    pylab.legend(methods, numpoints=1, loc='upper left')
     pylab.xlim([0.7,1])
     pylab.ylim([0.7,1])
 
@@ -118,3 +120,6 @@ if __name__ == '__main__':
     pylab.savefig('gamera_labeled_vs_unlabeled_scatter.pdf')
 
     scores.groupby(scores.index.get_level_values('method')).apply(lambda x: x.mean(axis=0)).to_csv('gamera_performance.csv')
+
+    pylab.clf()
+    pylab.ion()
