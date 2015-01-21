@@ -129,7 +129,7 @@ class StablePathStaves(BaseStaves):
             line_pos = np.median(staff_line[:, 1])
             
             if (not cur_staff
-                or line_pos - last_line_pos < self.page.staff_dist*2):
+                or line_pos - last_line_pos < self.staff_dist*2):
                 cur_staff.append(staff_line)
             elif cur_staff:
                 # end of staff
@@ -156,7 +156,7 @@ class StablePathStaves(BaseStaves):
             keep_points[1:-1] = (np.diff(line[:-1, 1]) != 0) | (np.diff(line[1:, 1]) != 0)
             line_med = np.median(line[:,1])
             for i in xrange(len(line)):
-                keep_points[i] &= np.abs(line[i,1] - line_med) < self.page.staff_dist*2
+                keep_points[i] &= np.abs(line[i,1] - line_med) < self.staff_dist*2
             staff_center_lines.append(line[keep_points])
         width = max([len(line) for line in staff_center_lines])
         mask = map(lambda line:

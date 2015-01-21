@@ -1,13 +1,17 @@
+// Search x in [x_byte*8, (x_byte+1)*8) and y in
+// [y0-staff_search, y0+staff_search] for a staff center estimate.
+// The refined y value has the most single-pixel columns matching the filter.
+// Returns refined y value, or -1 if no y value in the range matches the filter.
 inline int refine_staff_center_y(int staff_thick, int staff_dist,
+                                 int staff_search,
                                  GLOBAL_MEM const UCHAR *img,
                                  int w, int h,
                                  int x_byte, int y0) {
     if (! (0 <= y0 - staff_dist*3 && y0 + staff_dist*3 < h))
         return -1;
     // Search y in [ymin, ymax]
-    int dy = MAX(1, staff_thick);
-    int ymin = y0 - dy;
-    int ymax = y0 + dy;
+    int ymin = y0 - staff_search;
+    int ymax = y0 + staff_search;
 
     // Staff criteria: must have dark pixels at y and +- staff_dist * [1,2]
     // At least 2 of these points, must have light pixels at both
@@ -18,13 +22,15 @@ inline int refine_staff_center_y(int staff_thick, int staff_dist,
     for (int y = ymin; y <= ymax; y++) {
         UCHAR is_dark[5];
         UCHAR is_line[5];
-        int y_center_ests[5];
+        int y_center_est_sum = 0;
+        int num_estimates = 0;
         for (int line = 0; line <= 4; line++) {
             is_dark[line] = 0;
             int y_line = y + staff_dist * (line - 2);
             int line_min = h;
             int line_max = 0;
-            for (int y_ = y_line-staff_thick; y_ <= y_line+staff_thick; y_++) {
+            int dy = staff_thick;
+            for (int y_ = y_line-dy; y_ <= y_line+dy; y_++) {
                 UCHAR byte = img[x_byte + w * y_];
                 if (byte) {
                     is_dark[line] |= byte;
@@ -33,24 +39,19 @@ inline int refine_staff_center_y(int staff_thick, int staff_dist,
                 }
             }
             // Update y_line using known dark run
-            y_line = line_min + (line_max + 1 - line_min)/2;
-            is_line[line] = ~img[x_byte + w * (y_line - staff_thick)];
-            is_line[line] &= ~img[x_byte + w * (y_line + staff_thick)];
-            is_line[line] &= is_dark[line];
+            if (line_min > y_line-dy || line_max < y_line+dy) {
+                y_line = line_min + (line_max + 1 - line_min)/2;
 
-            y_center_ests[line] = y_line + staff_dist * (2 - line);
+                y_center_est_sum += y_line + staff_dist * (2 - line);
+                num_estimates++;
+            }
+
+            is_line[line] = ~img[x_byte + w * (y_line - staff_thick*2)];
+            is_line[line] &= ~img[x_byte + w * (y_line + staff_thick*2)];
         }
-        int y_center_est = y_center_ests[2];
-        // Median calculation
-        for (int i = 0; i <= 2; i++) {
-            int next_ind = -1;
-            for (int l = 0; l < 5; l++)
-                if (0 <= y_center_ests[l] && y_center_ests[l] < y_center_est) {
-                    y_center_est = y_center_ests[l];
-                    next_ind = l;
-                }
-            y_center_ests[next_ind] = -1;
-        }
+        int y_center_est = num_estimates
+                         ? y_center_est_sum / num_estimates
+                         : -1;
 
         // XXX: this is terrible
         UCHAR atleast2_line = (is_line[0] & (  is_line[1] | is_line[2]
@@ -66,7 +67,8 @@ inline int refine_staff_center_y(int staff_thick, int staff_dist,
             if (is_staff & mask)
                 agreement++;
         if (agreement > num_agree
-            || (agreement == num_agree && ABS(y - y_center_est) < ABS(best_y - y_center_est))) {
+            || (agreement == num_agree
+                  && ABS(y - y_center_est) < ABS(best_y - y_center_est))) {
             best_y = y;
             num_agree = agreement;
         }
@@ -88,14 +90,14 @@ KERNEL void staff_center_filter(GLOBAL_MEM const UCHAR *img,
     
     UCHAR staff_byte = img[x + y * w];
 
-    if (refine_staff_center_y(staff_thick, staff_dist, img, w, h, x, y) == y)
+    if (refine_staff_center_y(staff_thick, staff_dist, 0, img, w, h, x, y) == y)
         staff_center[x + y * w] = staff_byte;
     else
         staff_center[x + y * w] = 0;
 }
 
 KERNEL void staff_removal(GLOBAL_MEM const int2 *staves,
-                          int staff_thick, int staff_dist,
+                          int staff_thick, GLOBAL_MEM const int *staff_dists,
                           GLOBAL_MEM UCHAR *img,
                           int w, int h,
                           GLOBAL_MEM int2 *refined_staves,
@@ -104,6 +106,7 @@ KERNEL void staff_removal(GLOBAL_MEM const int2 *staves,
     int num_staves = get_global_size(1);
     int segment_num = get_global_id(0);
     int staff_num = get_global_id(1);
+    int staff_dist = staff_dists[staff_num];
 
     int remove_staff = 1;
     if (refined_num_points < 0) {
@@ -130,6 +133,7 @@ KERNEL void staff_removal(GLOBAL_MEM const int2 *staves,
     for (int byte_x = p0.x / 8; byte_x <= p1.x / 8 && byte_x < w; byte_x++) {
         int y = p0.y + (p1.y - p0.y) * (byte_x*8 - p0.x) / (p1.x - p0.x);
         int y_refined = refine_staff_center_y(staff_thick, staff_dist,
+                                              staff_thick,
                                               img, w, h, byte_x, y);
 
         int lines[5] = {y_refined - staff_dist*2,

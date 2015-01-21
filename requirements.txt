@@ -1,0 +1,5 @@
+numpy >= 1.6.0
+scipy >= 0.13.0b1 # Highly recommended, will run without it
+reikna >= 0.6.4
+pyopencl >= 2014.1 # PyCUDA support may not be 100% up to date
+six >= 1.8.0

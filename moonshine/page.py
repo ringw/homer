@@ -2,7 +2,8 @@ import numpy as np
 from .gpu import *
 from . import image, bitimage, settings
 from . import staffsize, orientation, staves
-from . import barlines, systems, staffboundary, measure#, note
+from . import barlines, repeats, systems
+from . import staffboundary, measure#, note
 
 class Page(object):
     def __init__(self, image_data):
@@ -53,14 +54,18 @@ class Page(object):
             self.preprocess()
         self.staves()
         barlines.get_barlines(self)
+        repeats.get_repeats(self)
         systems.build_systems(self)
-        staffboundary.boundaries(self)
 
     def process(self):
         self.preprocess()
         self.structure()
+
+    def get_notepitch_score(self):
+        staffboundary.boundaries(self)
         measure.build_bars(self)
-        #self.notepitch_score = note.get_notepitch_score(self)
+        self.notepitch_score = note.get_notepitch_score(self)
+        return self.notepitch_score
 
     def show(self, show_structure=True, show_elements=False):
         import pylab
@@ -73,7 +78,7 @@ class Page(object):
             self.staves.show()
             barlines.show_barlines(self)
             systems.show_system_barlines(self)
-            staffboundary.show_boundaries(self)
+            #staffboundary.show_boundaries(self)
         if show_elements:
             for barsystem in self.bars:
                 for system_measure in barsystem:

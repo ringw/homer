@@ -40,3 +40,17 @@ def center_of_mass_1d(seq):
     seq_sums = np.bincount(seq, weights=seq_ind)[1:]
     seq_counts = np.bincount(seq)[1:]
     return seq_sums / seq_counts
+
+# Not necessarily an efficient algorithm
+def dilation_1d(seq, n_iter=1):
+    seq = seq.astype(bool)
+    oldseq = seq.copy()
+    for i in xrange(n_iter):
+        seq[:-1] |= oldseq[1:]
+        seq[1:] |= oldseq[:-1]
+        oldseq[:] = seq
+    return seq
+def erosion_1d(seq, n_iter=1):
+    return ~ dilation_1d(~seq.astype(bool), n_iter)
+def closing_1d(seq, n_iter=1):
+    return erosion_1d(dilation_1d(seq, n_iter), n_iter)
