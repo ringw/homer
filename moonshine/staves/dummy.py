@@ -47,7 +47,7 @@ class LabeledStaffRemoval(BaseStaves):
             self.nostaff_img = nostaff.img
         else:
             self.nostaff_img = nostaff
-        self.staffonly_img = self.nostaff_img.get() ^ self.page.bitimg
+        self.staffonly_img = self.nostaff_img.get() ^ self.page.img.get()
 
     def get_staves(self):
         any_pixel = self.staffonly_img.any(axis=1)
