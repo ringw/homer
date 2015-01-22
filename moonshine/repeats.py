@@ -8,7 +8,7 @@ import numpy as np
 def staff_dots(page, staff_num):
     sd = page.staves.staff_dist[staff_num]
     img = page.staves.extract_staff(staff_num, img=page.staves.nostaff())
-    img = bitimage.erode(img, sd / 4)
+    img = bitimage.erode(img, page.staff_thick)
     img = bitimage.as_hostimage(img)
     # Need a byte per pixel for components
     byteimg = thr.to_device(img)
@@ -29,9 +29,10 @@ def staff_repeats(page, staff_num):
     repeats = []
     for barline in page.barlines[staff_num]:
         result = ''
-        for x, label in ((barline[0] - sd/2, 'L'), (barline[1] + sd/2, 'R')):
-            if (is_y & (np.abs(dots[:,0] - x) < sd/3)).sum() == 2:
-                result += label
+        if barline[1] - barline[0] >= page.staff_thick*2:
+            for x, label in ((barline[0] - sd/2, 'L'), (barline[1] + sd/2, 'R')):
+                if (is_y & (np.abs(dots[:,0] - x) < sd/3)).sum() == 2:
+                    result += label
         repeats.append(result)
     return repeats
 
