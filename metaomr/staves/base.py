@@ -1,5 +1,5 @@
 from ..gpu import *
-import moonshine.bitimage, moonshine.util
+import metaomr.bitimage, metaomr.util
 import numpy as np
 import logging
 try:
@@ -201,10 +201,10 @@ class BaseStaves(object):
     def extend_staff(self, staff):
         """ Extract a piece of the staff along the center line, then extend
             the staff on either side until we reach a gap """
-        staff_img = moonshine.bitimage.as_hostimage(self.extract_staff(staff,
+        staff_img = metaomr.bitimage.as_hostimage(self.extract_staff(staff,
                                                         extract_lines=1))
         is_dark = staff_img.any(axis=0)
-        components, n_components = moonshine.util.label_1d(is_dark)
+        components, n_components = metaomr.util.label_1d(is_dark)
         staff_points = self()[staff].compressed().reshape((-1, 2))
         c0 = components[staff_points[0, 0]]
         if c0:
@@ -237,7 +237,7 @@ class BaseStaves(object):
     def score(self, labeled_staves):
         staff_med = np.ma.median(self()[..., 1], axis=1)
         label_med = np.ma.median(labeled_staves[..., 1], axis=1)
-        matches = moonshine.util.match(staff_med, label_med)
+        matches = metaomr.util.match(staff_med, label_med)
         was_found = np.zeros(len(label_med), bool)
         is_correct = (np.abs(staff_med - label_med[matches])
                         < self.page.staff_dist)
@@ -257,7 +257,7 @@ class BaseStaves(object):
         scale_x = 1.0 / max(1, (self.staff_thick + 1) // 2)
         scale_y = 6.0 / float(self.staff_dist)
         extracted = self.extract_staff(staff_num, self.img)
-        scaled_img = moonshine.bitimage.scale(extracted, scale_x, scale_y)
+        scaled_img = metaomr.bitimage.scale(extracted, scale_x, scale_y)
         return scaled_img[:24], scale_x, scale_y
 
     def get_staff(self, staff_num):

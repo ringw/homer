@@ -94,8 +94,8 @@ def classify(forest, page, img=None):
     return predict(forest, scaled_img)
 
 if __name__ == '__main__':
-    import moonshine
-    page, = moonshine.open('samples/chopin.pdf')
+    import metaomr
+    page, = metaomr.open('samples/chopin.pdf')
     page.process()
     f = load_forest('classifier.pkl')
     # Test for cycles
@@ -122,5 +122,5 @@ if __name__ == '__main__':
 #    C = classes.get()
 #    imshow(C, alpha=0.5)
 #    show()
-    import moonshine.components
-    c,b,s = moonshine.components.get_components(classes)
+    import metaomr.components
+    c,b,s = metaomr.components.get_components(classes)

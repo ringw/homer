@@ -1,10 +1,10 @@
 # Comparative staff detection and removal accuracy
 import env
-import moonshine
-from moonshine.staves import validation, hough, path, dummy
-from moonshine.staves.gamera_musicstaves import *
-from moonshine import orientation, staffsize
-from moonshine import page as page_mod
+import metaomr
+from metaomr.staves import validation, hough, path, dummy
+from metaomr.staves.gamera_musicstaves import *
+from metaomr import orientation, staffsize
+from metaomr import page as page_mod
 import datetime
 import gzip
 import numpy as np
@@ -78,8 +78,8 @@ try:
         gc.collect()
         fileid = os.path.basename(filename).split('-')[0]
         orig_file = re.sub('-nostaff', '', filename)
-        page, = moonshine.open(orig_file)
-        nostaff, = moonshine.open(filename)
+        page, = metaomr.open(orig_file)
+        nostaff, = metaomr.open(filename)
 
         staffsize.staffsize(page)
         if type(page.staff_dist) is tuple or page.staff_dist is None:

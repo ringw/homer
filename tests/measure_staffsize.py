@@ -1,6 +1,6 @@
 import env
-import moonshine
-from moonshine import staffsize
+import metaomr
+from metaomr import staffsize
 
 import gc
 import gzip
@@ -12,7 +12,7 @@ import sys
 out = ''
 for doc in sys.argv[1:]:
     docname = re.search('IMSLP([0-9]+)', doc).group(0)
-    pages = moonshine.open(doc)
+    pages = metaomr.open(doc)
     for i, page in enumerate(pages):
         name = docname + '-' + str(i)
         dark = staffsize.dark_runs(page.img)

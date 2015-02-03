@@ -4,7 +4,7 @@ from pyopencl import LocalMemory
 from . import bitimage, staffsize
 from scipy.optimize import minimize
 import glob
-import moonshine
+import metaomr
 
 prg = build_program(['clrand', 'kanungo'])
 
@@ -19,7 +19,7 @@ def load_ideal_set():
         ideal_imgs = glob.glob('resources/ideal_set/*.png')
         IDEAL_SET = []
         for img in ideal_imgs:
-            page, = moonshine.open(img)
+            page, = metaomr.open(img)
             IDEAL_SET.append(normalize_page(page))
     return IDEAL_SET
 

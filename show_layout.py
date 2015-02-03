@@ -1,4 +1,4 @@
-import moonshine
+import metaomr
 import argparse
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -13,7 +13,7 @@ parser.set_defaults(show=True)
 parser.add_argument("path", type=str, help="path to scanned music")
 
 args = parser.parse_args()
-score = moonshine.open(args.path)
+score = metaomr.open(args.path)
 if args.page is None:
     if args.output:
         from matplotlib.backends.backend_pdf import PdfPages

@@ -1,30 +1,29 @@
-# Moonshine
-Fast, robust optical music recognition using OpenCL
+# MetaOMR
+A fast, reliable sheet music informatics system
 
 ## Example
-    python show_structure.py samples/sonata.png
+    python show_layout.py samples/sonata.png
 
-This detects structural information about the score
+This detects layout-related information from the score
 (staves, measures, and staff systems)
 and overlays the result with the image using matplotlib.
 
-Work is in progress to output music using Music21. Currently, this does
-not include any timing information within each measure, since we aren't yet
-classifying note stems, beams, or dots.
-
 ## Features
-* Robust structure (staves, systems, and measures) detection
+* Robust layout (staves, systems, and measures) detection
 * Random forest glyph classification
 
 ## Goals
-* Glyph classification using semi-supervised learning on unlabeled scanned
-  sheet music available from IMSLP
+* Identifying multiple scans and editions of the same piece,
+  and automatically selecting higher-quality scans
+* Creating a high-level OMR accuracy benchmark
 
 ## Requirements
 * Python 2.7+
 * NumPy
-* PyOpenCL
+* Reikna
+* PyOpenCL or PyCUDA
 * PyFFT
 * Pillow, PyPDF, pylibtiff (PDF loading)
-* Pylab (displaying structure)
-* Music21
+* Pylab (for displaying data only)
+* SciPy (for Kanungo noise parameter estimation)
+* Music21 (for classified note export)

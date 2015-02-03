@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-import moonshine
-from moonshine.preprocessing import staffsize
+import metaomr
+from metaomr.preprocessing import staffsize
 import scipy.misc
 import scipy.ndimage
 import glob
@@ -31,7 +31,7 @@ for labels in labeled_data:
 
     label_img = scipy.misc.imread(labels)
     image_path = os.path.join('samples', os.path.basename(labels))
-    image, = moonshine.open(image_path)
+    image, = metaomr.open(image_path)
     staffsize.staffsize(image)
     assert image.staff_dist >= 8
     image_scale = 8.0 / image.staff_dist

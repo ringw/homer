@@ -1,12 +1,12 @@
-import moonshine
-from moonshine import preprocessing, forest, bitimage
+import metaomr
+from metaomr import preprocessing, forest, bitimage
 import scipy.misc
 import sys
 from timeit import Timer
 import numpy as np
 #from pylab import *
 
-image, = moonshine.open(sys.argv[1])
+image, = metaomr.open(sys.argv[1])
 preprocessing.process(image)
 assert type(image.staff_dist) is not tuple and image.staff_dist >= 8
 image_scale = 8.0 / image.staff_dist

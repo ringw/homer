@@ -1,5 +1,5 @@
-import moonshine
-from moonshine import preprocessing, forest, bitimage, opencl
+import metaomr
+from metaomr import preprocessing, forest, bitimage, opencl
 import gc
 from forest_config import COLOR_LABELS
 import sys
@@ -15,7 +15,7 @@ class_num = []
 
 for score in CORPUS:
     try:
-        score = moonshine.open(score)
+        score = metaomr.open(score)
     except Exception:
         continue
     while len(score):

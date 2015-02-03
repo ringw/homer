@@ -1,8 +1,8 @@
 # Test staff/system recognition on solo piano sheet music.
 # This assumes an even number of staves where systems are 2 staves each.
 import env
-import moonshine
-from moonshine import structure
+import metaomr
+from metaomr import structure
 import sys
 import gc
 import logging
@@ -11,7 +11,7 @@ good_pages = 0
 total_pages = 0
 for doc in sys.argv[1:]:
     logging.warn(doc)
-    pages = moonshine.open(doc)
+    pages = metaomr.open(doc)
     for i, page in enumerate(pages):
         structure.staffsize.staffsize(page)
         if type(page.staff_dist) is tuple:

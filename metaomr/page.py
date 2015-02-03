@@ -49,7 +49,7 @@ class Page(object):
         # lines may be slightly different
         staffsize.staffsize(self)
 
-    def structure(self):
+    def layout(self):
         if not hasattr(self, 'staff_dist'):
             self.preprocess()
         self.staves()
@@ -59,7 +59,7 @@ class Page(object):
 
     def process(self):
         self.preprocess()
-        self.structure()
+        self.layout()
 
     def get_notepitch_score(self):
         staffboundary.boundaries(self)
@@ -67,14 +67,14 @@ class Page(object):
         self.notepitch_score = note.get_notepitch_score(self)
         return self.notepitch_score
 
-    def show(self, show_structure=True, show_elements=False):
+    def show(self, show_layout=True, show_elements=False):
         import pylab
         from . import bitimage
         pylab.figure()
         pylab.imshow(bitimage.as_hostimage(self.img))
         pylab.ylim([self.orig_size[0], 0])
         pylab.xlim([0, self.orig_size[1]])
-        if show_structure:
+        if show_layout:
             self.staves.show()
             barlines.show_barlines(self)
             systems.show_system_barlines(self)

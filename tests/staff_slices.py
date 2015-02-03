@@ -1,14 +1,14 @@
 import env
-import moonshine
-from moonshine.staves import validation
-from moonshine.structure import orientation, staffsize
+import metaomr
+from metaomr.staves import validation
+from metaomr import orientation, staffsize
 import numpy as np
 import gzip
 
 import sys
 import cPickle
 
-pages = moonshine.open(sys.argv[1])
+pages = metaomr.open(sys.argv[1])
 output = sys.argv[2]
 
 staves = []

@@ -1,7 +1,8 @@
 from reikna import cluda
 from reikna.core import Type
 api = cluda.ocl_api()
-thr = api.Thread.create()
+import pyopencl
+thr = api.Thread(pyopencl.create_some_context())
 import numpy as np
 
 import os.path

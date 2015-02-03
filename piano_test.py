@@ -2,15 +2,15 @@
 # (an even number of staves and staff systems with 2 staves each.)
 # This test can be used with any scores from IMSLP or other sources.
 
-import moonshine
-import moonshine.opencl
+import metaomr
+import metaomr.opencl
 import gc
 import sys
 
 PASS = 0
 TOTAL = 0
 for path in sys.argv[1:]:
-    score = moonshine.open(path)
+    score = metaomr.open(path)
     for i,page in enumerate(score):
         page.process()
         TOTAL += 1
@@ -25,7 +25,7 @@ for path in sys.argv[1:]:
                     break
             else:
                 PASS += 1
-    moonshine.opencl.q.finish()
+    metaomr.opencl.q.finish()
     del score
     del page
     gc.collect()

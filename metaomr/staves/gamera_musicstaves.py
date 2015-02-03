@@ -1,5 +1,5 @@
 # Gamera interface for assessing staff detection accuracy
-import moonshine
+import metaomr
 from . import base
 from .. import bitimage
 import numpy as np
@@ -21,7 +21,7 @@ class GameraMusicStaves(base.BaseStaves):
     staves = None
     nostaff_img = None
     gamera_staff_removal = False
-    def __init__(self, page, staff_removal='moonshine'):
+    def __init__(self, page, staff_removal='metaomr'):
         self.page = page
 
         # Gamera must read image from a file
@@ -30,7 +30,7 @@ class GameraMusicStaves(base.BaseStaves):
         self.gamera_image = gamera.plugins.numpy_io.from_numpy(gamera_img)
         self.gamera_instance = self.gamera_class(self.gamera_image)
 
-        assert staff_removal in ['moonshine', 'gamera']
+        assert staff_removal in ['metaomr', 'gamera']
         if staff_removal == 'gamera':
             self.gamera_staff_removal = True
 

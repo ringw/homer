@@ -1,8 +1,8 @@
-import moonshine
+import metaomr
 
 INPUT = 'samples/IMSLP73123.pdf'
 
-score = moonshine.open(INPUT)
+score = metaomr.open(INPUT)
 for page in score:
   page.process()
   page.show()

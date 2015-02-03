@@ -10,7 +10,7 @@ prg = build_program("hough")
 
 int4 = np.dtype('i4,i4,i4,i4')
 
-def hough_line_kernel(img, rhores, numrho, thetas, num_workers=32):
+def hough_line_kernel(img, rhores, numrho, thetas, num_workers=1):
     cos_thetas = thr.to_device(np.cos(thetas).astype(np.float32))
     sin_thetas = thr.to_device(np.sin(thetas).astype(np.float32))
     bins = thr.empty_like(Type(np.float32, (len(thetas), numrho)))

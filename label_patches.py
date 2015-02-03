@@ -4,7 +4,7 @@ from forest_config import COLOR_LABELS
 from PIL import Image
 import numpy as np
 import os
-from moonshine import forest
+from metaomr import forest
 from cPickle import load
 
 # Read already labeled patches and skip duplicates in unlabeled_patches

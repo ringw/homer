@@ -1,9 +1,9 @@
 import cStringIO
 import gc
-import moonshine.bitimage
-import moonshine.image
-import moonshine.page
-import moonshine.staffsize
+import metaomr.bitimage
+import metaomr.image
+import metaomr.page
+import metaomr.staffsize
 import numpy as np
 import os
 import re
@@ -26,7 +26,7 @@ for filename in open('trainpdfs').readlines():
     imslpid = re.search('IMSLP[0-9]+', filename).group(0)
     if last_doc is not None and last_doc != imslpid:
         continue
-    images = moonshine.image.read_pages(filename)
+    images = metaomr.image.read_pages(filename)
     if not (0 < len(images) <= 100):
         continue
     for pagenum, image in enumerate(images):
@@ -35,12 +35,12 @@ for filename in open('trainpdfs').readlines():
                 last_doc, last_page = None, None
             continue
         print imslpid, pagenum
-        page = moonshine.page.Page(image)
+        page = metaomr.page.Page(image)
         page.preprocess()
         if type(page.staff_dist) is not int:
             continue
-        dist = moonshine.staffsize.staff_dist_hist(page)
-        thick = moonshine.staffsize.staff_thick_hist(page)
+        dist = metaomr.staffsize.staff_dist_hist(page)
+        thick = metaomr.staffsize.staff_thick_hist(page)
         print >> runs, ','.join([imslpid, str(pagenum)]
                                 + map(str, dist) + map(str, thick))
         try:
@@ -52,13 +52,13 @@ for filename in open('trainpdfs').readlines():
                 for m, measure in enumerate(system):
                     for p, part in enumerate(measure):
                         img = part.get_image()
-                        img = moonshine.bitimage.scale(img, scale)
-                        out_image = moonshine.bitimage.as_hostimage(img)
+                        img = metaomr.bitimage.scale(img, scale)
+                        out_image = metaomr.bitimage.as_hostimage(img)
                         if not out_image.any():
                             continue
                         # Clean up by removing margin
-                        import moonshine.util
-                        labels, nl = moonshine.util.label_1d(out_image.sum(1))
+                        import metaomr.util
+                        labels, nl = metaomr.util.label_1d(out_image.sum(1))
                         heights = np.bincount(labels)
                         label_id = heights[1:].argmax() + 1
                         label_range, = np.where(labels == label_id)
