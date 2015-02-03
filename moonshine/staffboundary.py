@@ -24,8 +24,7 @@ def boundary_cost_kernel(dist, y0, ystep, y1, x0, xstep, x1):
 
 def distance_transform_kernel(img, numiters=64):
     for i in xrange(numiters):
-        prg.taxicab_distance_step(img,
-              global_size=img.shape[::-1], local_size=(16, 32))
+        prg.taxicab_distance_step(img, global_size=img.shape[::-1])
 
 DT_SCALE = 5.0
 def distance_transform(page):

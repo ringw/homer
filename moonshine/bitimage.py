@@ -34,8 +34,7 @@ def scale(img, scale_x, scale_y=None, align=8):
                     np.float32(scale_x), np.float32(scale_y),
                     np.int32(img.shape[1]), np.int32(img.shape[0]),
                     out_img,
-                    global_size=out_img.shape[::-1],
-                    local_size=(8, 8))
+                    global_size=out_img.shape[::-1])
     return out_img
 
 def scale_image_gray(img, scale_x, scale_y=None, align=8):

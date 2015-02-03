@@ -38,7 +38,7 @@ def staffsize(page, img=None):
         img = page.img
     dist = staff_dist_hist(page, img)
 
-    if dist.max() < page.orig_size[1] * 10:
+    if dist.max() < page.orig_size[1]:
         logging.warn("Few runs detected, likely no staves in image")
         page.staff_thick = None
         page.staff_space = None
@@ -50,7 +50,8 @@ def staffsize(page, img=None):
     is_max[1:-1] = dist[1:-1] > np.max([dist[:-2], dist[2:]], axis=0)
     # Must be a sharp peak
     is_max[2:-2] &= dist[2:-2] > np.max([dist[:-4], dist[4:]], axis=0)*5
-    dist_vals, = np.where(is_max)
+    is_thresh = dist >= dist.max() / 100.0
+    dist_vals, = np.where(is_max & is_thresh)
     # Sort by most dominant staves in piece
     # We may detect a small staff with editor's notes, etc. which should be
     # detected after the actual music staves
