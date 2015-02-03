@@ -21,15 +21,16 @@ def hough_staves(thetarange, ntheta):
         return h
     return get_hough
 
-methods = dict(hough_pi250_201=hough_staves(np.pi/250, 201),
-               hough_1deg_201=hough_staves(np.pi/180, 201),
-               hough_1deg_51=hough_staves(np.pi/180, 51),
-               hough_1deg_21=hough_staves(np.pi/180, 21),
-               path=path.StablePathStaves,
-               linetracking=MusicStaves_linetracking,
-               carter=MusicStaves_rl_carter,
+methods = dict(#hough_pi250_201=hough_staves(np.pi/250, 201),
+               #hough_1deg_201=hough_staves(np.pi/180, 201),
+               #hough_1deg_51=hough_staves(np.pi/180, 51),
+               #hough_hdeg_21=hough_staves(np.pi/360, 21),
+               hough=hough_staves(np.pi/250,201),
+               #path=path.StablePathStaves,
+               #linetracking=MusicStaves_linetracking,
+               #carter=MusicStaves_rl_carter,
                fujinaga=MusicStaves_rl_fujinaga,
-               roach_tatem=MusicStaves_rl_roach_tatem,
+               #roach_tatem=MusicStaves_rl_roach_tatem,
                #gamera_simple=MusicStaves_rl_simple,
                skeleton=MusicStaves_skeleton,
                dalitz=StaffFinder_dalitz,
@@ -47,14 +48,14 @@ deformations = dict([('k0.001-.1-.5', kanungo(0.001, 0.1, 0.5, 0.1, 0.5)),
                      ('k-.5-.1-.1-.5', kanungo(0, 0.5, 0.1, 0.1, 0.5)),
                      ('k0.02-0.1-0.1-0.5-0.1', kanungo(0.02, 0.1, 0.1, 0.5, 0.1)),
                      ('k-sp-0.05', kanungo(0.05, 0, 0, 0, 0))])
-for k in [0.02,0.01,0.005]:
-    for l in [0.1,0.05,0.2]:
+for k in [0.01,0.005,0.001,0.0005,0.0001]:
+    for l in [0.2,0.5,1,1.5,2]:
         deformations['curv%.3f-%.2f' % (k,l)] = lambda x,y: staffdeformation.curvature.__call__(x,y,k,l)
 for p in [0.0001,0.001,0.01]:
     for n in [2,5,10]:
         for k in [1,2]:
             deformations['sp%.3f-%d-%d' % (p,n,k)] = lambda x,y: staffdeformation.white_speckles_parallel.__call__(x,y,p,n,k,random_seed=42)
-for t in [-.5,.5,2,2]:
+for t in [-.1,.1,-.5,.5,-1,1,2,2]:
     deformations['rot%f' % t] = lambda x,y: staffdeformation.rotation.__call__(x,y,t)
 
 import gc
@@ -84,9 +85,9 @@ try:
         staffsize.staffsize(page)
         if type(page.staff_dist) is tuple or page.staff_dist is None:
             continue
-        orientation.rotate(page)
-        staffsize.staffsize(page)
-        orientation.rotate(nostaff, page.orientation)
+        #orientation.rotate(page)
+        #staffsize.staffsize(page)
+        #orientation.rotate(nostaff, page.orientation)
 
         page_gamera = page.byteimg[:page.orig_size[0], :page.orig_size[1]]
         nostaff_gamera = nostaff.byteimg[:page.orig_size[0], :page.orig_size[1]]
@@ -110,7 +111,7 @@ try:
             page_.staff_dist = page.staff_dist
             page_.staff_thick = page.staff_thick
             page_.staff_space = page.staff_space
-            page_runs = staffsize.light_runs(page_)[page_.staff_space]
+            page_runs = staffsize.staff_dist_hist(page_)[page_.staff_dist]
 
             validator = validation.StaffValidation(page_)
             dummy_ = dummy.LabeledStaffRemoval(page_, nostaff_)
@@ -121,7 +122,7 @@ try:
             pagename = fileid + '-' + deformation
 
             page_pil = Image.fromarray((~page_np.astype(bool)).astype(np.uint8)*255)
-            page_pil.save('testset_deformed/' + pagename + '.png')
+            page_pil.save('musicstaves-testset-deformations/' + pagename + '.png')
 
             scores = validator.score_staves(method=dummy_)
             scores.index = 'dummy-' + pagename + scores.index.to_series()

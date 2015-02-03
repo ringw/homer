@@ -14,20 +14,20 @@ class StaffValidation:
             method = self.page.staves
         scores = DataFrame(columns=('runs', 'removed'))
         staves = method()
-        space = self.page.staff_space
-        page_runs = staffsize.light_runs(self.page)
+        dist = self.page.staff_dist
+        page_runs = staffsize.staff_dist_hist(self.page)
         if len(staves):
             for i in xrange(len(staves)):
                 before, after = self.remove_single_staff(i, method)
                 if before is None:
                     scores.loc['S%02d' % i] = (0, 0)
                 else:
-                    runs = staffsize.light_runs(self.page, before)[space]
-                    runs_after = staffsize.light_runs(self.page, after)[space]
+                    runs = staffsize.staff_dist_hist(self.page, before)[dist]
+                    runs_after = staffsize.staff_dist_hist(self.page, after)[dist]
                     scores.loc['S%02d' % i] = (runs, runs - runs_after)
-            scores.loc['page'] = [page_runs[space], scores['runs'].sum()]
+            scores.loc['page'] = [page_runs[dist], scores['runs'].sum()]
         else:
-            scores.loc['page'] = [page_runs[space], 0]
+            scores.loc['page'] = [page_runs[dist], 0]
         scores['score'] = scores['removed'] / scores['runs']
         return scores
 

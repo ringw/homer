@@ -32,7 +32,7 @@ class StablePathStaves(BaseStaves):
         prg.find_stable_paths(self.weights,
                               np.int32(w),
                               path_end,
-                              global_size=(h,), local_size=(512,))
+                              global_size=(h,))
         path_end = path_end.get()
         stable_path_end = path_end[path_end >= 0]
         if not len(stable_path_end):
