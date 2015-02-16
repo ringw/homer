@@ -4,5 +4,5 @@ import metaomr.kanungo as k
 import sys
 
 page, = metaomr.open(sys.argv[1])
-#page.preprocess()
+page.preprocess()
 print k.est_parameters(page)

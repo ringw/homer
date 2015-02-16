@@ -4,8 +4,8 @@ KERNEL void kanungo_noise(GLOBAL_MEM UCHAR *img,
                           float nu,
                           float a0, float a,
                           float b0, float b,
-                          GLOBAL_MEM volatile uint *global_rand,
-                          LOCAL_MEM volatile uint *local_rand) {
+                          GLOBAL_MEM volatile random_state *global_rand,
+                          LOCAL_MEM volatile random_state *local_rand) {
     int worker_id = get_local_id(0) + get_local_size(0) * get_local_id(1);
     if (worker_id == 0) {
         *local_rand = atom_split_rand(global_rand);

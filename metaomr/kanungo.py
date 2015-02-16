@@ -2,15 +2,26 @@ from .gpu import *
 from .staffboundary import distance_transform_kernel
 from pyopencl import LocalMemory
 from . import bitimage, staffsize
+from .page import Page
 from scipy.optimize import minimize
 import glob
 import metaomr
 
-prg = build_program(['clrand', 'kanungo'])
+prg = build_program(['clrand32', 'kanungo'])
 
-def normalize_page(page):
+def normalized_page(page):
+    if not hasattr(page, 'staff_dist'):
+        staffsize.staffsize(page)
+    img = bitimage.scale(page.img, 8.0 / page.staff_dist, align=64)
+    return [img]
+def normalized_staves(page):
+    # Assume page is not rotated; scanned pages must be preprocessed first
     staffsize.staffsize(page)
-    return bitimage.scale(page.img, 8.0 / page.staff_dist, align=128)
+    img = bitimage.scale(page.img, 8.0 / page.staff_dist, align=64)
+    new_page = Page(img)
+    staffsize.staffsize(new_page)
+    num_staves = len(new_page.staves())
+    return [new_page.staves.extract_staff(i) for i in xrange(num_staves)]
 
 IDEAL_SET = None
 def load_ideal_set():
@@ -20,7 +31,7 @@ def load_ideal_set():
         IDEAL_SET = []
         for img in ideal_imgs:
             page, = metaomr.open(img)
-            IDEAL_SET.append(KanungoImage(normalize_page(page)))
+            IDEAL_SET.extend(map(KanungoImage, normalized_page(page)))
     return IDEAL_SET
 
 # Source: T. Kanungo, R. M. Haralick, and I. Phillips. "Global and local
@@ -34,9 +45,9 @@ class KanungoImage:
     def __init__(self, img):
         self.img = img
         img = img.get()
-        self.fg_dist = thr.to_device(np.where(np.unpackbits(img),0,2**31-1).astype(np.int32))
+        self.fg_dist = thr.to_device(np.where(np.unpackbits(img),0,2**10).astype(np.int32))
         distance_transform_kernel(self.fg_dist, 10)
-        self.bg_dist = thr.to_device(np.where(np.unpackbits(~img),0,2**31-1).astype(np.int32))
+        self.bg_dist = thr.to_device(np.where(np.unpackbits(~img),0,2**10).astype(np.int32))
         distance_transform_kernel(self.bg_dist, 10)
         self.seed = thr.to_device(np.random.randint(1, 2**32, 2).astype(np.uint32))
     def degrade(self, params):
@@ -56,7 +67,7 @@ class KanungoImage:
                           np.float32(a0), np.float32(a),
                           np.float32(b0), np.float32(b),
                           self.seed,
-                          LocalMemory(8),
+                          LocalMemory(4),
                           global_size=new_img.shape[::-1])
         return new_img
     def closing(self, img, (nu, a0, a, b0, b, k)):
@@ -81,18 +92,23 @@ def test_hists_ks(hist1, hist2):
 import scipy.stats
 test_hists_chisq = scipy.stats.chisquare
 
-def est_parameters(img, ideal_set=None):
+def est_parameters(page, ideal_set=None, opt_method='nelder-mead', test_fn=test_hists_chisq):
     if ideal_set is None:
         ideal_set = load_ideal_set()
-    img_hist = pattern_hist(img)
-    def objective(params, test_fn=test_hists_chisq):
+    page_staves = normalized_page(page)
+    staff_hists = map(pattern_hist, page_staves)
+    page_hist = np.sum(staff_hists, axis=0)
+    page_patterns = page_hist > 0
+    page_patterns[0] = 0 # skip all white background
+    page_freq = page_hist[page_patterns]
+    page_freq = page_freq.astype(float) / page_freq.sum()
+    def objective(params):
         degraded = [ideal_img.degrade(params) for ideal_img in ideal_set]
         hists = [pattern_hist(degraded_img) for degraded_img in degraded]
         combined_hist = np.sum(hists, axis=0)
-        imgf = img_hist.astype(float) / img_hist.sum()
-        cmbf = combined_hist.astype(float) / combined_hist.sum()
-        cmbf = cmbf[imgf > 0]
-        imgf = imgf[imgf > 0]
-        return test_fn(cmbf, imgf)[0]
+        cmbf = combined_hist[page_patterns]
+        cmbf = cmbf.astype(float) / cmbf.sum()
+        res = test_fn(cmbf, page_freq)[0]
+        return res
     params_0 = np.array([0.01, 0.01, 1, 0.01, 1, 1])
-    return minimize(objective, params_0, method='nelder-mead', options=dict(xtol=1e-4, disp=True, maxfev=100))
+    return minimize(objective, params_0, method=opt_method, options=dict(xtol=1e-3, maxfev=500, disp=True))

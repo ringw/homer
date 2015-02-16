@@ -7,22 +7,29 @@ from . import staffboundary, measure#, note
 
 class Page(object):
     def __init__(self, image_data):
-        if isinstance(image_data, np.ndarray):
-            img = image_data
+        if hasattr(image_data, 'dtype') and not isinstance(image_data, np.ndarray):
+            self.img = image_data
+            self.byteimg = bitimage.as_hostimage(self.img)
+            self.orig_size = self.byteimg.shape
+            self.size = self.img.shape
         else:
-            self.image_data = image_data
-            img = image.image_array(image_data)
-        pad_size, new_size = self.padded_size(img.shape)
-        if new_size != img.shape:
-            import scipy
-            img = scipy.misc.imresize(img, new_size, 'nearest')
-            img = img != 0
-        padded_img = np.zeros(pad_size, np.uint8)
-        padded_img[:img.shape[0], :img.shape[1]] = img
-        self.byteimg = padded_img
-        self.orig_size = img.shape
-        self.img = bitimage.as_bitimage(padded_img)
-        self.size = pad_size
+            if isinstance(image_data, np.ndarray):
+                img = image_data
+            else:
+                self.image_data = image_data
+                img = image.image_array(image_data)
+
+            pad_size, new_size = self.padded_size(img.shape)
+            if new_size != img.shape:
+                import scipy
+                img = scipy.misc.imresize(img, new_size, 'nearest')
+                img = img != 0
+            padded_img = np.zeros(pad_size, np.uint8)
+            padded_img[:img.shape[0], :img.shape[1]] = img
+            self.byteimg = padded_img
+            self.orig_size = img.shape
+            self.img = bitimage.as_bitimage(padded_img)
+            self.size = pad_size
 
         self.rotation = orientation.Rotation(self)
         self.staves = staves.Staves(self)
