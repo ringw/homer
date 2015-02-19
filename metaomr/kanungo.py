@@ -89,6 +89,13 @@ def test_hists_ks(hist1, hist2):
     ks = np.abs(cdf1 - cdf2).max()
     p = None
     return ks, p
+def test_hists_euc(hist1, hist2):
+    # Normalize bins excluding all-white pattern
+    hist1 = hist1.astype(float)
+    hist2 = hist2.astype(float)
+    hist1 = hist1[1:] / hist1[1:].sum()
+    hist2 = hist2[1:] / hist2[1:].sum()
+    return np.sqrt(np.sum((hist1 - hist2)[1:] ** 2)), None
 import scipy.stats
 test_hists_chisq = scipy.stats.chisquare
 
@@ -110,5 +117,11 @@ def est_parameters(page, ideal_set=None, opt_method='nelder-mead', test_fn=test_
         cmbf = cmbf.astype(float) / cmbf.sum()
         res = test_fn(cmbf, page_freq)[0]
         return res
-    params_0 = np.array([0.01, 0.01, 1, 0.01, 1, 1])
-    return minimize(objective, params_0, method=opt_method, options=dict(xtol=1e-3, maxfev=500, disp=True))
+    minim_results = []
+    for i in xrange(10):
+        params_0 = np.array([0.001, 0.001, 0.5, 0.001, 0.5, 0]
+                            + np.random.random(6)
+                              * [0.049, 0.049, 3, 0.049, 3, 5])
+        minim_results.append(minimize(objective, params_0, method=opt_method, options=dict(xtol=1e-3, maxfev=100)))
+    best_result = np.argmin([res.fun for res in minim_results])
+    return minim_results[best_result]
