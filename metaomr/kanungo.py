@@ -99,7 +99,7 @@ def test_hists_euc(hist1, hist2):
 import scipy.stats
 test_hists_chisq = scipy.stats.chisquare
 
-def est_parameters(page, ideal_set=None, opt_method='nelder-mead', test_fn=test_hists_chisq):
+def est_parameters(page, ideal_set=None, opt_method='nelder-mead', test_fn=test_hists_chisq, maxfev=1200):
     if ideal_set is None:
         ideal_set = load_ideal_set()
     page_staves = normalized_page(page)
@@ -118,10 +118,12 @@ def est_parameters(page, ideal_set=None, opt_method='nelder-mead', test_fn=test_
         res = test_fn(cmbf, page_freq)[0]
         return res
     minim_results = []
-    for i in xrange(10):
+    for i in xrange(1):
         params_0 = np.array([0.001, 0.001, 0.5, 0.001, 0.5, 0]
                             + np.random.random(6)
                               * [0.049, 0.049, 3, 0.049, 3, 5])
-        minim_results.append(minimize(objective, params_0, method=opt_method, options=dict(xtol=1e-3, maxfev=100)))
+        minim_results.append(minimize(objective, params_0, method=opt_method,
+            options=dict(xtol=1e-4, maxfev=maxfev),
+            bounds=[(0,0.5), (0,0.5), (0,10), (0,0.5), (0,10), (0,5)]))
     best_result = np.argmin([res.fun for res in minim_results])
     return minim_results[best_result]
