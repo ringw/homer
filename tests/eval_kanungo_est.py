@@ -36,6 +36,7 @@ columns = columns.append(pd.MultiIndex.from_product([['estimate'],['stat','time'
 cols = []
 results = []
 fun = 'ks'
+method = 'Nelder-Mead'
 for image in IDEAL:
     name = os.path.basename(image).split('.')[0]
     page, = metaomr.open(image)
@@ -44,14 +45,15 @@ for image in IDEAL:
         params = random_params()
         synth = Page(kimg.degrade(params))
         synth.staff_dist = 8
-        for method in 'L-BFGS-B Nelder-Mead Powell CG'.split():
+        for maxfev in [25, 50]:
             start = datetime.now()
-            est_params = kan.est_parameters(synth, test_fn=kan.test_hists_ks if fun == 'ks' else kan.test_hists_chisq, opt_method=method)
+            est_params = kan.est_parameters(synth, test_fn=kan.test_hists_ks if fun == 'ks' else kan.test_hists_chisq, opt_method=method, maxfev=maxfev)
             end = datetime.now()
-            cols.append((name, fun, method) + tuple(params))
+            cols.append((name, fun, maxfev, i))
             results.append(list(params) + list(est_params.x) + [est_params.fun, (end - start).total_seconds(), est_params.status, est_params.nfev])
             sys.stderr.write('.')
     res = pd.DataFrame(results, columns=columns)
     res.index = pd.MultiIndex.from_tuples(cols)
-    res.index.names = 'doc test method nu a0 a b0 b k'.split()
+    res.index.names = 'doc test maxfev num'.split()
     res.to_csv('kanungo_eval.csv')
+sys.stderr.write('\n')

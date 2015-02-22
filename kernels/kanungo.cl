@@ -62,3 +62,29 @@ KERNEL void patterns_3x3(GLOBAL_MEM UCHAR *img,
         patterns[img_x + byte_w*8 * byte_y] = pattern_num;
     }
 }
+
+KERNEL void patterns_5x5(GLOBAL_MEM UCHAR *img,
+                         GLOBAL_MEM int *patterns) {
+    int byte_x = get_global_id(0);
+    int byte_y = get_global_id(1);
+    int byte_w = get_global_size(0);
+    int byte_h = get_global_size(1);
+
+    for (int bit = 0; bit < 8; bit++) {
+        int img_x = byte_x * 8 + bit;
+
+        int pattern_num = 0;
+        for (int dy = -2; dy <= 2; dy++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                int x = img_x + dx;
+                int y = byte_y + dy;
+                if (0 <= x && x < byte_w && 0 <= y && y < byte_h) {
+                    int pattern_bit = 1 << ((dx+2) + 5 * (dy+2));
+                    int is_on = (img[x/8 + byte_w * y] >> (7 - (x%8))) & 0x1;
+                    pattern_num += is_on * pattern_bit;
+                }
+            }
+        }
+        patterns[img_x + byte_w*8 * byte_y] = pattern_num;
+    }
+}
