@@ -1,17 +1,13 @@
+constant unsigned int A = 1664525;
+constant unsigned int C = 1013904223;
+
 KERNEL void kanungo_noise(GLOBAL_MEM UCHAR *img,
                           GLOBAL_MEM int *fg_dist,
                           GLOBAL_MEM int *bg_dist,
                           float nu,
                           float a0, float a,
                           float b0, float b,
-                          GLOBAL_MEM volatile random_state *global_rand,
-                          LOCAL_MEM volatile random_state *local_rand) {
-    int worker_id = get_local_id(0) + get_local_size(0) * get_local_id(1);
-    if (worker_id == 0) {
-        *local_rand = atom_split_rand(global_rand);
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
-
+                          uint seed) {
     int byte_x = get_global_id(0);
     int byte_y = get_global_id(1);
     int img_w = get_global_size(0);
@@ -30,7 +26,9 @@ KERNEL void kanungo_noise(GLOBAL_MEM UCHAR *img,
             int dist = fg_dist[img_x + bit_w * byte_y];
             p = nu + b0 * exp(-b * dist * dist);
         }
-        if (p > rand_val(atom_rand_l(local_rand)))
+        uint id = img_x + bit_w * byte_y;
+        float rand = (float)((seed + id) * A + C) / (float)(0x100000000L);
+        if (p > rand)
             input ^= mask;
     }
 
