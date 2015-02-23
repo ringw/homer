@@ -61,11 +61,8 @@ def staffsize(page, img=None):
     if settings.SINGLE_STAFF_SIZE:
         dist_vals = dist_vals[0:1]
     if len(dist_vals) == 0:
-        logging.warn("No staves detected")
-        page.staff_thick = None
-        page.staff_space = None
-        page.staff_dist = None
-        return page.staff_thick, page.staff_dist
+        logging.warn("Staff peak finding failed; defaulting to single maximum")
+        staff_dist = int(dist.argmax() - 1)
     elif len(dist_vals) == 1:
         staff_dist = int(dist_vals[0])
     else:
