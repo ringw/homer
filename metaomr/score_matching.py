@@ -18,12 +18,14 @@ def score_measure_moments(pages, title=None):
     moments = []
     cols = []
     measure = 0
-    for page in pages:
+    for p, page in enumerate(pages):
+        if not hasattr(page, 'bars'):
+            continue
         for i, staff in enumerate(page.bars):
             for j, staffmeasure in enumerate(staff):
                 moments.append(np.concatenate(map(hu_moments, staffmeasure)))
-                cols.append((title, measure, page, staff, staffmeasure))
+                cols.append((title, measure, p, i, j))
                 measure += 1
-    cols = pd.MultiIndex.from_tuples(cols, levels='score measure page staff staffmeasure'.split())
+    cols = pd.MultiIndex.from_tuples(cols, names='score measure page staff staffmeasure'.split())
     moments = pd.DataFrame(moments, index=cols)
     return moments
