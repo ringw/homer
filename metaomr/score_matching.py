@@ -44,13 +44,18 @@ def measure_cov(measures_path):
         staff.columns = cols
     flat_measures = pd.concat(measures_staff)
     flat_measures = flat_measures.ix[(~flat_measures.isnull()).all(1)]
-    return np.cov(flat_measures.T)
-MEASURE_COV_PATH = 'results/measure_hu_cov.csv'
+    # Normalize to 10th and 90th percentiles
+    scale = flat_measures.quantile(0.9) - flat_measures.quantile(0.1)
+    flat_measures /= scale
+    return np.cov(flat_measures.T), scale
+MEASURE_COV_PATH = 'results/measure_hu_cov.npz'
 if os.path.exists(MEASURE_COV_PATH):
-    MEASURE_COV = np.loadtxt(MEASURE_COV_PATH)
+    with np.load(MEASURE_COV_PATH) as measure_data:
+        MEASURE_COV = measure_data['cov']
+        MEASURE_SCALE = measure_data['scale']
 else:
-    MEASURE_COV = measure_cov('imslp/measures')
-    np.savetxt(MEASURE_COV_PATH, MEASURE_COV)
+    MEASURE_COV, MEASURE_SCALE = measure_cov('imslp/measures')
+    np.savez(MEASURE_COV_PATH, cov=MEASURE_COV, scale=MEASURE_SCALE)
 
 def align_docs(doc1, doc2, gap_penalty=100):
     if doc1.shape[1] != doc2.shape[1] or min(doc1.shape[0], doc1.shape[0]) <= 1:
@@ -62,6 +67,8 @@ def align_docs(doc1, doc2, gap_penalty=100):
         blocks.append([np.zeros((7,7))] * i + [MEASURE_COV] + [np.zeros((7,7))] * (num_parts - i - 1))
     V = np.bmat(blocks)
     VI = np.linalg.inv(V)
+    scaled1 = doc1 / np.repeat(MEASURE_SCALE, num_parts)
+    scaled2 = doc2 / np.repeat(MEASURE_SCALE, num_parts)
     dists = ssd.cdist(doc1, doc2, 'mahalanobis', VI)
     scores = np.empty((doc1.shape[0], doc2.shape[0]))
     scores[0, 0] = dists[0, 0]
