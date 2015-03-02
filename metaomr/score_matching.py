@@ -12,20 +12,25 @@ def hu_moments(measure):
     mu = skimage.measure.moments_central(img, cr, cc)
     nu = skimage.measure.moments_normalized(mu)
     hu = skimage.measure.moments_hu(nu)
+    del img
+    import gc
+    gc.collect()
     return hu
 
-def score_measure_moments(pages, title=None):
+def score_measure_moments(page, title=None, p=0, m=0):
     moments = []
     cols = []
-    measure = 0
-    for p, page in enumerate(pages):
-        if not hasattr(page, 'bars'):
-            continue
-        for i, staff in enumerate(page.bars):
-            for j, staffmeasure in enumerate(staff):
-                moments.append(np.concatenate(map(hu_moments, staffmeasure)))
-                cols.append((title, measure, p, i, j))
-                measure += 1
-    cols = pd.MultiIndex.from_tuples(cols, names='score measure page staff staffmeasure'.split())
-    moments = pd.DataFrame(moments, index=cols)
-    return moments
+    measure = m
+    if not hasattr(page, 'bars'):
+        return pd.DataFrame()
+    for i, staff in enumerate(page.bars):
+        for j, staffmeasure in enumerate(staff):
+            moments.append(np.concatenate(map(hu_moments, staffmeasure)))
+            cols.append((title, measure, p, i, j))
+            measure += 1
+    if len(cols):
+        cols = pd.MultiIndex.from_tuples(cols, names='score measure page staff staffmeasure'.split())
+        moments = pd.DataFrame(moments, index=cols)
+        return moments
+    else:
+        return pd.DataFrame()
