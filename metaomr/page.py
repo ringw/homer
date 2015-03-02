@@ -66,7 +66,13 @@ class Page(object):
 
     def process(self):
         self.preprocess()
-        self.layout()
+        if self.staff_dist is None:
+            return False
+        else:
+            self.layout()
+            staffboundary.boundaries(self)
+            measure.build_bars(self)
+            return True
 
     def get_notepitch_score(self):
         staffboundary.boundaries(self)
