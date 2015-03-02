@@ -99,7 +99,7 @@ def test_hists_euc(hist1, hist2):
 import scipy.stats
 test_hists_chisq = scipy.stats.chisquare
 
-def est_parameters(page, ideal_set=None, opt_method='nelder-mead', test_fn=test_hists_chisq, maxfev=1200):
+def est_parameters(page, ideal_set=None, opt_method='nelder-mead', test_fn=test_hists_chisq, maxfev=50):
     if ideal_set is None:
         ideal_set = load_ideal_set()
     page_staves = normalized_page(page)
