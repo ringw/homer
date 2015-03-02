@@ -35,7 +35,7 @@ if args.page is None:
                 page.show()
 else:
     page = score[args.page]
-    page.process()
+    page.layout()
     if args.show:
         page.show()
 if args.show and not args.output:
