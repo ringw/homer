@@ -6,54 +6,53 @@ import scipy.spatial.distance as ssd
 from metaomr import bitimage
 from glob import glob
 import os.path
+import scipy.misc
 
-def hu_moments(measure):
-    img = bitimage.as_hostimage(measure.get_image()).astype(float)
-    m = skimage.measure.moments(img)
-    cr = m[0,1] / m[0,0]
-    cc = m[1,0] / m[0,0]
-    mu = skimage.measure.moments_central(img, cr, cc)
-    nu = skimage.measure.moments_normalized(mu)
-    hu = skimage.measure.moments_hu(nu)
-    del img
-    import gc
-    gc.collect()
-    return hu
-
-def score_measure_moments(page, title=None, p=0, m=0):
-    moments = []
+def measure_projections(page, title=None, p=0, m=0):
+    all_measures = []
     cols = []
     measure = m
-    if not hasattr(page, 'bars'):
+    if not hasattr(page, 'systems'):
         return pd.DataFrame()
-    for i, staff in enumerate(page.bars):
-        for j, staffmeasure in enumerate(staff):
-            moments.append(np.concatenate(map(hu_moments, staffmeasure)))
-            cols.append((title, measure, p, i, j))
-            measure += 1
+    for i, system in enumerate(page.systems):
+        nb = len(system['barlines']) - 1
+        measures = [[] for _ in xrange(nb)]
+        cols += [(title, measure + k, p, i, k) for k in xrange(nb)]
+        for j, staffnum in enumerate(xrange(system['start'], system['stop'] + 1)):
+            staff = bitimage.as_hostimage(page.staves.extract_staff(staffnum)).astype(bool)
+            for k in xrange(nb):
+                measure_img = staff[:, int(system['barlines'][k,:,0].mean())
+                                        : int(system['barlines'][k+1,:,0].mean())]
+                scaled_measure = scipy.misc.imresize(measure_img, (5*6, int(30.0 * measure_img.shape[1] / measure_img.shape[0])))
+                measures[k] += list(scaled_measure.sum(1))
+        all_measures += measures
+        measure += nb
     if len(cols):
         cols = pd.MultiIndex.from_tuples(cols, names='score measure page staff staffmeasure'.split())
-        moments = pd.DataFrame(moments, index=cols)
-        return moments
+        all_measures = pd.DataFrame(all_measures, index=cols)
+        return all_measures
     else:
         return pd.DataFrame()
 
 def measure_cov(measures_path):
+    NUM_FEATS = 30
     files = sorted(glob(measures_path + '/*.csv'))
     docs = [pd.DataFrame.from_csv(f, index_col=range(5)) for f in files]
     all_measures = pd.concat(docs)
-    staff_ind = [map(str, range(7*i, 7*(i+1))) for i in xrange(all_measures.shape[1] / 7)]
-    measures_staff = [all_measures[ind] for ind in staff_ind]
-    cols = ['hu%d' % i for i in range(7)]
-    for staff in measures_staff:
-        staff.columns = cols
-    flat_measures = pd.concat(measures_staff)
-    flat_measures = flat_measures.ix[(~flat_measures.isnull()).all(1)]
+    staff_ind = [map(str, range(NUM_FEATS*i, NUM_FEATS*(i+1))) for i in xrange(all_measures.shape[1] / NUM_FEATS)]
+    measures = []
+    for f in files:
+        doc = pd.DataFrame.from_csv(f, index_col=range(5))
+        for i in xrange(doc.shape[1] / NUM_FEATS):
+            measures.append(np.array(doc[doc.columns[i*NUM_FEATS:(i+1)*NUM_FEATS]]))
+    measures = np.concatenate(measures)
+    measures /= measures.sum(1)[:, None]
     # Normalize to 10th and 90th percentiles
-    scale = flat_measures.quantile(0.9) - flat_measures.quantile(0.1)
-    flat_measures /= scale
-    return np.cov(flat_measures.T), scale
-MEASURE_COV_PATH = 'results/measure_hu_cov.npz'
+    scale = np.percentile(measures, 0.9, axis=0) - np.percentile(measures, 0.1, axis=0)
+    measures /= scale[None, :]
+    measures = measures[~np.isnan(measures).any(1)]
+    return np.cov(measures.T), scale
+MEASURE_COV_PATH = 'results/measure_proj_cov.npz'
 if os.path.exists(MEASURE_COV_PATH):
     with np.load(MEASURE_COV_PATH) as measure_data:
         MEASURE_COV = measure_data['cov']
@@ -62,14 +61,23 @@ else:
     MEASURE_COV, MEASURE_SCALE = measure_cov('imslp/measures')
     np.savez(MEASURE_COV_PATH, cov=MEASURE_COV, scale=MEASURE_SCALE)
 
-def align_docs(doc1, doc2, gap_penalty=100):
+def align_docs(doc1, doc2, gap_penalty=10):
     if doc1.shape[1] != doc2.shape[1] or min(doc1.shape[0], doc1.shape[0]) <= 1:
         return None
-    num_parts = doc1.shape[1] / 7
+    doc1 = np.array(doc1, float)
+    doc2 = np.array(doc2, float)
+    NUM_FEATS = 30
+    num_parts = doc1.shape[1] / NUM_FEATS
     # Block covariance matrix for multiple parts
     blocks = []
     for i in xrange(num_parts):
-        blocks.append([np.zeros((7,7))] * i + [MEASURE_COV] + [np.zeros((7,7))] * (num_parts - i - 1))
+        blocks.append([np.zeros((NUM_FEATS,NUM_FEATS))] * i
+                        + [MEASURE_COV]
+                        + [np.zeros((NUM_FEATS,NUM_FEATS))] * (num_parts - i - 1))
+        # Normalize each measure
+        feats = slice(i*NUM_FEATS, (i+1)*NUM_FEATS)
+        doc1[:, feats] /= doc1[:, feats].sum(1)[:, None]
+        doc2[:, feats] /= doc2[:, feats].sum(1)[:, None]
     V = np.bmat(blocks)
     VI = np.linalg.inv(V)
     scaled1 = doc1 / np.repeat(MEASURE_SCALE, num_parts)
@@ -99,7 +107,9 @@ def align_docs(doc1, doc2, gap_penalty=100):
     while i >= 0 and j >= 0:
         direction = ptr[i, j]
         alignment.append((i if direction != 1 else -1,
-                          j if direction != 2 else -1))
+                          j if direction != 2 else -1,
+                          dists[i, j] if direction == 0 else gap_penalty))
         i += dy[direction]
         j += dx[direction]
-    return alignment[::-1], score
+    alignment = alignment[::-1]
+    return pd.DataFrame(alignment, columns='doc1 doc2 score'.split())

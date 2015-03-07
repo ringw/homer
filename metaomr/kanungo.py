@@ -120,7 +120,7 @@ def est_parameters(page, ideal_set=None, opt_method='nelder-mead', test_fn=test_
         res = test_fn(cmbf, page_freq)[0]
         return res
     minim_results = []
-    for i in xrange(1):
+    for i in xrange(10):
         params_0 = np.array([0.01, 0.01, 0.5, 0.01, 0.5, 1]
                             + np.random.random(6)
                               * [0.49, 0.49, 5, 0.49, 5, 4])
