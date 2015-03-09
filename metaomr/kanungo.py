@@ -12,8 +12,13 @@ prg = build_program(['kanungo'])
 def normalized_page(page):
     if not hasattr(page, 'staff_dist'):
         staffsize.staffsize(page)
-    img = bitimage.scale(page.img, 8.0 / page.staff_dist, align=64)
-    return [img]
+    scale = 8.0 / page.staff_dist
+    img = bitimage.scale(page.img, scale, align=64)
+    # Grab a 512x512 area around the center of the page
+    h = int(page.orig_size[0] * scale)
+    w = int(page.orig_size[1] * scale)
+    img = bitimage.as_hostimage(img)[h/2-256:h/2+256, w/2-256:w/2+256]
+    return bitimage.as_bitimage(img)
 def normalized_staves(page):
     # Assume page is not rotated; scanned pages must be preprocessed first
     staffsize.staffsize(page)
@@ -31,7 +36,7 @@ def load_ideal_set():
         IDEAL_SET = []
         for img in ideal_imgs:
             page, = metaomr.open(img)
-            IDEAL_SET.extend(map(KanungoImage, normalized_page(page)))
+            IDEAL_SET.append(KanungoImage(normalized_page(page)))
     return IDEAL_SET
 
 # Source: T. Kanungo, R. M. Haralick, and I. Phillips. "Global and local
@@ -79,9 +84,6 @@ def pattern_list(img):
     patterns = thr.empty_like(Type(np.uint32, (img.shape[0], img.shape[1]*8)))
     prg.patterns_5x5(img, patterns, global_size=img.shape[::-1])
     return patterns.get().ravel()
-    #hist = np.bincount(patterns.get().ravel()).astype(np.int32).copy()
-    #hist.resize(2 ** (5 * 5))
-    #return hist
 
 def test_hists_ks(hist1, hist2):
     cdf1 = np.cumsum(hist1).astype(float) / hist1.sum()
@@ -102,8 +104,8 @@ test_hists_chisq = scipy.stats.chisquare
 def est_parameters(page, ideal_set=None, opt_method='nelder-mead', test_fn=test_hists_chisq, maxfev=50):
     if ideal_set is None:
         ideal_set = load_ideal_set()
-    page_staves = normalized_page(page)
-    patterns = np.concatenate(map(pattern_list, page_staves))
+    page_center = normalized_page(page)
+    patterns = pattern_list(page_center)
     page_hist = np.bincount(patterns).astype(np.int32).copy()
     page_hist.resize(2 ** (5*5))
     page_patterns = page_hist > 0
