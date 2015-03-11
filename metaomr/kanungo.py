@@ -82,7 +82,7 @@ class KanungoImage:
 # for each image, which can then be concatenated and bincounted
 def pattern_list(img):
     patterns = thr.empty_like(Type(np.uint32, (img.shape[0], img.shape[1]*8)))
-    prg.patterns_5x5(img, patterns, global_size=img.shape[::-1])
+    prg.patterns_3x3(img, patterns, global_size=img.shape[::-1])
     return patterns.get().ravel()
 
 def test_hists_ks(hist1, hist2):
@@ -114,9 +114,8 @@ def est_parameters(page, ideal_set=None, opt_method='nelder-mead', test_fn=test_
     page_freq = page_freq.astype(float) / page_freq.sum()
     def objective(params):
         degraded = [ideal_img.degrade(params) for ideal_img in ideal_set]
-        pats = np.concatenate(map(pattern_list, degraded))
-        combined_hist = np.bincount(pats).astype(np.int32).copy()
-        combined_hist.resize(2 ** (5*5))
+        hists = [pattern_hist(degraded_img) for degraded_img in degraded]
+        combined_hist = np.sum(hists, axis=0)
         cmbf = combined_hist[page_patterns]
         cmbf = cmbf.astype(float) / cmbf.sum()
         res = test_fn(cmbf, page_freq)[0]
@@ -125,7 +124,7 @@ def est_parameters(page, ideal_set=None, opt_method='nelder-mead', test_fn=test_
     for i in xrange(10):
         params_0 = np.array([0.01, 0.01, 0.5, 0.01, 0.5, 1]
                             + np.random.random(6)
-                              * [0.49, 0.49, 5, 0.49, 5, 4])
+                              * [0.049, 0.049, 3, 0.049, 3, 5])
         minim_results.append(minimize(objective, params_0, method=opt_method,
             options=dict(xtol=1e-4, maxfev=maxfev),
             bounds=[(0,0.5), (0,0.5), (0,10), (0,0.5), (0,10), (0,5)]))
