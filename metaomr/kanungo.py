@@ -107,15 +107,16 @@ def est_parameters(page, ideal_set=None, opt_method='nelder-mead', test_fn=test_
     page_center = normalized_page(page)
     patterns = pattern_list(page_center)
     page_hist = np.bincount(patterns).astype(np.int32).copy()
-    page_hist.resize(2 ** (5*5))
+    page_hist.resize(2 ** (3*3))
     page_patterns = page_hist > 0
     page_patterns[0] = 0 # skip all white background
     page_freq = page_hist[page_patterns]
     page_freq = page_freq.astype(float) / page_freq.sum()
     def objective(params):
         degraded = [ideal_img.degrade(params) for ideal_img in ideal_set]
-        hists = [pattern_hist(degraded_img) for degraded_img in degraded]
-        combined_hist = np.sum(hists, axis=0)
+        patterns = np.concatenate([pattern_list(degraded_img) for degraded_img in degraded])
+        combined_hist = np.bincount(patterns).astype(np.int32).copy()
+        combined_hist.resize(2 ** (3*3))
         cmbf = combined_hist[page_patterns]
         cmbf = cmbf.astype(float) / cmbf.sum()
         res = test_fn(cmbf, page_freq)[0]
@@ -124,9 +125,9 @@ def est_parameters(page, ideal_set=None, opt_method='nelder-mead', test_fn=test_
     for i in xrange(10):
         params_0 = np.array([0.01, 0.01, 0.5, 0.01, 0.5, 1]
                             + np.random.random(6)
-                              * [0.049, 0.049, 3, 0.049, 3, 5])
+                              * [0.09, 0.09, 3, 0.09, 3, 5])
         minim_results.append(minimize(objective, params_0, method=opt_method,
             options=dict(xtol=1e-4, maxfev=maxfev),
             bounds=[(0,0.5), (0,0.5), (0,10), (0,0.5), (0,10), (0,5)]))
     best_result = np.argmin([res.fun for res in minim_results])
-    return minim_results[best_result]
+    return minim_results[best_result], page_hist
