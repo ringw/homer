@@ -1,4 +1,5 @@
 import env
+import gzip
 import metaomr
 import metaomr.kanungo
 import glob
@@ -25,7 +26,7 @@ for i, page in enumerate(sorted(glob.glob(path+"/img-*.pbm"))):
         continue
     try:
         tic = datetime.now()
-        result = metaomr.kanungo.est_parameters(page)
+        result = metaomr.kanungo.est_parameters(page, test_fn=metaomr.kanungo.test_hists_mahalanobis)
         toc = datetime.now()
         results = results.append([tuple(result.x) + ((toc - tic).total_seconds(), result.fun)])
         del page

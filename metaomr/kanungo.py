@@ -129,9 +129,9 @@ def est_parameters(page, ideal_set=None, opt_method='nelder-mead', test_fn=test_
         return res
     minim_results = []
     for i in xrange(10):
-        params_0 = np.array([0.01, 0.01, 0.5, 0.01, 0.5, 1]
+        params_0 = np.array([0.01, 0.01, 0.5, 0.01, 0.5, 0]
                             + np.random.random(6)
-                              * [0.09, 0.09, 3, 0.09, 3, 5])
+                              * [0.09, 0.09, 3, 0.09, 3, 2])
         minim_results.append(minimize(objective, params_0, method=opt_method,
             options=dict(xtol=1e-4, maxfev=maxfev),
             bounds=[(0,0.5), (0,0.5), (0,10), (0,0.5), (0,10), (0,5)]))

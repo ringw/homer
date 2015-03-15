@@ -10,7 +10,10 @@ import os.path
 LEARNER = lambda: sklearn.linear_model.Lasso(alpha=0.01, normalize=True)
 
 works = cPickle.load(open('imslp/imslp_works.pkl'))
-kanungo = pd.DataFrame.from_csv('results/imslp_kanungo.csv', index_col=range(2))
+kanungo = pd.DataFrame()
+for f in sorted(glob.glob('results/imslp_kanungo/*.csv')):
+    results = pd.DataFrame.from_csv(f, index_col=range(2))
+    kanungo = kanungo.append(results)
 kanungo = kanungo['nu a0 a b0 b k'.split()]
 kanungo['nu'] = kanungo['nu'].clip(0, 1)
 kanungo['a0'] = kanungo['a0'].clip(0, 1)
@@ -18,6 +21,8 @@ kanungo['a'] = kanungo['a'].clip(0, np.inf)
 kanungo['b0'] = kanungo['b0'].clip(0, 1)
 kanungo['b'] = kanungo['b'].clip(0, np.inf)
 kanungo['k'] = np.rint(kanungo['k'].clip(0, 5))
+kanungo['a0a'] = (kanungo['a0'] * kanungo['a']).fillna(0)
+kanungo['b0b'] = (kanungo['b0'] * kanungo['b']).fillna(0)
 feats = kanungo.copy()
 
 deskew = sorted(glob.glob('results/imslp_deskew/*.csv.gz'))
