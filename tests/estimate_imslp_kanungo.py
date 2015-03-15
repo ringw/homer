@@ -21,7 +21,8 @@ for i, page in enumerate(sorted(glob.glob(path+"/img-*.pbm"))):
         page.preprocess()
     except Exception, e:
         print e
-        results = results.append([np.repeat(np.nan, 8)])
+        results = results.append(np.repeat(np.nan, (2, 8)))
+        index += [(name, i, m) for m in ['ks','m']]
         continue
     try:
         for method, fn in (('ks', metaomr.kanungo.test_hists_ks),
@@ -35,7 +36,8 @@ for i, page in enumerate(sorted(glob.glob(path+"/img-*.pbm"))):
         gc.collect()
     except Exception, e:
         print e
-        results = results.append([np.repeat(np.nan, 8)])
+        results = results.append(np.repeat(np.nan, (2, 8)))
+        index += [(name, i, m) for m in ['ks','m']]
         continue
 results.columns = 'nu a0 a b0 b k time fun'.split()
 results.index = pd.MultiIndex.from_tuples(index, names=['doc','page','fn'])
