@@ -50,7 +50,7 @@ KERNEL void patterns_3x3(GLOBAL_MEM UCHAR *img,
             for (int dx = -1; dx <= 1; dx++) {
                 int x = img_x + dx;
                 int y = byte_y + dy;
-                if (0 <= x && x < byte_w && 0 <= y && y < byte_h) {
+                if (0 <= x && x < byte_w*8 && 0 <= y && y < byte_h) {
                     short pattern_bit = 1 << ((dx+1) + 3 * (dy+1));
                     int is_on = (img[x/8 + byte_w * y] >> (7 - (x%8))) & 0x1;
                     pattern_num += is_on * pattern_bit;
