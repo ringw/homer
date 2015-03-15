@@ -7,7 +7,7 @@ from scipy.optimize import minimize
 import glob
 import metaomr
 
-prg = build_program(['kanungo'])
+prg = build_program(['clrand32', 'kanungo'])
 
 def normalized_page(page):
     if not hasattr(page, 'staff_dist'):
@@ -46,6 +46,7 @@ class KanungoImage:
     img = None
     fg_dist = None
     bg_dist = None
+    seed = None
     def __init__(self, img):
         self.img = img
         img = img.get()
@@ -53,6 +54,7 @@ class KanungoImage:
         distance_transform_kernel(self.fg_dist, 10)
         self.bg_dist = thr.to_device(np.where(np.unpackbits(~img),0,2**10).astype(np.int32))
         distance_transform_kernel(self.bg_dist, 10)
+        self.seed = thr.to_device(np.random.randint(1, 2**32, 2).astype(np.uint32))
     def degrade(self, params):
         # Values from scipy.optimize are real-valued and potentially negative
         params = np.array(params)
@@ -69,7 +71,8 @@ class KanungoImage:
                           np.float32(nu),
                           np.float32(a0), np.float32(a),
                           np.float32(b0), np.float32(b),
-                          np.uint32(np.random.randint(0, 2**32)),
+                          self.seed,
+                          LocalMemory(4),
                           global_size=new_img.shape[::-1])
         return new_img
     def closing(self, img, (nu, a0, a, b0, b, k)):
