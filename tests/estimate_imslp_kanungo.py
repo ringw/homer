@@ -21,7 +21,7 @@ for i, page in enumerate(sorted(glob.glob(path+"/img-*.pbm"))):
         page.preprocess()
     except Exception, e:
         print e
-        results = results.append(np.repeat(np.nan, (2, 8)))
+        results = results.append([np.repeat(np.nan, 8)] * 2)
         index += [(name, i, m) for m in ['ks','m']]
         continue
     try:
@@ -36,7 +36,7 @@ for i, page in enumerate(sorted(glob.glob(path+"/img-*.pbm"))):
         gc.collect()
     except Exception, e:
         print e
-        results = results.append(np.repeat(np.nan, (2, 8)))
+        results = results.append([np.repeat(np.nan, 8)] * 2)
         index += [(name, i, m) for m in ['ks','m']]
         continue
 results.columns = 'nu a0 a b0 b k time fun'.split()
