@@ -81,7 +81,7 @@ class KanungoImage:
 # To reduce temporary memory usage, just return the list of patterns
 # for each image, which can then be concatenated and bincounted
 def pattern_list(img):
-    patterns = thr.empty_like(Type(np.uint32, (img.shape[0], img.shape[1]*8)))
+    patterns = thr.empty_like(Type(np.uint16, (img.shape[0], img.shape[1]*8)))
     prg.patterns_3x3(img, patterns, global_size=img.shape[::-1])
     return patterns.get().ravel()
 
@@ -100,26 +100,29 @@ def test_hists_euc(hist1, hist2):
     return np.sqrt(np.sum((hist1 - hist2)[1:] ** 2)), None
 import scipy.stats
 test_hists_chisq = scipy.stats.chisquare
+VI = None
+def test_hists_mahalanobis(hist1, hist2):
+    global VI
+    if VI is None:
+        VI = np.load('results/kanungo_covar_inv.npz')['VI']
+    diffs = hist1 - hist2
+    return np.sqrt(diffs.T.dot(VI).dot(diffs)), None
 
-def est_parameters(page, ideal_set=None, opt_method='nelder-mead', test_fn=test_hists_chisq, maxfev=50):
+def est_parameters(page, ideal_set=None, opt_method='nelder-mead', test_fn=test_hists_mahalanobis, maxfev=50):
     if ideal_set is None:
         ideal_set = load_ideal_set()
     page_center = normalized_page(page)
     patterns = pattern_list(page_center)
-    page_hist = np.bincount(patterns).astype(np.int32).copy()
-    page_hist.resize(2 ** (3*3))
-    page_patterns = page_hist > 0
-    page_patterns[0] = 0 # skip all white background
-    page_freq = page_hist[page_patterns]
-    page_freq = page_freq.astype(float) / page_freq.sum()
+    page_hist = np.bincount(patterns).astype(float)[1:].copy()
+    page_hist.resize(2 ** (3*3) - 1)
+    page_hist /= page_hist.sum()
     def objective(params):
         degraded = [ideal_img.degrade(params) for ideal_img in ideal_set]
         patterns = np.concatenate([pattern_list(degraded_img) for degraded_img in degraded])
-        combined_hist = np.bincount(patterns).astype(np.int32).copy()
-        combined_hist.resize(2 ** (3*3))
-        cmbf = combined_hist[page_patterns]
-        cmbf = cmbf.astype(float) / cmbf.sum()
-        res = test_fn(cmbf, page_freq)[0]
+        combined_hist = np.bincount(patterns).astype(float)[1:].copy()
+        combined_hist.resize(2 ** (3*3) - 1)
+        combined_hist /= combined_hist.sum()
+        res = test_fn(combined_hist, page_hist)[0]
         return res
     minim_results = []
     for i in xrange(10):
@@ -130,4 +133,4 @@ def est_parameters(page, ideal_set=None, opt_method='nelder-mead', test_fn=test_
             options=dict(xtol=1e-4, maxfev=maxfev),
             bounds=[(0,0.5), (0,0.5), (0,10), (0,0.5), (0,10), (0,5)]))
     best_result = np.argmin([res.fun for res in minim_results])
-    return minim_results[best_result], page_hist
+    return minim_results[best_result]
