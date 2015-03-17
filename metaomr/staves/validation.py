@@ -35,8 +35,8 @@ class StaffValidation:
         # Staff must have at least staff_dist space above and below
         # to nearest staves
         staves = method()
-        staff_min = staves[staff_num,:,1].min() - 3*self.page.staff_dist
-        staff_max = staves[staff_num,:,1].max() + 3*self.page.staff_dist
+        staff_min = staves[staff_num,:,1].min() - int(2.5*self.page.staff_dist)
+        staff_max = staves[staff_num,:,1].max() + int(2.5*self.page.staff_dist)
         if not ((staves[staff_num-1, :, 1].max()
                      if staff_num > 0 else 0) + 3*self.page.staff_dist
                 < staff_min < staff_max
