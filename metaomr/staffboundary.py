@@ -26,7 +26,7 @@ def distance_transform_kernel(img, numiters=64):
     for i in xrange(numiters):
         prg.taxicab_distance_step(img, global_size=img.shape[::-1])
 
-DT_SCALE = 5.0
+DT_SCALE = 2.0
 def distance_transform(page):
     dt = thr.empty_like(Type(np.int32, (2048, 2048)))
     dt.fill(0)
@@ -106,8 +106,9 @@ def boundary_cost(page, staff):
     path = shortest_path(edge_costs, start_y)
     path[:, 0] = DT_SCALE * (x0 + xstep * path[:, 0])
     path[:, 1] = DT_SCALE * (y0 + ystep * path[:, 1])
-    if path[-1, 0] < x1:
-        path = np.concatenate((path, [[x1, DT_SCALE * (y0 + ystep * start_y)]]))
+    if path[-1, 0] < page.orig_size[1]:
+        path = np.concatenate((path, [[page.orig_size[1],
+                    DT_SCALE * (y0 + ystep * start_y)]]))
     return path
 
 def boundaries(page):
