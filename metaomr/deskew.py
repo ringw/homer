@@ -22,7 +22,7 @@ def get_column_offsets(page, strip_size=32):
     for s in xrange(len(strip_offsets) - 1):
         column_offsets[s*strip_size + strip_size/2:(s+1)*strip_size + strip_size/2] = \
             np.rint(np.linspace(strip_offsets[s], strip_offsets[s+1], strip_size)).astype(int)
-    column_offsets[-strip_size/2:] = strip_offsets[-1]
+    column_offsets[len(strip_offsets) * strip_size - strip_size/2:] = strip_offsets[-1]
     return column_offsets
 def deskew(page):
     column_offsets = get_column_offsets(page)
@@ -31,7 +31,7 @@ def deskew(page):
     page.img = bitimage.as_bitimage(page.byteimg)
 
 def get_strips(page, strip_size):
-    width = -(-page.orig_size[1] / strip_size) * strip_size
+    width = (page.orig_size[1] / strip_size) * strip_size
     img = page.byteimg[:, :width]
     strip_img = img.reshape((img.shape[0], img.shape[1] / strip_size, strip_size))
     return strip_img.sum(-1)
