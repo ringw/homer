@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 import sklearn.linear_model
 import os.path
-#LEARNER = lambda: sklearn.linear_model.Lasso(alpha=0.01, normalize=True)
-LEARNER = sklearn.linear_model.LinearRegression
+LEARNER = lambda: sklearn.linear_model.Lasso(alpha=0.01, normalize=True)
+#LEARNER = sklearn.linear_model.LinearRegression
 
 works = cPickle.load(open('imslp/imslp_works.pkl'))
 kanungo = pd.DataFrame()
@@ -44,6 +44,18 @@ for f in deskew:
                       staff_thick_ratio=result.staff_thick / result.staff_dist)))
 feats = feats.join(deskew_feats, how='left')
 
+#staffscore = sorted(glob.glob('results/imslp_staffscore/*.csv.gz'))
+#staff_feats = pd.DataFrame()
+#for f in staffscore:
+#    result = pd.DataFrame.from_csv(gzip.open(f), index_col=range(3))
+#    staff = result.index.get_level_values('staff')
+#    result.index = result.index.droplevel('staff')
+#    eachstaff = result.score.ix[staff != 'page']
+#    staff_feats = staff_feats.append(pd.DataFrame(dict(
+#                    staff_sens=result.score.ix[staff == 'page'],
+#                    staff_spec=eachstaff.groupby(eachstaff.index).mean().fillna(0))))
+#feats = feats.join(staff_feats, how='left')
+
 ratings = pd.DataFrame(columns=['rating'])
 regex = ''
 for title, work in works.iteritems():
@@ -54,13 +66,25 @@ for title, work in works.iteritems():
             regex += '|IMSLP' + score_id
 ratings['id'] = ratings.index
 regex = re.compile('^' + regex[1:] + '-')
-docs = pd.Series(kanungo.index.get_level_values('doc'), index=feats.index)
-feats['id'] = docs.str.extract('IMSLP([0-9]+)')
-feats = feats.merge(ratings, on='id', how='left').set_index(feats.index)
-feats = feats.ix[~ feats.isnull().any(1)]
-docs = pd.Series(feats.index.get_level_values('doc'), index=feats.index)
-X = feats[range(12)]
-Y = feats['rating']
+
+if False:
+    docfeats = feats.copy()
+    docfeats.index = docfeats.index.get_level_values('doc')
+    docfeats = docfeats.groupby(docfeats.index).median()
+    doc_id = pd.Series(docfeats.index).str.extract('IMSLP([0-9]+)')
+    doc_id.index = docfeats.index
+    docfeats['id'] = doc_id
+    docfeats = docfeats.merge(ratings, on='id', how='left').set_index(docfeats.index)
+    docfeats = docfeats.ix[~ docfeats.isnull().any(1)]
+    X = docfeats[range(14)]
+    Y = docfeats['rating']
+else:
+    docs = pd.Series(kanungo.index.get_level_values('doc'), index=feats.index)
+    feats['id'] = docs.str.extract('IMSLP([0-9]+)')
+    feats = feats.merge(ratings, on='id', how='left').set_index(feats.index)
+    feats = feats.ix[~ feats.isnull().any(1)]
+    X = feats[range(12)]
+    Y = feats['rating']
 
 model = LEARNER()
 model.fit(X, Y)
@@ -70,10 +94,3 @@ Yperm = np.array(Y)
 np.random.shuffle(Yperm)
 nullmodel = LEARNER()
 nullmodel.fit(X, Yperm)
-
-Xval = np.array(X)
-errs = ((Ypred - Y) ** 2).sum().astype(float) / (len(Y)-2)
-SE = np.sqrt(errs / ((Xval - Xval.mean(0))**2).sum(0))
-T = model.coef_ / SE
-from scipy.stats import t as tdist
-p = 2*(1-tdist.cdf(T, df=len(Y)-2))
