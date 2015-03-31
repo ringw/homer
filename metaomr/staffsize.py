@@ -49,7 +49,8 @@ def staffsize(page, img=None):
     is_max = np.zeros_like(dist, bool)
     is_max[1:-1] = dist[1:-1] > np.max([dist[:-2], dist[2:]], axis=0)
     # Must be a sharp peak
-    is_max[2:-2] &= dist[2:-2] > np.max([dist[:-4], dist[4:]], axis=0)*5
+    is_max[2:-2] &= dist[2:-2] > np.max([dist[:-4], dist[4:]], axis=0)*2
+    is_max[3:-3] &= dist[3:-3] > np.maximum(dist[:-6], dist[6:])*5
     is_thresh = dist >= dist.max() / 100.0
     dist_vals, = np.where(is_max & is_thresh)
     # Sort by most dominant staves in piece
