@@ -15,7 +15,7 @@ import gc
 dir_path = sys.argv[1]
 imslpid = re.search('IMSLP[0-9]+', dir_path).group(0)
 regex = r'\b(' + '|'.join('1 5 6 17 19 20 24 25 27'.split()) + r')\b'
-if re.search(regex, dir_path) is None:
+if re.search(regex, dir_path) is None or os.exists(sys.argv[2]):
     sys.exit(0)
 pages = sorted(glob.glob(os.path.join(dir_path, '*.pbm')))
 pages = [metaomr.open(page)[0] for page in pages]
@@ -44,8 +44,8 @@ for p, page in enumerate(pages):
     else:
         med = np.median(ss)
         starts = ss > med + 50
-        for s, sys in enumerate(page.systems):
-            if starts[sys['start']:sys['stop']+1].all():
+        for s, syst in enumerate(page.systems):
+            if starts[syst['start']:syst['stop']+1].all():
                 mvmt_start.append((p, s))
 mvmt_start.append((p, len(page.systems)))
 
