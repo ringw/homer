@@ -5,6 +5,7 @@ from metaomr import bitimage, deskew
 import glob
 import numpy as np
 import os
+import itertools
 import re
 import sys
 from PIL import Image
