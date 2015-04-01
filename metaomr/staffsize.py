@@ -48,7 +48,7 @@ def staffsize(page, img=None):
         # Take simple argmax of histogram
         dist_val = np.argmax(dist)
         if max(dist[max(0, dist_val - 5)],
-               dist[min(len(dist)-1, dist_val + 5])]) * 5 > dist[dist_val]:
+               dist[min(len(dist)-1, dist_val + 5)]) * 5 > dist[dist_val]:
             dist_vals = np.array([])
         else:
             dist_vals = np.array([dist_val])
