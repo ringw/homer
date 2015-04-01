@@ -5,30 +5,18 @@ from metaomr import bitimage, deskew
 import glob
 import numpy as np
 import os
-import pandas as pd
 import re
 import sys
 from PIL import Image
 import zipfile
 from cStringIO import StringIO
-
-sonatas = pd.DataFrame.from_csv('resources/beethoven_sonata_movements.csv',
-                                header=None)
+import gc
 
 dir_path = sys.argv[1]
-name = os.path.basename(dir_path)
-imslpid = re.search('IMSLP[0-9]+', name).group(0)
 pages = sorted(glob.glob(os.path.join(dir_path, '*.pbm')))
-
-if imslpid not in sonatas.index:
-    sys.exit()
-
-output = zipfile.ZipFile(sys.argv[2], 'w', zipfile.ZIP_DEFLATED)
-info = sonatas.ix[imslpid]
-mvmt_start = np.array(info[~ info.isnull()][1:]).reshape((-1, 2))
-
 pages = [metaomr.open(page)[0] for page in pages]
 for p, page in enumerate(pages):
+    sys.stderr.write('%d ' % p)
     try:
         page.preprocess()
         if type(page.staff_dist) is not int:
@@ -38,6 +26,26 @@ for p, page in enumerate(pages):
     except Exception, e:
         print imslpid, p, '-', e
         pages[p] = None
+
+mvmt_start = []
+for p, page in enumerate(pages):
+    if page is None:
+        continue
+    ss = page.staves()[:, 0, 0].compressed()
+    if len(ss) < 4:
+        continue
+    if not mvmt_start:
+        # Start a new movement on this page
+        mvmt_start.append((p, 0))
+    else:
+        med = np.median(ss)
+        starts = ss > med + 50
+        for s, sys in enumerate(page.systems):
+            if starts[sys['start']:sys['stop']+1].all():
+                mvmt_start.append((p, s))
+mvmt_start.append((p, len(page.systems)))
+
+output = zipfile.ZipFile(sys.argv[2], 'w', zipfile.ZIP_DEFLATED)
 
 for movement in xrange(len(mvmt_start) - 1):
     mvmt_path = 'mvmt%d' % movement
