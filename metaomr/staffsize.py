@@ -44,23 +44,30 @@ def staffsize(page, img=None):
         page.staff_space = None
         page.staff_dist = None
         return page.staff_thick, page.staff_dist
-    # Multiple staff sizes are possible for different instruments
-    # Look for distinct peaks
-    is_max = np.zeros_like(dist, bool)
-    is_max[1:-1] = dist[1:-1] > np.max([dist[:-2], dist[2:]], axis=0)
-    # Must be a sharp peak
-    is_max[2:-2] &= dist[2:-2] > np.max([dist[:-4], dist[4:]], axis=0)*2
-    is_max[3:-3] &= dist[3:-3] > np.maximum(dist[:-6], dist[6:])*5
-    is_thresh = dist >= dist.max() / 100.0
-    dist_vals, = np.where(is_max & is_thresh)
+    elif settings.SINGLE_STAFF_SIZE:
+        # Take simple argmax of histogram
+        dist_val = np.argmax(dist)
+        if max(dist[max(0, dist_val - 5)],
+               dist[min(len(dist)-1, dist_val + 5])]) * 5 > dist[dist_val]:
+            dist_vals = np.array([])
+        else:
+            dist_vals = np.array([dist_val])
+    else:
+        # Multiple staff sizes are possible for different instruments
+        # Look for distinct peaks
+        is_max = np.zeros_like(dist, bool)
+        is_max[1:-1] = dist[1:-1] > np.max([dist[:-2], dist[2:]], axis=0)
+        # Must be a sharp peak
+        is_max[2:-2] &= dist[2:-2] > np.max([dist[:-4], dist[4:]], axis=0)*2
+        is_max[3:-3] &= dist[3:-3] > np.maximum(dist[:-6], dist[6:])*5
+        is_thresh = dist >= dist.max() / 100.0
+        dist_vals, = np.where(is_max & is_thresh)
     # Sort by most dominant staves in piece
     # We may detect a small staff with editor's notes, etc. which should be
     # detected after the actual music staves
     # XXX: staff_dist value is one greater than expected???
     dist_vals = dist_vals[np.argsort(-dist[dist_vals])] - 1
     # If we assume uniform staff size, then only keep the most dominant size
-    if settings.SINGLE_STAFF_SIZE:
-        dist_vals = dist_vals[0:1]
     if len(dist_vals) == 0:
         logging.warn("No staves detected")
         page.staff_thick = None
