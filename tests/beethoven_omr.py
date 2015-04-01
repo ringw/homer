@@ -19,6 +19,8 @@ if re.search(regex, dir_path) is None or os.path.isfile(sys.argv[2]):
     sys.exit(0)
 pages = sorted(glob.glob(os.path.join(dir_path, '*.pbm')))
 pages = [metaomr.open(page)[0] for page in pages]
+if len(pages) == 0:
+    sys.exit(0)
 for p, page in enumerate(pages):
     sys.stderr.write('%d ' % p)
     try:
@@ -32,9 +34,12 @@ for p, page in enumerate(pages):
         pages[p] = None
 
 mvmt_start = []
+lastpage = None
+lastp = None
 for p, page in enumerate(pages):
     if page is None:
         continue
+    lastpage, lastp = page, p
     ss = page.staves()[:, 0, 0].compressed()
     if len(ss) < 4:
         continue
@@ -47,7 +52,7 @@ for p, page in enumerate(pages):
         for s, syst in enumerate(page.systems):
             if starts[syst['start']:syst['stop']+1].all():
                 mvmt_start.append((p, s))
-mvmt_start.append((p, len(page.systems)))
+mvmt_start.append((lastp, len(lastpage.systems)))
 mvmt_start = np.array(mvmt_start, int)
 
 output = zipfile.ZipFile(sys.argv[2], 'w', zipfile.ZIP_DEFLATED)
