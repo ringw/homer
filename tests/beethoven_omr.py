@@ -11,11 +11,13 @@ from PIL import Image
 import zipfile
 from cStringIO import StringIO
 import gc
+import pandas as pd
+
+sonatas = pd.DataFrame.from_csv('resources/beethoven_sonatas.csv', header=None)
 
 dir_path = sys.argv[1]
 imslpid = re.search('IMSLP[0-9]+', dir_path).group(0)
-regex = r'\b(' + '|'.join('1 5 6 17 19 20 24 25 27'.split()) + r')\b'
-if re.search(regex, dir_path) is None or os.path.isfile(sys.argv[2]):
+if imslpid not in sonatas.index or os.path.isfile(sys.argv[2]):
     sys.exit(0)
 pages = sorted(glob.glob(os.path.join(dir_path, '*.pbm')))
 pages = [metaomr.open(page)[0] for page in pages]
@@ -37,7 +39,7 @@ mvmt_start = []
 lastpage = None
 lastp = None
 for p, page in enumerate(pages):
-    if page is None:
+    if page is None or type(page.staff_dist) is not int:
         continue
     lastpage, lastp = page, p
     ss = page.staves()[:, 0, 0].compressed()
@@ -53,6 +55,11 @@ for p, page in enumerate(pages):
             if starts[syst['start']:syst['stop']+1].all():
                 mvmt_start.append((p, s))
 mvmt_start.append((lastp, len(lastpage.systems)))
+
+movements = open('results/beethoven_movements.csv', 'a')
+print >> movements, ','.join(map(str, itertools.chain(*(
+            [(imslpid, sonatas.ix[imslpid][1])] + mvmt_start))))
+
 mvmt_start = np.array(mvmt_start, int)
 
 output = zipfile.ZipFile(sys.argv[2], 'w', zipfile.ZIP_DEFLATED)
