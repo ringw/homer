@@ -13,6 +13,10 @@ from cStringIO import StringIO
 import gc
 
 dir_path = sys.argv[1]
+imslpid = re.search('IMSLP[0-9]+', dir_path).group(0)
+regex = r'\b(' + '|'.join('1 5 6 17 19 20 24 25 27'.split()) + r')\b'
+if re.search(regex, dir_path) is None:
+    sys.exit(0)
 pages = sorted(glob.glob(os.path.join(dir_path, '*.pbm')))
 pages = [metaomr.open(page)[0] for page in pages]
 for p, page in enumerate(pages):
