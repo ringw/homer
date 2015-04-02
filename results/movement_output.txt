@@ -1,0 +1,1048 @@
+remote: Compressing objects: 100% (1/1), done.
+remote: Total 4 (delta 3), reused 4 (delta 3), pack-reused 0
+Unpacking objects: 100% (4/4), done.
+From git://github.com/ringw/MetaOMR
+   189a2b1..859bd46  master     -> origin/master
+Updating 189a2b1..859bd46
+Fast-forward
+ tests/beethoven_omr.py | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+root@thing2:~/MetaOMR#
+.zip; if [ \! -e "$OUT" ]; then python tests/beethoven_omr.py imslp/pbm/$f $OUT;
+ fi; done
+/usr/local/lib/python2.7/dist-packages/pyopencl-2014.1-py2.7-linux-x86_64.egg/py
+opencl/__init__.py:63: CompilerWarning: Non-empty compiler output encountered. S
+et the environment variable PYOPENCL_COMPILER_OUTPUT=1 to see more.
+  "to see more.", CompilerWarning)
+/usr/local/lib/python2.7/dist-packages/pyopencl-2014.1-py2.7-linux-x86_64.egg/py
+opencl/__init__.py:63: CompilerWarning: Non-empty compiler output encountered. S
+et the environment variable PYOPENCL_COMPILER_OUTPUT=1 to see more.
+  "to see more.", CompilerWarning)
+/usr/local/lib/python2.7/dist-packages/pyopencl-2014.1-py2.7-linux-x86_64.egg/py
+opencl/__init__.py:63: CompilerWarning: Non-empty compiler output encountered. S
+et the environment variable PYOPENCL_COMPILER_OUTPUT=1 to see more.
+  "to see more.", CompilerWarning)
+/usr/local/lib/python2.7/dist-packages/pyopencl-2014.1-py2.7-linux-x86_64.egg/py
+opencl/__init__.py:63: CompilerWarning: Non-empty compiler output encountered. S
+et the environment variable PYOPENCL_COMPILER_OUTPUT=1 to see more.
+  "to see more.", CompilerWarning)
+/usr/local/lib/python2.7/dist-packages/pyopencl-2014.1-py2.7-linux-x86_64.egg/py
+opencl/__init__.py:63: CompilerWarning: Non-empty compiler output encountered. S
+et the environment variable PYOPENCL_COMPILER_OUTPUT=1 to see more.
+  "to see more.", CompilerWarning)
+/usr/local/lib/python2.7/dist-packages/pyopencl-2014.1-py2.7-linux-x86_64.egg/py
+opencl/__init__.py:63: CompilerWarning: Non-empty compiler output encountered. S
+et the environment variable PYOPENCL_COMPILER_OUTPUT=1 to see more.
+  "to see more.", CompilerWarning)
+/usr/local/lib/python2.7/dist-packages/pyopencl-2014.1-py2.7-linux-x86_64.egg/py
+opencl/__init__.py:63: CompilerWarning: Non-empty compiler output encountered. S
+et the environment variable PYOPENCL_COMPILER_OUTPUT=1 to see more.
+  "to see more.", CompilerWarning)
+/usr/local/lib/python2.7/dist-packages/pyopencl-2014.1-py2.7-linux-x86_64.egg/py
+opencl/__init__.py:63: CompilerWarning: Non-empty compiler output encountered. S
+et the environment variable PYOPENCL_COMPILER_OUTPUT=1 to see more.
+  "to see more.", CompilerWarning)
+/usr/local/lib/python2.7/dist-packages/pyopencl-2014.1-py2.7-linux-x86_64.egg/py
+opencl/__init__.py:63: CompilerWarning: Non-empty compiler output encountered. S
+et the environment variable PYOPENCL_COMPILER_OUTPUT=1 to see more.
+  "to see more.", CompilerWarning)
+/usr/local/lib/python2.7/dist-packages/pyopencl-2014.1-py2.7-linux-x86_64.egg/py
+opencl/__init__.py:63: CompilerWarning: Non-empty compiler output encountered. S
+et the environment variable PYOPENCL_COMPILER_OUTPUT=1 to see more.
+  "to see more.", CompilerWarning)
+/usr/local/lib/python2.7/dist-packages/pyopencl-2014.1-py2.7-linux-x86_64.egg/py
+opencl/__init__.py:63: CompilerWarning: Non-empty compiler output encountered. S
+et the environment variable PYOPENCL_COMPILER_OUTPUT=1 to see more.
+  "to see more.", CompilerWarning)
+/usr/local/lib/python2.7/dist-packages/pyopencl-2014.1-py2.7-linux-x86_64.egg/py
+opencl/__init__.py:63: CompilerWarning: Non-empty compiler output encountered. S
+et the environment variable PYOPENCL_COMPILER_OUTPUT=1 to see more.
+  "to see more.", CompilerWarning)
+/usr/local/lib/python2.7/dist-packages/pyopencl-2014.1-py2.7-linux-x86_64.egg/py
+opencl/__init__.py:63: CompilerWarning: Non-empty compiler output encountered. S
+et the environment variable PYOPENCL_COMPILER_OUTPUT=1 to see more.
+  "to see more.", CompilerWarning)
+/usr/local/lib/python2.7/dist-packages/pyopencl-2014.1-py2.7-linux-x86_64.egg/py
+opencl/__init__.py:63: CompilerWarning: Non-empty compiler output encountered. S
+et the environment variable PYOPENCL_COMPILER_OUTPUT=1 to see more.
+  "to see more.", CompilerWarning)
+^Z
+[1]+  Stopped                 python tests/beethoven_omr.py imslp/pbm/$f $OUT
+root@thing2:~/MetaOMR# kill %
+
+[1]+  Stopped                 python tests/beethoven_omr.py imslp/pbm/$f $OUT
+root@thing2:~/MetaOMR#
+[1]+  Terminated              python tests/beethoven_omr.py imslp/pbm/$f $OUT
+root@thing2:~/MetaOMR# (for f in $(ls imslp/pbm); do OUT=movements/$(basename $f
+).zip; if [ \! -e "$OUT" ]; then python tests/beethoven_omr.py imslp/pbm/$f $OUT
+; fi; done) 2>&1 | grep -v PYOPENCL_COMPILER_OUTPUT
+  "to see more.", CompilerWarning)
+  "to see more.", CompilerWarning)
+  "to see more.", CompilerWarning)
+^C^Z
+[1]+  Stopped                 ( for f in $(ls imslp/pbm);
+do
+    OUT=movements/$(basename $f).zip; if [ \! -e "$OUT" ]; then
+        python tests/beethoven_omr.py imslp/pbm/$f $OUT;
+    fi;
+done ) 2>&1 | grep --color=auto -v PYOPENCL_COMPILER_OUTPUT
+root@thing2:~/MetaOMR# kill %
+
+[1]+  Stopped                 ( for f in $(ls imslp/pbm);
+do
+    OUT=movements/$(basename $f).zip; if [ \! -e "$OUT" ]; then
+        python tests/beethoven_omr.py imslp/pbm/$f $OUT;
+    fi;
+done ) 2>&1 | grep --color=auto -v PYOPENCL_COMPILER_OUTPUT
+root@thing2:~/MetaOMR#
+root@thing2:~/MetaOMR# (for f in $(ls imslp/pbm); do OUT=movements/$(basename $f
+).zip; if [ \! -e "$OUT" ]; then python tests/beethoven_omr.py imslp/pbm/$f $OUT
+; fi; done) 2>&1 | grep -v PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+/usr/local/lib/python2.7/dist-packages/pyopencl-2014.1-py2.7-linux-x86_64.egg/py
+opencl/__init__.py:63: CompilerWarning: Non-empty compiler output encountered. S
+et the environment variable PYOPENCL_COMPILER_OUTPUT=1 to see more.
+  "to see more.", CompilerWarning)
+/usr/local/lib/python2.7/dist-packages/pyopencl-2014.1-py2.7-linux-x86_64.egg/py
+opencl/__init__.py:63: CompilerWarning: Non-empty compiler output encountered. S
+et the environment variable PYOPENCL_COMPILER_OUTPUT=1 to see more.
+  "to see more.", CompilerWarning)
+/usr/local/lib/python2.7/dist-packages/pyopencl-2014.1-py2.7-linux-x86_64.egg/py
+opencl/__init__.py:63: CompilerWarning: Non-empty compiler output encountered. S
+et the environment variable PYOPENCL_COMPILER_OUTPUT=1 to see more.
+  "to see more.", CompilerWarning)
+/usr/local/lib/python2.7/dist-packages/pyopencl-2014.1-py2.7-linux-x86_64.egg/py
+opencl/__init__.py:63: CompilerWarning: Non-empty compiler output encountered. S
+et the environment variable PYOPENCL_COMPILER_OUTPUT=1 to see more.
+  "to see more.", CompilerWarning)
+^Z[1]   Interrupt               ( for f in $(ls imslp/pbm);
+do
+    OUT=movements/$(basename $f).zip; if [ \! -e "$OUT" ]; then
+        python tests/beethoven_omr.py imslp/pbm/$f $OUT;
+    fi;
+done ) 2>&1 | grep --color=auto -v PYOPENCL_COMPILER_OUTPUT
+
+[2]+  Stopped                 ( for f in $(ls imslp/pbm);
+do
+    OUT=movements/$(basename $f).zip; if [ \! -e "$OUT" ]; then
+        python tests/beethoven_omr.py imslp/pbm/$f $OUT;
+    fi;
+done ) 2>&1 | grep --color=auto -v PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+root@thing2:~/MetaOMR# kill %
+
+[2]+  Stopped                 ( for f in $(ls imslp/pbm);
+do
+    OUT=movements/$(basename $f).zip; if [ \! -e "$OUT" ]; then
+        python tests/beethoven_omr.py imslp/pbm/$f $OUT;
+    fi;
+done ) 2>&1 | grep --color=auto -v PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+root@thing2:~/MetaOMR#
+root@thing2:~/MetaOMR# man grep
+GREP(1)                     General Commands Manual                    GREP(1)
+
+NAME
+       grep, egrep, fgrep, rgrep - print lines matching a pattern
+
+SYNOPSIS
+       grep [OPTIONS] PATTERN [FILE...]
+       grep [OPTIONS] [-e PATTERN | -f FILE] [FILE...]
+
+DESCRIPTION
+       grep  searches the named input FILEs (or standard input if no files are
+       named, or if a single hyphen-minus (-) is given as file name) for lines
+       containing  a  match to the given PATTERN.  By default, grep prints the
+       matching lines.
+
+       In  addition,  three  variant  programs  egrep,  fgrep  and  rgrep  are
+       available.   egrep  is  the  same  as  grep -E.   fgrep  is the same as
+       grep -F.  rgrep is the same as grep -r.  Direct  invocation  as  either
+       egrep  or  fgrep  is  deprecated,  but  is provided to allow historical
+       applications that rely on them to run unmodified.
+
+OPTIONS
+   Generic Program Information
+...skipping...
+       -E, --extended-regexp
+              Interpret  PATTERN  as  an extended regular expression (ERE, see
+              below).  (-E is specified by POSIX.)
+
+       -F, --fixed-strings
+              Interpret PATTERN as a  list  of  fixed  strings,  separated  by
+              newlines,  any  of  which is to be matched.  (-F is specified by
+              POSIX.)
+
+       -G, --basic-regexp
+              Interpret PATTERN  as  a  basic  regular  expression  (BRE,  see
+              below).  This is the default.
+
+       -P, --perl-regexp
+              Interpret  PATTERN  as  a  Perl  regular  expression  (PCRE, see
+              below).  This is highly experimental and grep  -P  may  warn  of
+              unimplemented features.
+
+   Matching Control
+       -e PATTERN, --regexp=PATTERN
+              Use  PATTERN  as  the  pattern.   This  can  be  used to specify
+              multiple search patterns, or to protect a pattern beginning with
+              a hyphen (-).  (-e is specified by POSIX.)
+[2]+  Terminated              ( for f in $(ls imslp/pbm);
+do
+    OUT=movements/$(basename $f).zip; if [ \! -e "$OUT" ]; then
+        python tests/beethoven_omr.py imslp/pbm/$f $OUT;
+    fi;
+done ) 2>&1 | grep --color=auto -v PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+root@thing2:~/MetaOMR#
+).zip; if [ \! -e "$OUT" ]; then python tests/beethoven_omr.py imslp/pbm/$f $OUT
+; fi; done) 2>&1 | grep -Ev PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+Traceback (most recent call last):
+  File "tests/beethoven_omr.py", line 18, in <module>
+    if re.search(regex, dir_path) is None or os.exists(sys.argv[2]):
+AttributeError: 'module' object has no attribute 'exists'
+Traceback (most recent call last):
+  File "tests/beethoven_omr.py", line 18, in <module>
+    if re.search(regex, dir_path) is None or os.exists(sys.argv[2]):
+AttributeError: 'module' object has no attribute 'exists'
+Traceback (most recent call last):
+  File "tests/beethoven_omr.py", line 18, in <module>
+    if re.search(regex, dir_path) is None or os.exists(sys.argv[2]):
+AttributeError: 'module' object has no attribute 'exists'
+Traceback (most recent call last):
+  File "tests/beethoven_omr.py", line 18, in <module>
+    if re.search(regex, dir_path) is None or os.exists(sys.argv[2]):
+AttributeError: 'module' object has no attribute 'exists'
+Traceback (most recent call last):
+  File "tests/beethoven_omr.py", line 18, in <module>
+    if re.search(regex, dir_path) is None or os.exists(sys.argv[2]):
+AttributeError: 'module' object has no attribute 'exists'
+Traceback (most recent call last):
+  File "tests/beethoven_omr.py", line 18, in <module>
+    if re.search(regex, dir_path) is None or os.exists(sys.argv[2]):
+AttributeError: 'module' object has no attribute 'exists'
+Traceback (most recent call last):
+  File "tests/beethoven_omr.py", line 18, in <module>
+    if re.search(regex, dir_path) is None or os.exists(sys.argv[2]):
+AttributeError: 'module' object has no attribute 'exists'
+^Z
+[1]+  Stopped                 ( for f in $(ls imslp/pbm);
+do
+    OUT=movements/$(basename $f).zip; if [ \! -e "$OUT" ]; then
+        python tests/beethoven_omr.py imslp/pbm/$f $OUT;
+    fi;
+done ) 2>&1 | grep --color=auto -Ev PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+root@thing2:~/MetaOMR# kill %
+
+[1]+  Stopped                 ( for f in $(ls imslp/pbm);
+do
+    OUT=movements/$(basename $f).zip; if [ \! -e "$OUT" ]; then
+        python tests/beethoven_omr.py imslp/pbm/$f $OUT;
+    fi;
+done ) 2>&1 | grep --color=auto -Ev PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+root@thing2:~/MetaOMR#
+[1]   Terminated              ( for f in $(ls imslp/pbm);
+do
+    OUT=movements/$(basename $f).zip; if [ \! -e "$OUT" ]; then
+        python tests/beethoven_omr.py imslp/pbm/$f $OUT;
+    fi;
+done ) 2>&1 | grep --color=auto -Ev PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+root@thing2:~/MetaOMR# %
+bash: fg: %: no such job
+root@thing2:~/MetaOMR# vim tests/beethoven_omr.py
+
+import env
+import metaomr
+from metaomr import bitimage, deskew
+
+import glob
+import numpy as np
+import os
+import re
+import sys
+from PIL import Image
+import zipfile
+from cStringIO import StringIO
+import gc
+
+dir_path = sys.argv[1]
+imslpid = re.search('IMSLP[0-9]+', dir_path).group(0)
+regex = r'\b(' + '|'.join('1 5 6 17 19 20 24 25 27'.split()) + r')\b'
+if re.search(regex, dir_path) is None or os.path.isfile(sys.argv[2]):
+    sys.exit(0)
+pages = sorted(glob.glob(os.path.join(dir_path, '*.pbm')))
+pages = [metaomr.open(page)[0] for page in pages]
+for p, page in enumerate(pages):
+    sys.stderr.write('%d ' % p)
+"tests/beethoven_omr.py" 83L, 3028C written
+root@thing2:~/MetaOMR# (for f in $(ls imslp/pbm); do OUT=movements/$(basename $f
+).zip; if [ \! -e "$OUT" ]; then python tests/beethoven_omr.py imslp/pbm/$f $OUT
+; fi; done) 2>&1 | grep -Ev PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+
+0 1 2 3 4 5 6 7 PDF import disabled; please install pylibtiff
+IMSLP03849 0 - staffsize failed
+IMSLP03849 2 - staffsize failed
+IMSLP03849 3 - staffsize failed
+IMSLP03849 5 - staffsize failed
+Traceback (most recent call last):
+  File "tests/beethoven_omr.py", line 56, in <module>
+    for p in xrange(mvmt_start[movement, 0],
+TypeError: list indices must be integers, not tuple
+^Z
+[1]+  Stopped                 ( for f in $(ls imslp/pbm);
+do
+    OUT=movements/$(basename $f).zip; if [ \! -e "$OUT" ]; then
+        python tests/beethoven_omr.py imslp/pbm/$f $OUT;
+    fi;
+done ) 2>&1 | grep --color=auto -Ev PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+root@thing2:~/MetaOMR# git checkout -- test/beet
+error: pathspec 'test/beet' did not match any file(s) known to git.
+root@thing2:~/MetaOMR# g^C
+root@thing2:~/MetaOMR# git checkout -- tests/beethoven_omr.py
+root@thing2:~/MetaOMR# git pull
+remote: Counting objects: 4, done.
+remote: Compressing objects: 100% (1/1), done.
+remote: Total 4 (delta 3), reused 4 (delta 3), pack-reused 0
+Unpacking objects: 100% (4/4), done.
+From git://github.com/ringw/MetaOMR
+   859bd46..1870043  master     -> origin/master
+Updating 859bd46..1870043
+Fast-forward
+ tests/beethoven_omr.py | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+root@thing2:~/MetaOMR# (for f in $(ls imslp/pbm); do OUT=movements/$(basename $f
+).zip; if [ \! -e "$OUT" ]; then python tests/beethoven_omr.py imslp/pbm/$f $OUT
+; fi; done) 2>&1 | grep -Ev PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+
+0 1 2 3 4 5 6 PDF import disabled; please install pylibtiff
+IMSLP03852 4 - staffsize failed
+IMSLP03852 6 - staffsize failed
+Traceback (most recent call last):
+  File "tests/beethoven_omr.py", line 50, in <module>
+    mvmt_start.append((p, len(page.systems)))
+AttributeError: 'NoneType' object has no attribute 'systems'
+0 1 2 3 4 5 6 PDF import disabled; please install pylibtiff
+IMSLP03860 0 - staffsize failed
+IMSLP03860 1 - staffsize failed
+Traceback (most recent call last):
+  File "tests/beethoven_omr.py", line 50, in <module>
+    mvmt_start.append((p, len(page.systems)))
+NameError: name 'p' is not defined
+Traceback (most recent call last):
+  File "tests/beethoven_omr.py", line 50, in <module>
+    mvmt_start.append((p, len(page.systems)))
+NameError: name 'p' is not defined
+Traceback (most recent call last):
+  File "tests/beethoven_omr.py", line 50, in <module>
+    mvmt_start.append((p, len(page.systems)))
+NameError: name 'p' is not defined
+Traceback (most recent call last):
+  File "tests/beethoven_omr.py", line 50, in <module>
+    mvmt_start.append((p, len(page.systems)))
+NameError: name 'p' is not defined
+root@thing2:~/MetaOMR# vim tests/beethoven_omr.py
+
+
+import env
+import metaomr
+from metaomr import bitimage, deskew
+
+import glob
+import numpy as np
+import os
+import re
+import sys
+from PIL import Image
+import zipfile
+from cStringIO import StringIO
+import gc
+
+dir_path = sys.argv[1]
+imslpid = re.search('IMSLP[0-9]+', dir_path).group(0)
+regex = r'\b(' + '|'.join('1 5 6 17 19 20 24 25 27'.split()) + r')\b'
+if re.search(regex, dir_path) is None or os.path.isfile(sys.argv[2]):
+    sys.exit(0)
+pages = sorted(glob.glob(os.path.join(dir_path, '*.pbm')))
+pages = [metaomr.open(page)[0] for page in pages]
+if len(pages) == 0:
+    sys.exit(1)
+"tests/beethoven_omr.py" 86L, 3103C written
+root@thing2:~/MetaOMR# (for f in $(ls imslp/pbm); do OUT=movements/$(basename $f
+).zip; if [ \! -e "$OUT" ]; then python tests/beethoven_omr.py imslp/pbm/$f $OUT
+; fi; done) 2>&1 | grep -Ev PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+
+0 1 2 3 4 5 6 PDF import disabled; please install pylibtiff
+IMSLP03852 4 - staffsize failed
+IMSLP03852 6 - staffsize failed
+Traceback (most recent call last):
+  File "tests/beethoven_omr.py", line 52, in <module>
+    mvmt_start.append((p, len(page.systems)))
+AttributeError: 'NoneType' object has no attribute 'systems'
+root@thing2:~/MetaOMR# it chekcou^C
+root@thing2:~/MetaOMR# git checkout -- tests/beethoven_omr.py
+root@thing2:~/MetaOMR# git pull
+remote: Counting objects: 4, done.
+remote: Compressing objects: 100% (1/1), done.
+remote: Total 4 (delta 3), reused 4 (delta 3), pack-reused 0
+Unpacking objects: 100% (4/4), done.
+From git://github.com/ringw/MetaOMR
+   1870043..ac4af6d  master     -> origin/master
+Updating 1870043..ac4af6d
+Fast-forward
+ tests/beethoven_omr.py | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+root@thing2:~/MetaOMR# (for f in $(ls imslp/pbm); do OUT=movements/$(basename $f
+).zip; if [ \! -e "$OUT" ]; then python tests/beethoven_omr.py imslp/pbm/$f $OUT
+; fi; done) 2>&1 | grep -Ev PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+
+0 1 2 3 4 5 6 PDF import disabled; please install pylibtiff
+IMSLP03852 4 - staffsize failed
+IMSLP03852 6 - staffsize failed
+root@thing2:~/MetaOMR#
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+).zip; if [ \! -e "$OUT" ]; then python tests/beethoven_omr.py imslp/pbm/$f $OUT
+; fi; done) 2>&1 | grep -Ev PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+0 1 2 3 4 5 6 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 PDF import disabled; please install pylibtiff
+0 WARNING:root:No staves detected
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 WARNING:root:No staves detected
+20 WARNING:root:No staves detected
+PDF import disabled; please install pylibtiff
+IMSLP03062 0 - staffsize failed
+IMSLP03062 1 - negative dimensions are not allowed
+IMSLP03062 20 - staffsize failed
+Traceback (most recent call last):
+  File "tests/beethoven_omr.py", line 43, in <module>
+    ss = page.staves()[:, 0, 0].compressed()
+  File "/root/MetaOMR/metaomr/staves/base.py", line 31, in __call__
+    self.get_staves()
+  File "/root/MetaOMR/metaomr/staves/base.py", line 59, in get_staves
+    for sd in self.page.staff_dist:
+TypeError: 'NoneType' object is not iterable
+^Z
+[2]+  Stopped                 ( for f in $(ls imslp/pbm);
+do
+    OUT=movements/$(basename $f).zip; if [ \! -e "$OUT" ]; then
+        python tests/beethoven_omr.py imslp/pbm/$f $OUT;
+    fi;
+done ) 2>&1 | grep --color=auto -Ev PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+root@thing2:~/MetaOMR# kill %
+
+[2]+  Stopped                 ( for f in $(ls imslp/pbm);
+do
+    OUT=movements/$(basename $f).zip; if [ \! -e "$OUT" ]; then
+        python tests/beethoven_omr.py imslp/pbm/$f $OUT;
+    fi;
+done ) 2>&1 | grep --color=auto -Ev PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+root@thing2:~/MetaOMR# rm movements/IMSLP03
+IMSLP03030-Beethoven-PianoSonataNo6Lebert.zip
+IMSLP03796-Beethoven_-_Piano_Sonatas_Lamond_-_1.zip
+IMSLP03849-Beethoven_-_Piano_Sonatas_Lamond_-_3.1.zip
+IMSLP03852-Beethoven_-_Piano_Sonatas_Lamond_-_2.1.zip
+IMSLP03858-Beethoven_-_Piano_Sonatas_Lamond_-_5.zip
+IMSLP03859-Beethoven_-_Piano_Sonatas_Lamond_-_6.zip
+IMSLP03860-Beethoven_-_Piano_Sonatas_Lamond_-_7.1.zip
+root@thing2:~/MetaOMR# rm movements/IMSLP03^C
+root@thing2:~/MetaOMR# %
+( for f in $(ls imslp/pbm);
+do
+    OUT=movements/$(basename $f).zip; if [ \! -e "$OUT" ]; then
+        python tests/beethoven_omr.py imslp/pbm/$f $OUT;
+    fi;
+done ) 2>&1 | grep --color=auto -Ev PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+Terminated
+root@thing2:~/MetaOMR# vim tests/beethoven_omr.py
+
+import env
+import metaomr
+from metaomr import bitimage, deskew
+
+import glob
+import numpy as np
+import os
+import re
+import sys
+from PIL import Image
+import zipfile
+from cStringIO import StringIO
+import gc
+
+dir_path = sys.argv[1]
+imslpid = re.search('IMSLP[0-9]+', dir_path).group(0)
+regex = r'[^0-9](' + '|'.join('1 5 6 17 19 20 24 25 27'.split()) + r')([^0-9]|$)
+'
+if re.search(regex, dir_path) is None or os.path.isfile(sys.argv[2]):
+    sys.exit(0)
+pages = sorted(glob.glob(os.path.join(dir_path, '*.pbm')))
+pages = [metaomr.open(page)[0] for page in pages]
+if len(pages) == 0:
+/staves
+    sys.stderr.write('%d ' % p)
+    try:
+        page.preprocess()
+        if type(page.staff_dist) is not int:
+            raise Exception('staffsize failed')
+        deskew.deskew(page)
+        page.process()
+    except Exception, e:
+        print imslpid, p, '-', e
+        pages[p] = None
+
+mvmt_start = []
+lastpage = None
+lastp = None
+for p, page in enumerate(pages):
+    if page is None:
+        continue
+    lastpage, lastp = page, p
+    ss = page.staves()[:, 0, 0].compressed()
+    if len(ss) < 4:
+        continue
+    if not mvmt_start:
+        # Start a new movement on this page
+                                                              30,9          36%
+
+[2]+  Stopped                 vim tests/beethoven_omr.py
+root@thing2:~/MetaOMR# %
+vim tests/beethoven_omr.py
+
+    sys.exit(0)
+pages = sorted(glob.glob(os.path.join(dir_path, '*.pbm')))
+pages = [metaomr.open(page)[0] for page in pages]
+if len(pages) == 0:
+    sys.exit(0)
+for p, page in enumerate(pages):
+    sys.stderr.write('%d ' % p)
+    try:
+        page.preprocess()
+        if type(page.staff_dist) is not int:
+            raise Exception('staffsize failed')
+        deskew.deskew(page)
+        page.process()
+    except Exception, e:
+        print imslpid, p, '-', e
+        pages[p] = None
+
+mvmt_start = []
+lastpage = None
+lastp = None
+lastpage = None
+lastp = None
+for p, page in enumerate(pages):
+    if page is None or type(page.staff_dist) is not int:
+        continue
+    lastpage, lastp = page, p
+    ss = page.staves()[:, 0, 0].compressed()
+    if len(ss) < 4:
+        continue
+    if not mvmt_start:
+        # Start a new movement on this page
+        mvmt_start.append((p, 0))
+    else:
+        med = np.median(ss)
+        starts = ss > med + 50
+        for s, syst in enumerate(page.systems):
+            if starts[syst['start']:syst['stop']+1].all():
+                mvmt_start.append((p, s))
+mvmt_start.append((lastp, len(lastpage.systems)))
+mvmt_start = np.array(mvmt_start, int)
+
+output = zipfile.ZipFile(sys.argv[2], 'w', zipfile.ZIP_DEFLATED)
+
+"tests/beethoven_omr.py" 89L, 3218C written
+root@thing2:~/MetaOMR#
+vim tests/beethoven_omr(for f in $(ls imslp/pbm); do OUT=movements/$(basename $f
+).zip; if [ \! -e "$OUT" ]; then python tests/beethoven_omr.py imslp/pbm/$f $OUT
+; fi; done) 2>&1 | grep -Ev PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+0 WARNING:root:No staves detected
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 WARNING:root:No staves detected
+20 WARNING:root:No staves detected
+PDF import disabled; please install pylibtiff
+IMSLP03062 0 - staffsize failed
+IMSLP03062 1 - negative dimensions are not allowed
+IMSLP03062 20 - staffsize failed
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 WARNING:root:No
+ staves detected
+25 WARNING:root:No staves detected
+PDF import disabled; please install pylibtiff
+IMSLP03165 12 - staffsize failed
+IMSLP03165 15 - staffsize failed
+IMSLP03165 17 - staffsize failed
+IMSLP03165 24 - staffsize failed
+IMSLP03165 25 - staffsize failed
+Traceback (most recent call last):
+  File "tests/beethoven_omr.py", line 43, in <module>
+    ss = page.staves()[:, 0, 0].compressed()
+  File "/usr/lib/python2.7/dist-packages/numpy/ma/core.py", line 3021, in __geti
+tem__
+    dout._mask = _mask[indx]
+IndexError: too many indices
+0 WARNING:root:No staves detected
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 WARNING:root:No staves detected
+16 WARNING:root:No staves detected
+PDF import disabled; please install pylibtiff
+IMSLP03185 0 - staffsize failed
+IMSLP03185 1 - staffsize failed
+IMSLP03185 6 - staffsize failed
+IMSLP03185 12 - staffsize failed
+IMSLP03185 15 - staffsize failed
+IMSLP03185 16 - staffsize failed
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 PDF import disabled; please in
+stall pylibtiff
+IMSLP04074 0 - staffsize failed
+IMSLP04074 1 - staffsize failed
+IMSLP04074 2 - staffsize failed
+IMSLP04074 3 - staffsize failed
+IMSLP04074 5 - staffsize failed
+IMSLP04074 10 - staffsize failed
+IMSLP04074 15 - staffsize failed
+0 1 2 3 4 5 6 7 PDF import disabled; please install pylibtiff
+IMSLP04075 1 - staffsize failed
+IMSLP04075 2 - staffsize failed
+0 1 2 3 4 5 6 7 8 9 PDF import disabled; please install pylibtiff
+IMSLP04081 0 - staffsize failed
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 PDF import disabled; please install pylibtiff
+IMSLP04090 11 - staffsize failed
+0 1 2 3 4 5 6 7 PDF import disabled; please install pylibtiff
+IMSLP04102 4 - staffsize failed
+IMSLP04102 5 - staffsize failed
+0 1 2 3 4 5 6 7 8 9 10 11 12 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 PDF import d
+isabled; please install pylibtiff
+0 WARNING:root:No staves detected
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 PDF import disabl
+ed; please install pylibtiff
+IMSLP161285 0 - staffsize failed
+0 WARNING:root:No staves detected
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 PDF import disabl
+ed; please install pylibtiff
+IMSLP161328 0 - staffsize failed
+0 WARNING:root:No staves detected
+1 WARNING:root:Few runs detected, likely no staves in image
+2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 PDF import disabled; please install p
+ylibtiff
+IMSLP19667 0 - staffsize failed
+IMSLP19667 1 - staffsize failed
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 PDF import disabled; please in
+stall pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 PDF import disabled; ple
+ase install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 PDF import disabled; please install
+pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 PDF import disabled; please install pylibt
+iff
+0 1 2 3 4 5 6 7 8 9 10 11 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 PDF import disabled; please install pylibt
+iff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 PDF import disabled; please install
+pylibtiff
+IMSLP30364 8 - The truth value of an array with more than one element is ambiguo
+us. Use a.any() or a.all()
+IMSLP30364 9 - staffsize failed
+IMSLP30364 10 - staffsize failed
+0 1 2 3 4 5 6 7 8 PDF import disabled; please install pylibtiff
+0 WARNING:root:No staves detected
+1 WARNING:root:Few runs detected, likely no staves in image
+2 3 4 5 6 7 8 9 10 11 WARNING:root:No staves detected
+PDF import disabled; please install pylibtiff
+IMSLP345619 0 - staffsize failed
+IMSLP345619 1 - staffsize failed
+IMSLP345619 11 - staffsize failed
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 PDF import disabled;
+please install pylibtiff
+IMSLP40024 5 - staffsize failed
+IMSLP40024 14 - staffsize failed
+IMSLP40024 15 - staffsize failed
+IMSLP40024 16 - staffsize failed
+IMSLP40024 19 - staffsize failed
+IMSLP40024 20 - staffsize failed
+0 1 2 3 4 5 6 7 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 PDF import disabled; please install pylibtiff
+IMSLP51714 0 - staffsize failed
+IMSLP51714 8 - staffsize failed
+0 1 2 3 4 5 6 7 8 9 10 11 PDF import disabled; please install pylibtiff
+0 1 WARNING:root:No staves detected
+2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 PDF import disab
+led; please install pylibtiff
+IMSLP51731 0 - create_buffer failed: invalid buffer size
+IMSLP51731 1 - staffsize failed
+0 1 2 3 4 5 6 7 PDF import disabled; please install pylibtiff
+0 WARNING:root:No staves detected
+1 WARNING:root:Few runs detected, likely no staves in image
+2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 PDF import disabled; plea
+se install pylibtiff
+IMSLP66279 0 - staffsize failed
+IMSLP66279 1 - staffsize failed
+IMSLP66279 3 - staffsize failed
+IMSLP66279 19 - staffsize failed
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 PDF import disabled; please install pyl
+ibtiff
+IMSLP66390 12 - staffsize failed
+IMSLP66390 15 - staffsize failed
+IMSLP66390 16 - staffsize failed
+0 1 2 3 4 5 6 7 8 9 10 11 12 PDF import disabled; please install pylibtiff
+IMSLP66398 2 - staffsize failed
+IMSLP66398 10 - staffsize failed
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 PDF import d
+isabled; please install pylibtiff
+IMSLP66405 6 - staffsize failed
+IMSLP66405 23 - staffsize failed
+0 WARNING:root:No staves detected
+1 WARNING:root:Few runs detected, likely no staves in image
+2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 PDF import disabled; please instal
+l pylibtiff
+IMSLP68715 0 - staffsize failed
+IMSLP68715 1 - staffsize failed
+IMSLP68715 12 - staffsize failed
+IMSLP68715 19 - staffsize failed
+0 WARNING:root:No staves detected
+1 WARNING:root:Few runs detected, likely no staves in image
+2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 PDF import disabled; please install p
+ylibtiff
+IMSLP68722 0 - staffsize failed
+IMSLP68722 1 - staffsize failed
+IMSLP68722 3 - staffsize failed
+IMSLP68722 7 - staffsize failed
+0 WARNING:root:Few runs detected, likely no staves in image
+1 WARNING:root:Few runs detected, likely no staves in image
+2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 3
+1 32 33 PDF import disabled; please install pylibtiff
+IMSLP68736 0 - staffsize failed
+IMSLP68736 1 - staffsize failed
+IMSLP68736 2 - staffsize failed
+IMSLP68736 13 - staffsize failed
+IMSLP68736 18 - staffsize failed
+IMSLP68736 19 - staffsize failed
+IMSLP68736 20 - staffsize failed
+IMSLP68736 28 - staffsize failed
+0 WARNING:root:Few runs detected, likely no staves in image
+1 WARNING:root:Few runs detected, likely no staves in image
+2 3 4 5 6 7 8 9 10 11 PDF import disabled; please install pylibtiff
+IMSLP69581 0 - staffsize failed
+IMSLP69581 1 - staffsize failed
+IMSLP69581 2 - staffsize failed
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 PDF import disabled; please install pylibtiff
+0 1 2 3 4 /usr/lib/python2.7/dist-packages/numpy/ma/core.py:3847: UserWarning: W
+arning: converting a masked element to nan.
+  warnings.warn("Warning: converting a masked element to nan.")
+5 6 7 8 WARNING:root:No staves detected
+9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35
+36 37 38 39 40 WARNING:root:No staves detected
+41 42 PDF import disabled; please install pylibtiff
+IMSLP91285 0 - staffsize failed
+IMSLP91285 1 - staffsize failed
+IMSLP91285 2 -
+IMSLP91285 3 - staffsize failed
+IMSLP91285 6 - staffsize failed
+IMSLP91285 8 - staffsize failed
+IMSLP91285 9 -
+IMSLP91285 11 - staffsize failed
+IMSLP91285 12 - staffsize failed
+IMSLP91285 13 - staffsize failed
+IMSLP91285 14 - staffsize failed
+IMSLP91285 15 -
+IMSLP91285 17 - staffsize failed
+IMSLP91285 18 - staffsize failed
+IMSLP91285 19 - staffsize failed
+IMSLP91285 20 - staffsize failed
+IMSLP91285 21 - staffsize failed
+IMSLP91285 22 -
+IMSLP91285 24 -
+IMSLP91285 25 - staffsize failed
+IMSLP91285 27 -
+IMSLP91285 28 - staffsize failed
+IMSLP91285 29 - staffsize failed
+IMSLP91285 30 - staffsize failed
+IMSLP91285 31 - staffsize failed
+IMSLP91285 32 -
+IMSLP91285 33 -
+IMSLP91285 34 -
+IMSLP91285 35 - staffsize failed
+IMSLP91285 37 -
+IMSLP91285 38 - staffsize failed
+IMSLP91285 39 - staffsize failed
+IMSLP91285 40 - staffsize failed
+IMSLP91285 41 - staffsize failed
+IMSLP91285 42 - staffsize failed
+Traceback (most recent call last):
+  File "tests/beethoven_omr.py", line 43, in <module>
+    ss = page.staves()[:, 0, 0].compressed()
+  File "/usr/lib/python2.7/dist-packages/numpy/ma/core.py", line 3021, in __geti
+tem__
+    dout._mask = _mask[indx]
+IndexError: too many indices
+root@thing2:~/MetaOMR#
+).zip; if [ \! -e "$OUT" ]; then python tests/beethoven_omr.py imslp/pbm/$f $OUT
+; fi; done) 2>&1 | grep -Ev PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+PDF import disabled; please install pylibtiff
+Traceback (most recent call last):
+  File "tests/beethoven_omr.py", line 23, in <module>
+    pages = [metaomr.open(page)[0] for page in pages]
+  File "/root/MetaOMR/metaomr/__init__.py", line 3, in open
+    from . import image, page
+  File "/root/MetaOMR/metaomr/page.py", line 4, in <module>
+    from . import staffsize, orientation, staves
+  File "/root/MetaOMR/metaomr/staffsize.py", line 51
+    dist[min(len(dist)-1, dist_val + 5])]) * 5 > dist[dist_val]:
+                                      ^
+SyntaxError: invalid syntax
+^Z
+[2]+  Stopped                 ( for f in $(ls imslp/pbm);
+do
+    OUT=movements/$(basename $f).zip; if [ \! -e "$OUT" ]; then
+        python tests/beethoven_omr.py imslp/pbm/$f $OUT;
+    fi;
+done ) 2>&1 | grep --color=auto -Ev PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+root@thing2:~/MetaOMR# kill %
+
+[2]+  Stopped                 ( for f in $(ls imslp/pbm);
+do
+    OUT=movements/$(basename $f).zip; if [ \! -e "$OUT" ]; then
+        python tests/beethoven_omr.py imslp/pbm/$f $OUT;
+    fi;
+done ) 2>&1 | grep --color=auto -Ev PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+root@thing2:~/MetaOMR#
+root@thing2:~/MetaOMR# git pull
+remote: Counting objects: 4, done.
+remote: Compressing objects: 100% (1/1), done.
+remote: Total 4 (delta 3), reused 4 (delta 3), pack-reused 0
+Unpacking objects: 100% (4/4), done.
+From git://github.com/ringw/MetaOMR
+   00c48d4..95cd537  master     -> origin/master
+Updating 00c48d4..95cd537
+Fast-forward
+ metaomr/staffsize.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+[2]+  Terminated              ( for f in $(ls imslp/pbm);
+do
+    OUT=movements/$(basename $f).zip; if [ \! -e "$OUT" ]; then
+        python tests/beethoven_omr.py imslp/pbm/$f $OUT;
+    fi;
+done ) 2>&1 | grep --color=auto -Ev PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+root@thing2:~/MetaOMR#
+).zip; if [ \! -e "$OUT" ]; then python tests/beethoven_omr.py imslp/pbm/$f $OUT
+; fi; done) 2>&1 | grep -Ev PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 PDF import disabled; please install pyl
+ibtiff
+Traceback (most recent call last):
+  File "tests/beethoven_omr.py", line 60, in <module>
+    print >> movements, ','.join(map(str, itertools.chain(*(
+NameError: name 'itertools' is not defined
+^Z
+[2]+  Stopped                 ( for f in $(ls imslp/pbm);
+do
+    OUT=movements/$(basename $f).zip; if [ \! -e "$OUT" ]; then
+        python tests/beethoven_omr.py imslp/pbm/$f $OUT;
+    fi;
+done ) 2>&1 | grep --color=auto -Ev PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+root@thing2:~/MetaOMR# kill %
+
+[2]+  Stopped                 ( for f in $(ls imslp/pbm);
+do
+    OUT=movements/$(basename $f).zip; if [ \! -e "$OUT" ]; then
+        python tests/beethoven_omr.py imslp/pbm/$f $OUT;
+    fi;
+done ) 2>&1 | grep --color=auto -Ev PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+root@thing2:~/MetaOMR#
+[2]   Terminated              ( for f in $(ls imslp/pbm);
+do
+    OUT=movements/$(basename $f).zip; if [ \! -e "$OUT" ]; then
+        python tests/beethoven_omr.py imslp/pbm/$f $OUT;
+    fi;
+done ) 2>&1 | grep --color=auto -Ev PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+root@thing2:~/MetaOMR# git pull
+remote: Counting objects: 4, done.
+remote: Compressing objects: 100% (1/1), done.
+remote: Total 4 (delta 3), reused 4 (delta 3), pack-reused 0
+Unpacking objects: 100% (4/4), done.
+From git://github.com/ringw/MetaOMR
+   95cd537..852fe6d  master     -> origin/master
+Updating 95cd537..852fe6d
+Fast-forward
+ tests/beethoven_omr.py | 1 +
+ 1 file changed, 1 insertion(+)
+root@thing2:~/MetaOMR#
+).zip; if [ \! -e "$OUT" ]; then python tests/beethoven_omr.py imslp/pbm/$f $OUT
+; fi; done) 2>&1 | grep -Ev PYOPENCL_COMPILER_OUTPUT\|CompilerWarning
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 PDF import disabled; please install pyl
+ibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 PDF import disabled; please
+ install pylibtiff
+0 1 2 3 4 5 6 7 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 PDF import disabled; please install
+pylibtiff
+IMSLP02412 0 - arrays used as indices must be of integer (or boolean) type
+IMSLP02412 1 - negative dimensions are not allowed
+IMSLP02412 16 - arrays used as indices must be of integer (or boolean) type
+IMSLP02412 17 - arrays used as indices must be of integer (or boolean) type
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 PDF import disabled; please install
+pylibtiff
+IMSLP03030 0 - arrays used as indices must be of integer (or boolean) type
+IMSLP03030 1 - negative dimensions are not allowed
+IMSLP03030 16 - arrays used as indices must be of integer (or boolean) type
+IMSLP03030 17 - arrays used as indices must be of integer (or boolean) type
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 PDF import d
+isabled; please install pylibtiff
+IMSLP03165 0 - arrays used as indices must be of integer (or boolean) type
+IMSLP03165 24 - arrays used as indices must be of integer (or boolean) type
+IMSLP03165 25 - arrays used as indices must be of integer (or boolean) type
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 PDF import disabled; please install pyl
+ibtiff
+IMSLP03185 0 - arrays used as indices must be of integer (or boolean) type
+IMSLP03185 1 - negative dimensions are not allowed
+IMSLP03185 15 - arrays used as indices must be of integer (or boolean) type
+IMSLP03185 16 - arrays used as indices must be of integer (or boolean) type
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 PDF import disabled; please in
+stall pylibtiff
+0 1 2 3 4 5 6 7 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 PDF import disabled; please install pyl
+ibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 PDF import disabled; please
+ install pylibtiff
+0 1 2 3 4 5 6 7 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 PDF import disabled; please insta
+ll pylibtiff
+IMSLP27752 0 - arrays used as indices must be of integer (or boolean) type
+0 1 2 3 4 5 6 7 8 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 PDF import disabled; please install pylibtiff
+0 1 2 3 WARNING:root:Few runs detected, likely no staves in image
+4 5 6 7 8 9 10 11 12 13 14 15 16 17 PDF import disabled; please install pylibtif
+f
+IMSLP51707 0 - negative dimensions are not allowed
+IMSLP51707 1 - arrays used as indices must be of integer (or boolean) type
+IMSLP51707 2 - arrays used as indices must be of integer (or boolean) type
+IMSLP51707 3 - staffsize failed
+0 1 2 3 4 5 6 7 8 9 10 11 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 PDF import disabled; please in
+stall pylibtiff
+0 1 2 3 4 5 6 7 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 PDF import disabled; please install pylibtiff
+IMSLP51745 8 - arrays used as indices must be of integer (or boolean) type
+IMSLP51745 9 - arrays used as indices must be of integer (or boolean) type
+0 1 2 3 WARNING:root:Few runs detected, likely no staves in image
+4 5 6 7 8 9 10 11 PDF import disabled; please install pylibtiff
+IMSLP51797 0 - create_buffer failed: invalid buffer size
+IMSLP51797 1 - arrays used as indices must be of integer (or boolean) type
+IMSLP51797 2 - arrays used as indices must be of integer (or boolean) type
+IMSLP51797 3 - staffsize failed
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 PDF import disabled; please install pylibtiff
+0 1 WARNING:root:Few runs detected, likely no staves in image
+2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 PDF import disabled; plea
+se install pylibtiff
+IMSLP66279 0 - arrays used as indices must be of integer (or boolean) type
+IMSLP66279 1 - staffsize failed
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 PDF import disabled; please install pyl
+ibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 PDF import disabled; please
+ install pylibtiff
+0 1 2 3 4 5 6 7 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
+30 31 32 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 PDF import disabled; please install pylibtiff
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 PDF import disabled; please install pylibtiff
+0 1 WARNING:root:Few runs detected, likely no staves in image
+2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 PDF import disabled; please instal
+l pylibtiff
+IMSLP68715 0 - arrays used as indices must be of integer (or boolean) type
+IMSLP68715 1 - staffsize failed
+0 1 WARNING:root:Few runs detected, likely no staves in image
+2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 PDF import disabled; please install pyli
+btiff
+IMSLP68719 0 - arrays used as indices must be of integer (or boolean) type
+IMSLP68719 1 - staffsize failed
+0 WARNING:root:Few runs detected, likely no staves in image
+1 WARNING:root:Few runs detected, likely no staves in image
+2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 P
+DF import disabled; please install pylibtiff
+IMSLP69579 0 - staffsize failed
+IMSLP69579 1 - staffsize failed
+IMSLP69579 15 - arrays used as indices must be of integer (or boolean) type
+0 WARNING:root:Few runs detected, likely no staves in image
+1 WARNING:root:Few runs detected, likely no staves in image
+2 3 4 5 6 7 8 9 10 11 PDF import disabled; please install pylibtiff
+IMSLP69581 0 - staffsize failed
+IMSLP69581 1 - staffsize failed
+0 WARNING:root:Few runs detected, likely no staves in image
+1 WARNING:root:Few runs detected, likely no staves in image
+2 3 4 5 6 7 8 9 10 PDF import disabled; please install pylibtiff
+IMSLP69582 0 - staffsize failed
+IMSLP69582 1 - staffsize failed
+0 WARNING:root:Few runs detected, likely no staves in image
+1 WARNING:root:Few runs detected, likely no staves in image
+2 3 4 5 6 7 8 9 10 11 12 13 PDF import disabled; please install pylibtiff
+IMSLP69588 0 - staffsize failed
+IMSLP69588 1 - staffsize failed
+0 WARNING:root:Few runs detected, likely no staves in image
+1 WARNING:root:Few runs detected, likely no staves in image
+2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 PDF import disabled; please ins
+tall pylibtiff
+IMSLP69590 0 - staffsize failed
+IMSLP69590 1 - staffsize failed
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 PDF import disabled; please install pylibtiff
+0 WARNING:root:Few runs detected, likely no staves in image
+1 WARNING:root:Few runs detected, likely no staves in image
+2 3 4 5 WARNING:root:Few runs detected, likely no staves in image
+6 7 WARNING:root:Few runs detected, likely no staves in image
+8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 P
+DF import disabled; please install pylibtiff
+IMSLP90564 0 - staffsize failed
+IMSLP90564 1 - staffsize failed
+IMSLP90564 2 - arrays used as indices must be of integer (or boolean) type
+IMSLP90564 3 - arrays used as indices must be of integer (or boolean) type
+IMSLP90564 4 - arrays used as indices must be of integer (or boolean) type
+IMSLP90564 5 - staffsize failed
+IMSLP90564 6 - arrays used as indices must be of integer (or boolean) type
+IMSLP90564 7 - staffsize failed
+IMSLP90564 9 - index 1536 is out of bounds for axis 0 with size 1536
+IMSLP90564 11 - index 1536 is out of bounds for axis 0 with size 1536
+IMSLP90564 13 - index 1536 is out of bounds for axis 0 with size 1536
+IMSLP90564 15 - index 1536 is out of bounds for axis 0 with size 1536
+IMSLP90564 17 - index 1536 is out of bounds for axis 0 with size 1536
+IMSLP90564 19 - index 1536 is out of bounds for axis 0 with size 1536
+IMSLP90564 21 - index 1536 is out of bounds for axis 0 with size 1536
+IMSLP90564 23 - index 1536 is out of bounds for axis 0 with size 1536
+IMSLP90564 25 - index 1536 is out of bounds for axis 0 with size 1536
+IMSLP90564 27 - index 1536 is out of bounds for axis 0 with size 1536
+IMSLP90564 29 - index 1536 is out of bounds for axis 0 with size 1536
+IMSLP90564 31 - index 1536 is out of bounds for axis 0 with size 1536
+IMSLP90564 33 - index 1536 is out of bounds for axis 0 with size 1536
+root@thing2:~/MetaOMR#
