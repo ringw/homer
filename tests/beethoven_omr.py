@@ -21,7 +21,7 @@ name = os.path.basename(dir_path)
 imslpid = re.search('IMSLP[0-9]+', name).group(0)
 pages = sorted(glob.glob(os.path.join(dir_path, '*.pbm')))
 
-if imslpid not in sonatas.index:
+if imslpid not in sonatas.index or os.path.isfile(sys.argv[2]):
     sys.exit()
 
 output = zipfile.ZipFile(sys.argv[2], 'w', zipfile.ZIP_DEFLATED)
