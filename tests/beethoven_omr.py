@@ -36,7 +36,6 @@ for p, page in enumerate(pages):
         page.preprocess()
         if type(page.staff_dist) is not int:
             raise Exception('staffsize failed')
-        deskew.deskew(page)
         page.process()
     except Exception, e:
         print imslpid, p, '-', e
