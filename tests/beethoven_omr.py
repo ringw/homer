@@ -26,7 +26,7 @@ if imslpid not in sonatas.index or os.path.isfile(sys.argv[2]):
 
 output = zipfile.ZipFile(sys.argv[2], 'w', zipfile.ZIP_DEFLATED)
 info = sonatas.ix[imslpid]
-mvmt_start = np.array(info[~ info.isnull()][1:]).reshape((-1, 2))
+mvmt_start = np.array(info[~ info.isnull()][1:]).reshape((-1, 2)).astype(int)
 
 pages = [metaomr.open(page)[0] for page in pages]
 if len(pages) == 0:

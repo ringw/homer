@@ -3,6 +3,8 @@ import metaomr.midi_alignment as ma
 from glob import glob
 import os.path
 import pandas as pd
+import cPickle
+import re
 
 alignments = dict()
 for real in sorted(glob('resources/midi/beet*.mid')):
