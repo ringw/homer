@@ -1,13 +1,14 @@
 # Comparative staff detection and removal accuracy
 import env
 import metaomr
-from metaomr.staves import validation, hough, path, dummy
+from metaomr.staves import hough, path, dummy
 from metaomr.staves.gamera_musicstaves import *
 from metaomr import orientation, staffsize
 from metaomr import page as page_mod
 import datetime
 import gzip
 import numpy as np
+import traceback
 
 import gamera.plugins.numpy_io
 from gamera.toolkits.musicstaves.plugins import staffdeformation
@@ -73,7 +74,6 @@ tmpdir = tempfile.mkdtemp()
 try:
     output = sys.argv[1]
 
-    result = pandas.DataFrame()
     pagedata = pandas.DataFrame(columns='staff_sens staff_spec time'.split())
     for i, filename in enumerate(sorted(glob.glob(TESTSET + '/*-nostaff.png'))):
         gc.collect()
@@ -85,9 +85,6 @@ try:
         staffsize.staffsize(page)
         if type(page.staff_dist) is tuple or page.staff_dist is None:
             continue
-        #orientation.rotate(page)
-        #staffsize.staffsize(page)
-        #orientation.rotate(nostaff, page.orientation)
 
         page_gamera = page.byteimg[:page.orig_size[0], :page.orig_size[1]]
         nostaff_gamera = nostaff.byteimg[:page.orig_size[0], :page.orig_size[1]]
@@ -113,7 +110,6 @@ try:
             page_.staff_space = page.staff_space
             page_runs = staffsize.staff_dist_hist(page_)[page_.staff_dist]
 
-            validator = validation.StaffValidation(page_)
             dummy_ = dummy.LabeledStaffRemoval(page_, nostaff_)
             if deformation == 'orig':
                 baselineStaves = dummy_()
@@ -124,9 +120,6 @@ try:
             page_pil = Image.fromarray((~page_np.astype(bool)).astype(np.uint8)*255)
             page_pil.save('musicstaves-testset-deformations/' + pagename + '.png')
 
-            scores = validator.score_staves(method=dummy_)
-            scores.index = 'dummy-' + pagename + scores.index.to_series()
-            result = result.append(scores)
             def handler(signum, frame):
                 raise Exception('...timeout')
             for method in methods:
@@ -140,39 +133,18 @@ try:
                     staves()
                     toc = datetime.datetime.now()
                     time = int((toc - tic).total_seconds() * 1000)
-                    scores = validator.score_staves(method=staves)
-                    scores.index = method + '-' + pagename + scores.index.to_series()
                     sens, spec = staves.score(baselineStaves)
                     pagedata.loc[method + '-' + pagename] = [sens, spec, time]
                     signal.alarm(0)
                 except Exception, e:
                     signal.alarm(0)
                     print e
+                    print traceback.format_exc()
                     scores = pandas.DataFrame(dict(runs=page_runs,
                                                    removed=0),
                                               index=['%s-%s-page' % (method,pagename)])
                     pagedata.loc[method + '-' + pagename] = [0, 0, 30*1000 if toc is None else -1]
-                result = result.append(scores)
-            for method in musicstaves_methods:
-                print '%s-native-%s-%s' % (method,fileid,deformation)
-                try:
-                    signal.signal(signal.SIGALRM, handler)
-                    signal.alarm(30)
-                    staves = methods[method](page_, staff_removal='gamera')
-                    scores = validator.score_staves(method=staves)
-                    scores.index = ('%s-native-%s-%s-' % (method, fileid,deformation)) + scores.index.to_series()
-                    signal.alarm(0)
-                except Exception, e:
-                    print e
-                    scores = pandas.DataFrame(dict(runs=page_runs,
-                                                   removed=0),
-                                              index=['%s-%s-%s-page' % (method,fileid,deformation)])
-                finally:
-                    signal.alarm(0)
-                result = result.append(scores)
 
-    if len(result):
-        result.to_csv(gzip.open(output, 'wb'))
-        pagedata.to_csv(gzip.open('pagedata-'+output, 'wb'))
+    pagedata.to_csv(gzip.open(output, 'wb'))
 finally:
     shutil.rmtree(tmpdir)
