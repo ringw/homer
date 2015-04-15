@@ -1,7 +1,5 @@
 # Automatically generate beethoven_sonata_movements.csv
 import env
-import metaomr
-from metaomr import bitimage, deskew
 
 import glob
 import numpy as np
@@ -14,11 +12,15 @@ import gc
 import pandas as pd
 
 sonatas = pd.DataFrame.from_csv('resources/beethoven_sonatas.csv', header=None)
+mvmts = pd.DataFrame.from_csv('results/beethoven_movements.csv')
 
 dir_path = sys.argv[1]
 imslpid = re.search('IMSLP[0-9]+', dir_path).group(0)
-if imslpid not in sonatas.index:
+if imslpid not in sonatas.index or imslpid in mvmts.index:
     sys.exit(0)
+
+import metaomr
+from metaomr import bitimage, deskew
 pages = sorted(glob.glob(os.path.join(dir_path, '*.pbm')))
 pages = [metaomr.open(page)[0] for page in pages]
 if len(pages) == 0:

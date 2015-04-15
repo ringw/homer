@@ -7,6 +7,8 @@ import os
 import re
 from sklearn.linear_model import LinearRegression, Lasso
 from sklearn.svm import SVR
+from sklearn.tree import DecisionTreeRegressor
+import scipy.stats
 
 align = pd.DataFrame.from_csv('results/beethoven_omr.csv', index_col=range(2))
 align_omrfile = pd.Series(align.index.get_level_values('omr'), index=align.index)
@@ -83,20 +85,44 @@ X /= X.quantile(0.9)
 
 Y = results['F1']
 
+ok = Y > 0.6
+X = X[ok]
+Y = Y[ok]
+
 docs = align.index.get_level_values('real').unique()
 Ybest = Y.unstack(1).idxmax(1)
-Ypred = pd.Series(index=Ybest.index, name='pred')
+mvmts = pd.DataFrame(index=Ybest.index)
+mvmts['best'] = Ybest
+Ypred = pd.Series(index=Y.index)
 for doc in docs:
+    if doc in ['beet6_3.mid', 'beet27_2.mid']:
+        continue
     istrain = np.ones(len(docs), bool)
     istrain[list(docs).index(doc)] = 0
     train = pd.Series(index=align.index)
     train[:] = True
     train[doc] = False
 
-    model = SVR()
+    model = LinearRegression()
     model.fit(X[train], Y[train])
 
     Ytest = Y[~train]
     pred = pd.Series(model.predict(X[~train]), index=Ytest.index)
+    Ypred.ix[pred.index] = pred
     predbest = pred.unstack(1).idxmax(1)
-    Ypred[predbest.index[0]] = predbest[0]
+    mvmts.loc[predbest.index[0], 'pred'] = predbest[0]
+    corr, pval = scipy.stats.pearsonr(pred, Y[pred.index])
+    mvmts.loc[predbest.index[0], 'corr'] = corr
+    mvmts.loc[predbest.index[0], 'pval'] = pval
+
+print 'correlation', scipy.stats.pearsonr(Y, Ypred)
+
+import pylab
+pylab.scatter(Y, Ypred)
+m, b = np.polyfit(Y, Ypred, 1)
+pylab.plot([0, 1], [b, b+m], 'r')
+pylab.xlim([0.58, 1])
+pylab.ylim([0.6, 1.05])
+pylab.xlabel('OMR F1 Score')
+pylab.ylabel('Predicted Accuracy')
+pylab.savefig('results/omr_regression.pdf')
