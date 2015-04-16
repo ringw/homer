@@ -89,14 +89,12 @@ ok = Y > 0.6
 X = X[ok]
 Y = Y[ok]
 
-docs = align.index.get_level_values('real').unique()
+docs = Y.index.get_level_values('real').unique()
 Ybest = Y.unstack(1).idxmax(1)
 mvmts = pd.DataFrame(index=Ybest.index)
 mvmts['best'] = Ybest
 Ypred = pd.Series(index=Y.index)
 for doc in docs:
-    if doc in ['beet6_3.mid', 'beet27_2.mid']:
-        continue
     istrain = np.ones(len(docs), bool)
     istrain[list(docs).index(doc)] = 0
     train = pd.Series(index=align.index)
