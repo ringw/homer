@@ -36,8 +36,8 @@ deskew = sorted(glob.glob('results/imslp_deskew/*.csv.gz'))
 deskew_feats = pd.DataFrame()
 for f in deskew:
     result = pd.DataFrame.from_csv(gzip.open(f), index_col=range(2))
-    left = (result.staff_left / 32 + 1).round()
-    right = (result.staff_right / 32 - 1).round()
+    left = (result.staff_left / 32 + 1).round().fillna(0)
+    right = (result.staff_right / 32 - 1).round().fillna(0)
     skews = result[range(4, result.shape[1])]
     skews.columns = range(skews.shape[1])
     skews = skews.apply(lambda x: x[int(left.ix[x.name]):int(right.ix[x.name])],
@@ -50,6 +50,8 @@ for f in deskew:
                       staff_thick_ratio=result.staff_thick / result.staff_dist)))
 feats = feats.join(deskew_feats, how='left').fillna(0)
 feats = feats[(feats != 0).any(1)]
+
+feats.index = pd.MultiIndex.from_tuples(feats.index, names='doc page'.split())
 
 featdoc = pd.Series(feats.index.get_level_values('doc'), index=feats.index)
 featdoc = featdoc.str.extract('(IMSLP[0-9]+)')
@@ -76,6 +78,7 @@ mvmtrealfile = [x.split('_',1)[1] for x in mvmtfeats.index]
 mvmtfeats.index = pd.MultiIndex.from_tuples(zip(mvmtrealfile, mvmtfeats.index),
                                             names=['real','omr'])
 results = align.join(mvmtfeats)
+del results['id']
 results = results[~ results.isnull().any(1)]
 
 X = results['nu a0 a b0 b k mean_skew_norm staff_dist staff_thick_ratio'.split()]
@@ -94,6 +97,7 @@ Ybest = Y.unstack(1).idxmax(1)
 mvmts = pd.DataFrame(index=Ybest.index)
 mvmts['best'] = Ybest
 Ypred = pd.Series(index=Y.index)
+Ypredbest = pd.Series(index=docs)
 for doc in docs:
     if doc in ['beet6_3.mid', 'beet27_2.mid']:
         continue
@@ -106,10 +110,11 @@ for doc in docs:
     model = LinearRegression()
     model.fit(X[train], Y[train])
 
-    Ytest = Y[~train]
-    pred = pd.Series(model.predict(X[~train]), index=Ytest.index)
+    Ytest = Y[train == False]
+    pred = pd.Series(model.predict(X[train == False]), index=Ytest.index)
     Ypred.ix[pred.index] = pred
     predbest = pred.unstack(1).idxmax(1)
+    Ypredbest[predbest.index[0]] = predbest[0]
     mvmts.loc[predbest.index[0], 'pred'] = predbest[0]
     corr, pval = scipy.stats.pearsonr(pred, Y[pred.index])
     mvmts.loc[predbest.index[0], 'corr'] = corr

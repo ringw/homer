@@ -26,9 +26,9 @@ for i, page in enumerate(sorted(glob.glob(path+"/img-*.pbm"))):
         continue
     try:
         for method, fn in (('ks', metaomr.kanungo.test_hists_ks),
-                           ('m', metaomr.kanungo.test_hists_mahalanobis)):
+                           ):#('m', metaomr.kanungo.test_hists_mahalanobis)):
             tic = datetime.now()
-            result = metaomr.kanungo.est_parameters(page, test_fn=metaomr.kanungo.test_hists_mahalanobis)
+            result = metaomr.kanungo.est_parameters(page, test_fn=fn)
             toc = datetime.now()
             index.append((name, i, method))
             results = results.append([tuple(result.x) + ((toc - tic).total_seconds(), result.fun)])
