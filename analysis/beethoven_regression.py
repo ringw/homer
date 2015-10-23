@@ -79,21 +79,41 @@ results = align.join(mvmtfeats)
 results = results[~ results.isnull().any(1)]
 
 X = results['nu a0 a b0 b k mean_skew_norm staff_dist staff_thick_ratio'.split()]
-# Normalize X by quantiles
-X -= X.quantile(0.1)
-X /= X.quantile(0.9)
+## Normalize X by quantiles
+#X -= X.quantile(0.1)
+#X /= X.quantile(0.9)
+X -= X.mean()
+Xstd = X.std()
+X /= X.std()
 
-Y = results['F1']
+Yreal = results['F1']
 
-ok = Y > 0.6
-X = X[ok]
-Y = Y[ok]
+#ok = Y > 0.6
+#X = X[ok]
+#Y = Y[ok]
 
-docs = Y.index.get_level_values('real').unique()
-Ybest = Y.unstack(1).idxmax(1)
+docs = Yreal.index.get_level_values('real').unique()
+def to_rank(row):
+    row = row.copy()
+    nonnull = ~row.isnull()
+    accu = np.array(row[nonnull])
+    rank = np.empty_like(accu)
+    if len(accu) > 1:
+        rank[np.argsort(accu)] = np.linspace(0, 1, len(accu))
+    else:
+        rank[:] = 0.5
+    row[nonnull] = rank
+    return row
+#Y = Yreal.unstack(1).apply(to_rank, 1).stack()
+Y = Yreal
+Ybest = Yreal.unstack(1).idxmax(1)
 mvmts = pd.DataFrame(index=Ybest.index)
 mvmts['best'] = Ybest
-Ypred = pd.Series(index=Y.index)
+model = SVR('linear')
+model.fit(X, Y)
+Ypred = pd.Series(model.predict(X), index=Y.index)
+mvmts['pred'] = Ypred.unstack(1).idxmax(1)
+results = []
 for doc in docs:
     istrain = np.ones(len(docs), bool)
     istrain[list(docs).index(doc)] = 0
@@ -101,7 +121,7 @@ for doc in docs:
     train[:] = True
     train[doc] = False
 
-    model = LinearRegression()
+    model = SVR('linear')
     model.fit(X[train], Y[train])
 
     Ytest = Y[~train]
@@ -112,15 +132,17 @@ for doc in docs:
     corr, pval = scipy.stats.pearsonr(pred, Y[pred.index])
     mvmts.loc[predbest.index[0], 'corr'] = corr
     mvmts.loc[predbest.index[0], 'pval'] = pval
+    results.append((Ytest.idxmax(), pred.idxmax()))
 
 print 'correlation', scipy.stats.pearsonr(Y, Ypred)
 
-import pylab
-pylab.scatter(Y, Ypred)
-m, b = np.polyfit(Y, Ypred, 1)
-pylab.plot([0, 1], [b, b+m], 'r')
-pylab.xlim([0.58, 1])
-pylab.ylim([0.6, 1.05])
-pylab.xlabel('OMR F1 Score')
-pylab.ylabel('Predicted Accuracy')
-pylab.savefig('results/omr_regression.pdf')
+if True:
+    import pylab
+    pylab.scatter(Y, Ypred)
+    m, b = np.polyfit(Y, Ypred, 1)
+    pylab.plot([0, 1], [b, b+m], 'r')
+    pylab.xlim([0, 1])
+    pylab.ylim([0.5, 1])
+    pylab.xlabel('OMR F1 Score')
+    pylab.ylabel('Predicted Accuracy')
+    pylab.savefig('results/omr_regression.pdf')
