@@ -28,21 +28,21 @@ class FilteredHoughStaves(BaseStaves):
         y1 = ((rho+0.5)*self.rhores - x1 * np.sin(theta)) / np.cos(theta)
         left_points = np.c_[np.repeat(x0, len(y0)), y0]
         right_points = np.c_[np.repeat(x1, len(y1)), y1]
-        return np.dstack([[left_points], [right_points]]).reshape((-1,2,2))
+        return (np.dstack([[left_points], [right_points]]).reshape((-1,2,2))
+                  .astype(np.int32))
 
     def get_staff_segments(self):
         peaks = self.get_hough_peak_lines()
         # Refine the staves using staff_removal, but don't actually remove
         # any staves
-        segments, _ = self.refine_and_remove_staves(
-            staves=np.ma.array(peaks, mask=False, fill_value=-1),
-            refine_staves=True,
-            remove_staves=False)
+        segments, _ = self.refine_and_remove_staves(staves=peaks,
+                            refine_staves=True,
+                            remove_staves=False)
         return segments
     def show_staff_segments(self):
         import pylab
         for seg in self.get_staff_segments():
-            seg = seg.compressed().reshape([-1, 2])
+            seg = seg[seg[:,0] >= 0]
             pylab.plot(seg[:, 0], seg[:, 1], 'y')
 
     def find_staves(self):
