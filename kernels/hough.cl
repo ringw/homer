@@ -192,9 +192,19 @@ KERNEL void can_join_segments(GLOBAL_MEM const int4 *segments,
 // to avoid favoring highly skewed lines
 // longest_inds must already be initialized to all -1s
 #define CHEBYSHEV(v) MAX(abs(v.z-v.x), abs(v.w-v.y))
+// To keep result deterministic, the lexicographically smaller
+// line segment is always preferred
+inline bool lex_less(int4 a, int4 b) {
+    return (a.x < b.x)
+        || ((a.x == b.x)
+            && ((a.y < b.y)
+                || ((a.y == b.y)
+                    && ((a.z < b.z)
+                        || ((a.z == b.z) && (a.w < b.w))))));
+}
 KERNEL void assign_segments(GLOBAL_MEM const int4 *segments,
-                              GLOBAL_MEM const int *labels,
-                              GLOBAL_MEM ATOMIC int *longest_inds) {
+                            GLOBAL_MEM const int *labels,
+                            GLOBAL_MEM ATOMIC int *longest_inds) {
     int i = get_global_id(0);
     int label = labels[i];
 
@@ -209,7 +219,7 @@ KERNEL void assign_segments(GLOBAL_MEM const int4 *segments,
         if (longest_seg_ind >= 0) {
             int4 longest_seg = segments[longest_seg_ind];
             int longest_length = CHEBYSHEV(longest_seg);
-            if (longest_length >= seg_length)
+            if (longest_length >= seg_length || !lex_less(seg, longest_seg))
                 break;
         }
     } while (atomic_cmpxchg(&longest_inds[label],
@@ -217,8 +227,8 @@ KERNEL void assign_segments(GLOBAL_MEM const int4 *segments,
 }
 
 KERNEL void copy_chosen_segments(GLOBAL_MEM const int4 *segments,
-                                   GLOBAL_MEM const int *longest_inds,
-                                   GLOBAL_MEM int4 *chosen_segs) {
+                                 GLOBAL_MEM const int *longest_inds,
+                                 GLOBAL_MEM int4 *chosen_segs) {
     int label_ind = get_global_id(0);
     chosen_segs[label_ind] = segments[longest_inds[label_ind]];
 }
