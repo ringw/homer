@@ -219,7 +219,8 @@ KERNEL void assign_segments(GLOBAL_MEM const int4 *segments,
         if (longest_seg_ind >= 0) {
             int4 longest_seg = segments[longest_seg_ind];
             int longest_length = CHEBYSHEV(longest_seg);
-            if (longest_length >= seg_length || !lex_less(seg, longest_seg))
+            if (longest_length > seg_length
+                || (longest_length == seg_length && !lex_less(seg,longest_seg)))
                 break;
         }
     } while (atomic_cmpxchg(&longest_inds[label],
