@@ -29,8 +29,6 @@ class BaseStaves(object):
     def __call__(self):
         if self.staves is None:
             self.get_staves()
-            if not isinstance(self.staves, np.ma.masked_array):
-                self.staves = np.ma.array(self.staves, fill_value=-1)
         return self.staves
 
     def nostaff(self):
@@ -54,7 +52,7 @@ class BaseStaves(object):
                                   [self.staff_dist for staff in self.staves],
                                   np.int32)
         else:
-            # FIXME
+            raise Exception("FIXME: remove MA")
             staff_dists = []
             all_staves = []
             self.staves = None
@@ -72,11 +70,10 @@ class BaseStaves(object):
             self.img = self.page.img
             all_staves = [s.compressed().reshape((-1, 2)) for s in all_staves]
             num_points = max(map(len, all_staves))
-            new_staves = np.ma.zeros((len(all_staves), num_points, 2), int)
-            new_staves.mask = np.ones_like(new_staves, bool)
+            new_staves = np.zeros((len(all_staves), num_points, 2), int)
             for i, staff in enumerate(all_staves):
                 new_staves[i, 0:len(staff)] = staff
-                new_staves.mask[i, 0:len(staff)] = False
+                new_staves[i, len(staff):] = -1
             # Sort by mean y value
             staff_order = np.argsort(np.ma.mean(new_staves[:,1], axis=1))
             new_staves = new_staves[staff_order]
@@ -221,16 +218,14 @@ class BaseStaves(object):
             return # This does nothing if there are no staves
         new_staves = [self.extend_staff(i) for i in xrange(len(self.staves))]
         num_segments = max([s.shape[0] for s in new_staves])
-        staves = np.ma.empty((len(new_staves), num_segments, 2),
-                             dtype=np.int32,
-                             fill_value=-1)
-        staves.mask = np.ones_like(staves, dtype=bool)
+        staves = np.empty((len(new_staves), num_segments, 2), np.int32)
         for i, staff in enumerate(new_staves):
             staves[i, :len(staff)] = staff
-            staves.mask[i, :len(staff)] = False
+            staves[i, len(staff):] = -1
         self.staves = staves
 
     def score(self, labeled_staves):
+        raise Exception("FIXME: remove MA")
         staff_med = np.ma.median(self()[..., 1], axis=1)
         label_med = np.ma.median(labeled_staves[..., 1], axis=1)
         matches = metaomr.util.match(staff_med, label_med)
