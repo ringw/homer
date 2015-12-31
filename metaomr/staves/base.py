@@ -172,6 +172,8 @@ class BaseStaves(object):
 
     def extract_staff(self, staff_num, img=None, extract_lines=4):
         staff = self()[staff_num]
+        pad_inds, = np.where(staff[:, 0] < 0)
+        num_segments = pad_inds[0] if len(pad_inds) else staff.shape[0]
         if img is None:
             img = self.img
         staff_dist = (self.staff_dist[staff_num]
@@ -180,8 +182,8 @@ class BaseStaves(object):
         output = thr.empty_like(Type(np.uint8,
                     (staff_dist*extract_lines + 1, self.page.orig_size[1]/8)))
         output.fill(0)
-        prg.extract_staff(thr.to_device(staff.astype(np.int32)),
-                          np.int32(staff.shape[0]),
+        prg.extract_staff(thr.to_device(staff[:num_segments].astype(np.int32)),
+                          np.int32(num_segments),
                           np.int32(staff_dist),
                           img,
                           np.int32(img.shape[1]),
