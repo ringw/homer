@@ -254,7 +254,9 @@ class BaseStaves(object):
         return scaled_img[:24], scale_x, scale_y
 
     def get_staff(self, staff_num):
-        return self()[staff_num]
+        staff = self()[staff_num]
+        staff = staff[staff[:,0] >= 0, :]
+        return staff
     def staff_y(self, staff_num, x):
         staff = self.get_staff(staff_num)
         if (staff[:,0] < x).all():
