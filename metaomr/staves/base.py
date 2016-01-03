@@ -17,11 +17,12 @@ class BaseStaves(object):
     def __init__(self, page):
         self.page = page
 
-    def staff_center_filter(self):
+    def staff_center_filter(self, min_unobscured_lines=2):
         output = thr.empty_like(self.img)
         prg.staff_center_filter(self.img,
                                 np.int32(self.staff_thick),
                                 np.int32(self.staff_dist),
+                                np.int32(min_unobscured_lines),
                                 output,
                                 global_size=self.img.shape[::-1])
         return output
