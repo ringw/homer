@@ -6,7 +6,10 @@ The run-length encoding of each measure is used to create a unique fingerprint,
 and scores can be compared by the fingerprints of each measure to compute
 similarity.
 """
+from cStringIO import StringIO
+import hashlib
 import numpy as np
+import struct
 
 def staff_extract_spaces(page, staff_num):
     staff = page.staves.get_staff(staff_num)
@@ -88,4 +91,19 @@ def fingerprint_measure(page, measure_spaces):
     short_cutoff = page.staff_dist // 2
     fingerprint = bytes_to_fingerprint(spaces_bytes, skip, short_cutoff)
 
+    return fingerprint
+
+def fingerprint_page(page, grid_size=10):
+    "Extract scale-invariant fingerprint from the systems on the page"
+    # TODO: make rotation and margin-invariant
+    systems_str = StringIO()
+    for sys in page.systems:
+        xs = sys['barlines'][:, :, 0].mean(1)
+        grid_pos = ((xs * grid_size) / page.orig_size[1]).astype(int)
+        systems_str.write(','.join(map(str, grid_pos)))
+        systems_str.write('\n')
+    systems_str.seek(0)
+    systems_str = systems_str.read()
+    sha = hashlib.sha1(systems_str).digest()
+    fingerprint, = struct.unpack("<L", sha[:4])
     return fingerprint
