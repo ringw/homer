@@ -93,13 +93,38 @@ def fingerprint_measure(page, measure_spaces):
 
     return fingerprint
 
-def fingerprint_page(page, grid_size=10):
+def fingerprint_page(page, grid_size=16):
     "Extract scale-invariant fingerprint from the systems on the page"
-    # TODO: make rotation and margin-invariant
-    systems_str = StringIO()
+    # Find the average angle of each system to undo rotation.
+    # This may be a useful step to undo rotation on the actual image.
+    # Also, fit a quadratic for deskewing?
+    angles = []
     for sys in page.systems:
         xs = sys['barlines'][:, :, 0].mean(1)
-        grid_pos = ((xs * grid_size) / page.orig_size[1]).astype(int)
+        ys = sys['barlines'][:, :, 1].mean(1)
+        coefs = np.polyfit(xs, ys, 1)
+        theta = np.arctan(coefs[0])
+        angles.append(theta)
+    theta = np.mean(angles)
+    # Rotate all x values by -theta
+    rotation = np.array([[np.cos(-theta), -np.sin(-theta)],
+                         [np.sin(-theta),  np.cos(-theta)]])
+    systems_xs = []
+    for sys in page.systems:
+        def barline_rotated_x(barline):
+            center = barline.mean(0)
+            rotated_center = rotation.dot(center[:, None])
+            return rotated_center[0, 0]
+        systems_xs.append(map(barline_rotated_x, sys['barlines']))
+    # Make margin-invariant
+    xmin = min(min(xs) for xs in systems_xs)
+    xmax = max(max(xs) for xs in systems_xs)
+    width = xmax - xmin
+    systems_xs = [[x - xmin for x in xs] for xs in systems_xs]
+    systems_str = StringIO()
+    for xs in systems_xs:
+        grid_pos = ((np.asarray(xs) * grid_size) / width).astype(int)
+        grid_pos[grid_pos >= grid_size] = grid_size - 1
         systems_str.write(','.join(map(str, grid_pos)))
         systems_str.write('\n')
     systems_str.seek(0)
