@@ -23,9 +23,12 @@ def verify_barlines(page, i, j, barlines):
     # Get a slice of the image which includes systems i through j
     assert i <= j
     sd = page.staves.staff_dist[i:j+1].max()
-    y0 = max(0, np.amin(page.staves()[i,:,1]) - sd*3)
-    y1 = min(page.img.shape[0],
-             page.staves()[j,:,1].max() + sd*3)
+    staff_i = page.staves.get_staff(i)
+    staff_i = staff_i[staff_i[:,0] >= 0, :]
+    staff_j = page.staves.get_staff(j)
+    staff_j = staff_j[staff_j[:,0] >= 0, :]
+    y0 = max(0, np.amin(staff_i[:,1]) - sd*3)
+    y1 = min(page.img.shape[0], np.amax(staff_j[:,1]) + sd*3)
     # Gap between y0 and y1 must be a multiple of 8
     y1 += -(y1 - y0) & 7
     img_slice = page.img[y0:y1].copy()
@@ -55,9 +58,9 @@ def verify_barlines(page, i, j, barlines):
     best_lines = hough.hough_paths(new_lines)
     best_lines = best_lines[:, :, ::-1] # transpose
     best_lines[:, :, 1] += y0
-    best_lines = best_lines[(best_lines[:,0,1] < page.staves()[i,:,1].min()
+    best_lines = best_lines[(best_lines[:,0,1] < staff_i[:,1].min()
                                                 - sd)
-                          & (best_lines[:,1,1] > page.staves()[j,:,1].max()
+                          & (best_lines[:,1,1] > staff_j[:,1].max()
                                                 + sd)]
     return best_lines
 def try_join_system(page, i):

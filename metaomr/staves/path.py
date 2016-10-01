@@ -159,14 +159,10 @@ class StablePathStaves(BaseStaves):
                 keep_points[i] &= np.abs(line[i,1] - line_med) < self.staff_dist*2
             staff_center_lines.append(line[keep_points])
         width = max([len(line) for line in staff_center_lines])
-        mask = map(lambda line:
-                   np.vstack([np.zeros((len(line), 2), bool),
-                              np.ones((width-len(line), 2), bool)]),
-                   staff_center_lines)
         pad_centers = map(lambda line:
                           np.vstack([line,
                                   -np.ones((width-len(line), 2), int)]),
                           staff_center_lines)
-        self.staves = np.ma.array(pad_centers, np.int32, mask=mask, fill_value=-1)
+        self.staves = np.array(pad_centers, np.int32)
         self.weights = None
         return self.staves

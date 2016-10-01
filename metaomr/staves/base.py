@@ -17,11 +17,12 @@ class BaseStaves(object):
     def __init__(self, page):
         self.page = page
 
-    def staff_center_filter(self):
+    def staff_center_filter(self, min_unobscured_lines=2):
         output = thr.empty_like(self.img)
         prg.staff_center_filter(self.img,
                                 np.int32(self.staff_thick),
                                 np.int32(self.staff_dist),
+                                np.int32(min_unobscured_lines),
                                 output,
                                 global_size=self.img.shape[::-1])
         return output
@@ -29,8 +30,6 @@ class BaseStaves(object):
     def __call__(self):
         if self.staves is None:
             self.get_staves()
-            if not isinstance(self.staves, np.ma.masked_array):
-                self.staves = np.ma.array(self.staves, fill_value=-1)
         return self.staves
 
     def nostaff(self):
@@ -44,6 +43,7 @@ class BaseStaves(object):
         NotImplementedError("Use a concrete Staves subclass.")
 
     def get_staves(self):
+        "Return a host array of staves. self.staff_dist must be an int"
         self.staff_thick = self.page.staff_thick # Always single value
         self.img = self.page.img
         if type(self.page.staff_dist) is int:
@@ -53,6 +53,7 @@ class BaseStaves(object):
                                   [self.staff_dist for staff in self.staves],
                                   np.int32)
         else:
+            raise Exception("FIXME: remove MA")
             staff_dists = []
             all_staves = []
             self.staves = None
@@ -70,11 +71,10 @@ class BaseStaves(object):
             self.img = self.page.img
             all_staves = [s.compressed().reshape((-1, 2)) for s in all_staves]
             num_points = max(map(len, all_staves))
-            new_staves = np.ma.zeros((len(all_staves), num_points, 2), int)
-            new_staves.mask = np.ones_like(new_staves, bool)
+            new_staves = np.zeros((len(all_staves), num_points, 2), int)
             for i, staff in enumerate(all_staves):
                 new_staves[i, 0:len(staff)] = staff
-                new_staves.mask[i, 0:len(staff)] = False
+                new_staves[i, len(staff):] = -1
             # Sort by mean y value
             staff_order = np.argsort(np.ma.mean(new_staves[:,1], axis=1))
             new_staves = new_staves[staff_order]
@@ -86,8 +86,6 @@ class BaseStaves(object):
         if max_gap is None:
             max_gap = 8 * self.staff_dist
 
-        if hasattr(staff, 'compressed'):
-            staff = staff.compressed().reshape((-1, 2))
         staff = staff[staff[:,0] >= 0]
         is_gapped = np.empty(staff.shape[0], bool)
         is_gapped[0] = True
@@ -131,7 +129,7 @@ class BaseStaves(object):
         assert not (1 < len(staff_dist) < len(staves))
         if len(staff_dist) == 1:
             staff_dist = np.repeat(staff_dist, len(staves))
-        prg.staff_removal(thr.to_device(staves.filled().astype(np.int32)),
+        prg.staff_removal(thr.to_device(staves.astype(np.int32)),
                           np.int32(self.staff_thick+1),
                           thr.to_device(staff_dist.astype(np.int32)),
                           nostaff_img,
@@ -143,7 +141,7 @@ class BaseStaves(object):
                           local_size=(staves.shape[1], 1))
         if refine_staves:
             if not (refined_staves != -1).any():
-                return np.ma.array(np.empty([0, 2], np.int32)), nostaff_img
+                return np.empty([0, 2], np.int32), nostaff_img
             new_staves = map(self.remove_staff_gaps, refined_staves.get())
             num_points = map(len, new_staves)
             cutoff = np.mean(num_points) / 4.0
@@ -152,8 +150,7 @@ class BaseStaves(object):
             num_points = [p for k,p in zip(keep_staff, num_points) if p]
             # Must move all (-1, -1) points to end of each staff
             max_points = max(num_points)
-            staves_copy = np.empty((len(new_staves), max_points, 2), np.int32)
-            mask = np.ones_like(staves_copy, dtype=bool)
+            staves = np.empty((len(new_staves), max_points, 2), np.int32)
             for i, staff in enumerate(new_staves):
                 # Clean up single spurious points (requires scipy)
                 if scipy_signal is None:
@@ -162,12 +159,10 @@ class BaseStaves(object):
                 else:
                     staff[:, 1] = scipy_signal.medfilt(staff[:, 1],
                                     -(-(self.staff_dist * 4 / 8) & -2) + 1)
-                staves_copy[i, :len(staff)] = staff
-                mask[i, :len(staff)] = 0
-            order = np.argsort(staves_copy[:, 0, 1]) # sort by y0
-            staves_copy = staves_copy[order]
-            mask = mask[order]
-            staves = np.ma.array(staves_copy, mask=mask, fill_value=-1)
+                staves[i, :len(staff)] = staff
+                staves[i, len(staff):] = -1
+            order = np.argsort(staves[:, 0, 1]) # sort by y0
+            staves = staves[order]
         return staves, nostaff_img
 
     def remove_staves(self, refine_staves=False):
@@ -178,8 +173,8 @@ class BaseStaves(object):
 
     def extract_staff(self, staff_num, img=None, extract_lines=4):
         staff = self()[staff_num]
-        if hasattr(staff, 'mask'):
-            staff = staff.compressed().reshape([-1, 2])
+        pad_inds, = np.where(staff[:, 0] < 0)
+        num_segments = pad_inds[0] if len(pad_inds) else staff.shape[0]
         if img is None:
             img = self.img
         staff_dist = (self.staff_dist[staff_num]
@@ -188,8 +183,8 @@ class BaseStaves(object):
         output = thr.empty_like(Type(np.uint8,
                     (staff_dist*extract_lines + 1, self.page.orig_size[1]/8)))
         output.fill(0)
-        prg.extract_staff(thr.to_device(staff.astype(np.int32)),
-                          np.int32(staff.shape[0]),
+        prg.extract_staff(thr.to_device(staff[:num_segments].astype(np.int32)),
+                          np.int32(num_segments),
                           np.int32(staff_dist),
                           img,
                           np.int32(img.shape[1]),
@@ -205,7 +200,8 @@ class BaseStaves(object):
                                                         extract_lines=1))
         is_dark = staff_img.any(axis=0)
         components, n_components = metaomr.util.label_1d(is_dark)
-        staff_points = self()[staff].compressed().reshape((-1, 2))
+        staff = self()[staff]
+        staff_points = staff[staff[:,0] >= 0]
         c0 = components[staff_points[0, 0]]
         if c0:
             staff_min = np.where(components == c0)[0][0]
@@ -225,16 +221,14 @@ class BaseStaves(object):
             return # This does nothing if there are no staves
         new_staves = [self.extend_staff(i) for i in xrange(len(self.staves))]
         num_segments = max([s.shape[0] for s in new_staves])
-        staves = np.ma.empty((len(new_staves), num_segments, 2),
-                             dtype=np.int32,
-                             fill_value=-1)
-        staves.mask = np.ones_like(staves, dtype=bool)
+        staves = np.empty((len(new_staves), num_segments, 2), np.int32)
         for i, staff in enumerate(new_staves):
             staves[i, :len(staff)] = staff
-            staves.mask[i, :len(staff)] = False
+            staves[i, len(staff):] = -1
         self.staves = staves
 
     def score(self, labeled_staves):
+        raise Exception("FIXME: remove MA")
         staff_med = np.ma.median(self()[..., 1], axis=1)
         label_med = np.ma.median(labeled_staves[..., 1], axis=1)
         matches = metaomr.util.match(staff_med, label_med)
@@ -261,10 +255,9 @@ class BaseStaves(object):
         return scaled_img[:24], scale_x, scale_y
 
     def get_staff(self, staff_num):
-        if hasattr(self(), 'compressed'):
-            return self()[staff_num].compressed().reshape((-1, 2))
-        else:
-            return self()[staff_num]
+        staff = self()[staff_num]
+        staff = staff[staff[:,0] >= 0, :]
+        return staff
     def staff_y(self, staff_num, x):
         staff = self.get_staff(staff_num)
         if (staff[:,0] < x).all():
@@ -289,7 +282,8 @@ class BaseStaves(object):
     def show(self):
         import pylab as p
         for staff, sd in zip(self(), self.staff_dist):
-            xs = staff[:, 0].compressed()
-            ys = staff[:, 1].compressed()
+            staff = staff[staff[:, 0] >= 0]
+            xs = staff[:, 0]
+            ys = staff[:, 1]
             for line in range(-2, 3):
                 p.plot(xs, ys + sd * line, 'g')

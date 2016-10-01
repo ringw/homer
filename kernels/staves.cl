@@ -4,6 +4,7 @@
 // Returns refined y value, or -1 if no y value in the range matches the filter.
 inline int refine_staff_center_y(int staff_thick, int staff_dist,
                                  int staff_search,
+                                 int min_unobscured_count,
                                  GLOBAL_MEM const UCHAR *img,
                                  int w, int h,
                                  int x_byte, int y0) {
@@ -13,9 +14,9 @@ inline int refine_staff_center_y(int staff_thick, int staff_dist,
     int ymin = y0 - staff_search;
     int ymax = y0 + staff_search;
 
-    // Staff criteria: must have dark pixels at y and +- staff_dist * [1,2]
-    // At least 2 of these points, must have light pixels at both
-    // y_line +- staff_thick (evidence for isolated staff line).
+    // Staff criteria: must have dark pixels at y and +- staff_dist * [1,2]; and
+    // at least min_unobscured_lines of these points must have light pixels at
+    // both y_line +- staff_thick (evidence for isolated staff line).
     // Pick y where the most columns in this byte match the criteria
     int best_y = -1;
     int num_agree = 0;
@@ -53,15 +54,20 @@ inline int refine_staff_center_y(int staff_thick, int staff_dist,
                          ? y_center_est_sum / num_estimates
                          : -1;
 
-        // XXX: this is terrible
-        UCHAR atleast2_line = (is_line[0] & (  is_line[1] | is_line[2]
-                                             | is_line[3] | is_line[4]))
-                            | (is_line[1] & (  is_line[2] | is_line[3]
-                                             | is_line[4]))
-                            | (is_line[2] & (is_line[3] | is_line[4]))
-                            | (is_line[3] & is_line[4]);
+        int8 unobscured_count = 0;
+        for (int line = 0; line <= 4; line++)
+            unobscured_count += (is_line[line] >> (int8)(7,6,5,4,3,2,1,0))& 0x1;
+        UCHAR found_lines = 0;
+        found_lines |= (unobscured_count[0]>=min_unobscured_count)?(0x80>>0):0;
+        found_lines |= (unobscured_count[1]>=min_unobscured_count)?(0x80>>1):0;
+        found_lines |= (unobscured_count[2]>=min_unobscured_count)?(0x80>>2):0;
+        found_lines |= (unobscured_count[3]>=min_unobscured_count)?(0x80>>3):0;
+        found_lines |= (unobscured_count[4]>=min_unobscured_count)?(0x80>>4):0;
+        found_lines |= (unobscured_count[5]>=min_unobscured_count)?(0x80>>5):0;
+        found_lines |= (unobscured_count[6]>=min_unobscured_count)?(0x80>>6):0;
+        found_lines |= (unobscured_count[7]>=min_unobscured_count)?(0x80>>7):0;
         UCHAR is_staff = is_dark[0] & is_dark[1] & is_dark[2] & is_dark[3]
-                                    & is_dark[4] & atleast2_line;
+                                    & is_dark[4] & found_lines;
         int agreement = 0;
         for (UCHAR mask = 0x80; mask; mask >>= 1)
             if (is_staff & mask)
@@ -80,6 +86,7 @@ inline int refine_staff_center_y(int staff_thick, int staff_dist,
 #define Y (1)
 KERNEL void staff_center_filter(GLOBAL_MEM const UCHAR *img,
                                 int staff_thick, int staff_dist,
+                                int min_unobscured_lines,
                                 GLOBAL_MEM UCHAR *staff_center) {
     // Ensure a given pixel has dark pixels above and below where we would
     // expect if it were the center of a staff, then update the center pixel.
@@ -90,7 +97,9 @@ KERNEL void staff_center_filter(GLOBAL_MEM const UCHAR *img,
     
     UCHAR staff_byte = img[x + y * w];
 
-    if (refine_staff_center_y(staff_thick, staff_dist, 0, img, w, h, x, y) == y)
+    if (refine_staff_center_y(staff_thick, staff_dist, 0,
+                              min_unobscured_lines,
+                              img, w, h, x, y) == y)
         staff_center[x + y * w] = staff_byte;
     else
         staff_center[x + y * w] = 0;
@@ -133,7 +142,7 @@ KERNEL void staff_removal(GLOBAL_MEM const int2 *staves,
     for (int byte_x = p0.x / 8; byte_x <= p1.x / 8 && byte_x < w; byte_x++) {
         int y = p0.y + (p1.y - p0.y) * (byte_x*8 - p0.x) / (p1.x - p0.x);
         int y_refined = refine_staff_center_y(staff_thick, staff_dist,
-                                              staff_thick,
+                                              staff_thick, 2,
                                               img, w, h, byte_x, y);
 
         int lines[5] = {y_refined - staff_dist*2,

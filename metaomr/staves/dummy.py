@@ -25,12 +25,10 @@ class LabeledStaffPosition(BaseStaves):
             logging.warn('Manually labeled staff_dist seems incorrect')
         lines = [s['center'] for s in self.staves_list]
         num_segs = max([len(l) for l in lines])
-        staves = np.ma.empty((len(lines), num_segs, 2), dtype=np.int32,
-                             fill_value=-1)
-        staves.mask = np.ones_like(staves, dtype=bool)
+        staves = np.empty((len(lines), num_segs, 2), dtype=np.int32)
         for i in xrange(len(lines)):
             staves[i, :len(lines[i])] = lines[i]
-            staves.mask[i, :len(lines[i])] = 0
+            staves[i, len(lines[i]):] = -1
         self.staves = staves
         return staves
 
@@ -58,7 +56,7 @@ class LabeledStaffRemoval(BaseStaves):
         seg_start, = np.where(is_seg_start)
         seg_end, = np.where(is_seg_end)
         if len(seg_start) == 0:
-            self.staves = np.ma.zeros((0, 2, 2))
+            self.staves = np.zeros((0, 2, 2), np.int32)
             return self.staves
         seg_gap = np.zeros_like(seg_start, dtype=bool)
         seg_gap[1:] = (seg_start[1:] - seg_end[:-1]) >= self.page.staff_dist*2
@@ -70,5 +68,4 @@ class LabeledStaffRemoval(BaseStaves):
             ymax = seg_end[which_runs[-1]]
             ycenter = np.mean([ymin, ymax])
             staves[i] = [[0, ycenter], [self.page.orig_size[1], ycenter]]
-        self.staves = np.ma.array(staves)
         return self.staves

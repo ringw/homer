@@ -2,6 +2,7 @@ from PIL import Image
 import tempfile
 import os
 import shutil
+import sys
 from StringIO import StringIO
 import subprocess
 import numpy as np
@@ -9,7 +10,7 @@ from . import settings
 try:
   from .pdfimage import pdf_to_images
 except ImportError:
-  print("PDF import disabled; please install pylibtiff")
+  sys.stderr.write("PDF import disabled; please install pylibtiff\n")
   pdf_to_images = None
 
 def image_array(data):

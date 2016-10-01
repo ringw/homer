@@ -50,7 +50,7 @@ class GameraMusicStaves(base.BaseStaves):
             staves = []
             staffpos = self.gamera_instance.get_staffpos(0)
             if staffpos is None:
-                self.staves = np.ma.array((0, 0, 2), dtype=np.int32)
+                self.staves = np.array((0, 0, 2), dtype=np.int32)
                 return self.staves
             for staff in staffpos:
                 ypos = staff.yposlist
@@ -61,7 +61,6 @@ class GameraMusicStaves(base.BaseStaves):
                 ypos = np.mean(ypos)
                 staves.append([[0, ypos], [self.page.orig_size[1], ypos]])
             self.staves = np.array(staves, np.int32)
-            self.staves = np.ma.array(self.staves, fill_value=-1)
         return self.staves
 
     def refine_and_remove_staves(self, refine_staves=False, remove_staves=True,
@@ -115,10 +114,9 @@ class GameraStaffFinder(GameraMusicStaves):
                 staves.append(our_staff)
             num_points = max([len(s) for s in staves])
             our_staves = np.zeros((len(staves), num_points, 2), np.int32)
-            mask = np.ones_like(our_staves, dtype=bool)
             for i, staff in enumerate(staves):
-                our_staves[i, :len(staff)] = staff
-                mask[i, :len(staff)] = 0
+                our_staves[i, :len(staff), :] = staff
+                our_staves[i, len(staff):, :] = -1
             # Account for page rotation
             if hasattr(self.page, 'orientation'):
                 new_staves = np.empty_like(our_staves)
@@ -128,7 +126,7 @@ class GameraStaffFinder(GameraMusicStaves):
                 new_staves[..., 1] = (our_staves[..., 0] * np.sin(t)
                                       + our_staves[..., 1] * np.cos(t))
                 our_staves = new_staves
-            self.staves = np.ma.array(our_staves, mask=mask, fill_value=-1)
+            self.staves = our_staves
         return self.staves
 
 MUSICSTAVES = ['MusicStaves_' + cls
