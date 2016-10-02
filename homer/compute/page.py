@@ -5,6 +5,9 @@ class Page(object):
   image = None
   threshold = 127 # TODO: thresholding
   tensor = None
+  staff_space = None
+  staff_thick = None
+  staff_dist = None
   def __init__(self, q):
     self.image = load_png(q)
     self.tensor = self.image[:, :, 0] < self.threshold
@@ -18,4 +21,4 @@ def load_png(filename_queue):
 
 def load_png_from_path(path):
   queue = tf.train.string_input_producer([path])
-  return load_png(queue)
+  return Page(queue)
