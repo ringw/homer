@@ -1,19 +1,22 @@
+import numpy as np
 import scipy.ndimage
 import tensorflow as tf
 from homer.page import Page
+from homer import util
 
 MAX_SIZE = 4096
 
 def get_rotated_page(page):
   angle, square_img = get_angle(page)
-  rotated, = tf.py_func(_rotate_image, [square_img, angle], [square_img.dtype])
-  return Page(get_square(rotated) * 255)
+  rotated, = tf.py_func(_rotate_image, [page.image, -angle], [square_img.dtype])
+  rotated.set_shape(page.image.get_shape())
+  page = Page(rotated)
+  page.angle = angle
+  return page
 
 def get_angle(page):
-  img = tf.cast(page.tensor, tf.float32)
-  if not hasattr(page, 'square_image'):
-    page.square_image = get_square(img)
-  square = page.square_image
+  img = tf.cast(page.image, tf.float32)
+  square = get_square(img)
   f = tf.complex_abs(tf.fft2d(tf.cast(square, tf.complex64))[:MAX_SIZE//2, :])
   x_arr = (
       tf.cast(tf.concat(0,
@@ -33,10 +36,14 @@ def get_square(img, max_size=MAX_SIZE):
   old_shape = tf.shape(img)
   new_shape, = tf.py_func(
       _resized_shape, [old_shape, max_size], [old_shape.dtype])
-  resized = tf.image.resize_bicubic(
-      img[None, :, :, None], new_shape)[0, :, :, 0]
-  padding, = tf.py_func(_get_padding, [new_shape, max_size], [new_shape.dtype])
-  return tf.pad(resized, padding)
+  resized = util.scale(img, new_shape)
+  return pad_square(resized, MAX_SIZE)
+
+def pad_square(img, max_size=MAX_SIZE):
+  shape = tf.shape(img)
+  padding, = tf.py_func(_get_padding, [shape, max_size], [shape.dtype])
+  padded = tf.pad(255 - img, padding)
+  return 255 - padded
 
 def _resized_shape(shape, max_size):
   if shape[0] > shape[1]:
@@ -55,4 +62,5 @@ def _rotate_image(img, angle):
   if np.isnan(angle):
     return img
   else:
-    return scipy.ndimage.interpolation.rotate(img, angle, reshape=False)
+    return scipy.ndimage.interpolation.rotate(
+        img, np.rad2deg(angle), reshape=False, mode='constant', cval=255.0)
