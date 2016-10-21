@@ -9,7 +9,6 @@ def single_staffdist(page):
 
 def _single_staffdist(img):
   hist = runlength_pairs(img)
-  print(hist)
   peak = np.int32(np.argmax(hist))
   peak_val = hist[peak]
   hist[max(0, peak - 3):min(len(hist), peak + 4)] = 0
