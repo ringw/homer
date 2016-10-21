@@ -2,7 +2,7 @@ from homer.page import Page
 from homer.rotate import get_rotated_page
 from homer.scale import get_scaled_page
 from homer.scale import SCALED_STAFFSIZE
-from homer.compute.staffsize import get_staffsize
+from homer.staffsize import single_staffdist
 import tensorflow as tf
 
 def page_queue(page_path, image, capacity=10):
@@ -20,4 +20,4 @@ def create_page(image):
   return page
 
 def can_process(page):
-  return abs(get_staffsize(page) - SCALED_STAFFSIZE) <= 1
+  return abs(single_staffdist(page) - SCALED_STAFFSIZE) <= 1
