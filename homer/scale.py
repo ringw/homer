@@ -1,5 +1,5 @@
 import tensorflow as tf
-from homer.staffsize import single_staffsize
+from homer.staffsize import single_staffdist
 from homer.page import Page
 from homer.rotate import pad_square
 from homer import util
@@ -7,7 +7,7 @@ from homer import util
 SCALED_STAFFSIZE = 12
 
 def get_scaled_page(page):
-  staffsize = single_staffsize(page)
+  staffsize = single_staffdist(page)
   shape = tf.shape(page.image)
   a = tf.cast(SCALED_STAFFSIZE, tf.float32) / tf.cast(staffsize, tf.float32)
   b = 2048.0 / tf.cast(tf.reduce_max(tf.shape(page.image)), tf.float32)
