@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 
 def naive_bincount(lst):
@@ -7,6 +8,13 @@ def naive_bincount(lst):
   unused_y, unused_idx, counts = tf.unique_with_counts(enhanced_list)
   # Remove the extra elements that were in pre_list.
   return counts - 1
+
+def bincount(lst):
+  result, = tf.py_func(np_bincount, [lst], [lst.dtype])
+  return result
+
+def np_bincount(lst):
+  return np.bincount(lst).astype(lst.dtype)
 
 def find_nonzero(t, axis=0, first=True):
   bool_array = tf.cast(t, tf.boolean)

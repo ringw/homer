@@ -25,12 +25,13 @@ def global_runhist(page):
 
   white_runs = tf.gather_nd(run_lengths, tf.where(tf.logical_not(is_black_run)))
   black_runs = tf.gather_nd(run_lengths, tf.where(is_black_run))
-  return util.naive_bincount(white_runs), util.naive_bincount(black_runs)
+  return util.bincount(white_runs), util.bincount(black_runs)
 
 def get_staffsize(page):
   white, black = global_runhist(page)
-  page.staff_space = single_peak(white)
-  page.staff_thick = single_peak(black)
+  minval = tf.shape(page.image)[1]
+  page.staff_space = single_peak(white, minval=minval)
+  page.staff_thick = single_peak(black, minval=minval)
   is_valid = tf.logical_and(
       tf.greater(page.staff_space, -1), tf.greater(page.staff_thick, -1))
   page.staff_dist = tf.cond(is_valid,
@@ -38,7 +39,7 @@ def get_staffsize(page):
       lambda: tf.constant(-1, dtype=page.staff_space.dtype))
   return page.staff_dist
 
-def single_peak(hist, cutoff=0.5):
+def single_peak(hist, cutoff=0.5, minval=0):
   peak = tf.argmax(hist, dimension=0)[0]
   peak_height = tf.reduce_max(hist)
   shift_before = tf.concat(concat_dim=0, values=[[0], hist[:-1]])
@@ -50,5 +51,7 @@ def single_peak(hist, cutoff=0.5):
   cutoff = tf.constant(cutoff, dtype=tf.float32)
   minor_max = tf.cast(tf.reduce_max(minor_heights), dtype=cutoff.dtype)
   # Create eagerly, so we don't get weird errors creating a tensor in a lambda.
-  return tf.cond(tf.cast(peak_height, dtype=cutoff.dtype) * cutoff > minor_max,
+  return tf.cond(
+      (tf.cast(peak_height, dtype=cutoff.dtype) * cutoff > minor_max)
+          & (peak_height > minval),
       lambda: peak, lambda: tf.constant(-1, dtype=peak.dtype))
