@@ -1,13 +1,17 @@
+import tensorflow as tf
 from homer.compute.staffsize import get_staffsize
+from homer.page import Page
+from homer.rotate import pad_square
+from homer import util
 
 SCALED_STAFFSIZE = 12
 
 def get_scaled_page(page):
   staffsize = get_staffsize(page)
-  scale = tf.cast(SCALED_STAFFSIZE, tf.float32) / tf.cast(staffsize, tf.float32)
-  scale = tf.select(scale < 1.0, tf.constant(1.0), scale)
-  shape = tf.shape(page.square_image)
+  shape = tf.shape(page.image)
+  a = tf.cast(SCALED_STAFFSIZE, tf.float32) / tf.cast(staffsize, tf.float32)
+  b = 2048.0 / tf.cast(tf.reduce_max(tf.shape(page.image)), tf.float32)
+  scale = tf.cond((a < 0) | (b < a), lambda: b, lambda: a)
   new_shape = tf.cast(tf.cast(shape, tf.float32) * scale, tf.int32)
-  resized = tf.image.resize_bicubic(
-      img[None, :, :, None], new_shape)[0, :, :, 0]
-  return get_square(resized)
+  resized = util.scale(page.image, new_shape)
+  return Page(pad_square(resized, 2048))
