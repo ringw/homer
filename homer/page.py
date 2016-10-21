@@ -8,8 +8,17 @@ class Page(object):
   staff_thick = None
   staff_dist = None
   def __init__(self, image):
-    self.image = image
-    self.tensor = image[:, :, 0] < self.threshold
+    image = tf.cast(image, tf.float32)
+    image = tf.cond(
+        tf.shape(tf.shape(image))[0] > 2, lambda: image[:, :, 0], lambda: image)
+    self.tensor = image < self.threshold
+    self.is_flipped = (tf.reduce_sum(
+        tf.reshape(tf.cast(self.tensor, tf.int64), [-1]))
+        > tf.cast(tf.cast(tf.reduce_prod(tf.shape(self.tensor)), tf.float32)
+                  * 0.5, tf.int64))
+    self.image = tf.cond(self.is_flipped, lambda: 255 - image, lambda: image)
+    self.tensor = tf.cond(
+        self.is_flipped, lambda: ~self.tensor, lambda: self.tensor)
 
   @classmethod
   def for_path(self, path):
