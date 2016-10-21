@@ -9,4 +9,4 @@ class ProjectionStaffDetector(base.BaseStaffDetector):
 
   def detect(self, img):
     proj = tf.reduce_sum(tf.cast(img, tf.int32), reduction_indices=[1])
-    return peaks(proj, window_size=self.page.staff_dist)
+    return peaks(proj, window_size=self.page.staff_dist, min=tf.shape(img)[1] / 5)

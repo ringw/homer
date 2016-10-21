@@ -58,5 +58,10 @@ def staff_center_filter(page):
        img,
        util.roll(img, page.staff_dist),
        util.roll(img, page.staff_dist*2),
-       #functools.reduce(tf.add([
-       ~(util.roll(img, -3) | util.roll(img, 3)))
+       (
+          tf.cast(util.roll(img, -page.staff_dist*2 -3) | util.roll(img, -page.staff_dist*2 + 3), tf.int32)
+          + tf.cast(util.roll(img, -page.staff_dist -3) | util.roll(img, -page.staff_dist + 3), tf.int32)
+          + tf.cast(util.roll(img, -3) | util.roll(img, 3), tf.int32)
+          + tf.cast(util.roll(img, page.staff_dist -3) | util.roll(img, page.staff_dist + 3), tf.int32)
+          + tf.cast(util.roll(img, page.staff_dist*2 -3) | util.roll(img, page.staff_dist*2 + 3), tf.int32)
+       ) < 3])

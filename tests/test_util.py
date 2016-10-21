@@ -17,3 +17,9 @@ class RollTest(tf.test.TestCase):
                             [0, 0, 0, 0, 0])
       assert np.array_equal(roll(tf.constant([1, 3, 5, 7, 9]), -5).eval(),
                             [0, 0, 0, 0, 0])
+
+class PeaksTest(tf.test.TestCase):
+  def test_peaks(self):
+    assert np.array_equal(_peaks(np.array([1, 3, 5, 7, 9]), 1), [])
+    assert np.array_equal(_peaks(np.array([1, 3, 5, 7, 9]), 3), [])
+    assert np.array_equal(_peaks(np.array([1, 7, 5, 7, 9]), 3), [1])
